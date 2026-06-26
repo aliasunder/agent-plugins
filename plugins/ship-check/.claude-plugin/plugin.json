@@ -1,0 +1,5 @@
+{
+  "name": "ship-check",
+  "version": "1.0.0",
+  "description": "Fresh-eyes review agents for the ship-check pipeline. Each agent approaches the codebase without prior context, loads project conventions and user preferences independently, and returns structured findings."
+}
