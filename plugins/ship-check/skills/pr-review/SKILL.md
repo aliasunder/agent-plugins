@@ -61,6 +61,11 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 - Error paths exercised, not just happy path
 - Race conditions, concurrency issues
 - API contract violations
+- **Documentation accuracy** (when the PR adds or modifies user-facing docs):
+  verify that factual claims — privacy/security guarantees, architecture, data
+  flow, storage locations, capability descriptions — match the implementation.
+  A guide that says "no external communication" when the system has an outbound
+  sync service is a correctness bug, not a style issue
 
 ### 2. Convention compliance (high-level scan)
 - Scan for obvious convention violations — naming, structure, module layering

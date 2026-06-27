@@ -38,10 +38,14 @@ to every changed file. It is systematic where pr-review is intuitive.
    `Dockerfile`, `docker-compose*`), and config files (`sst.config.*`, `*.json`) are
    in scope. CI/workflow files ARE in scope — dimension 1
    (description-vs-implementation) applies to workflow step descriptions, job names,
-   and conditional logic. Pure documentation changes (only `.md` files) are out of
-   scope — report "0 checkable files changed — docs only" and exit. This keeps the
-   ship-check pipeline summary accurate (the phase ran and assessed the diff, rather
-   than being skipped by the orchestrator).
+   and conditional logic. User-facing documentation (`.md` guides, READMEs) is in
+   scope for dimension 1 when the docs make factual claims about the system —
+   privacy/security guarantees, architecture, data flow, storage locations, capability
+   claims, or tool categorization. Verify each claim against the implementation. Pure
+   formatting/prose/structural changes to docs are out of scope — but a docs PR that
+   says "no external communication" when the system has an outbound sync service is a
+   D1 bug, not a style issue. Only report "docs only — nothing to check" when no
+   factual claims about the system are present.
 5. Skip test files — test-audit handles those.
 6. **Read each changed file in full** — not just the diff. Bugs hide in how new
    code interacts with surrounding context.
