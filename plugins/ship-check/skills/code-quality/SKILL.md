@@ -73,6 +73,10 @@ Work through the changed files. For each, check these dimensions in order:
 - No disguised-mutation folds (reduce that mutates its accumulator)
 - Named records over positional tuples where it aids readability
 - Named locals over inline expressions where it helps a line read on its own
+- **Named params trigger**: functions with >2 args, or with adjacent same-typed
+  args that could be silently transposed, should use a named-params object. Two
+  adjacent `string` roots or two adjacent `number` limits are a swap hazard —
+  the call compiles fine with args reversed but does the wrong thing
 
 ### 3. Comments
 - Comments earn their place by clarifying non-obvious domain context

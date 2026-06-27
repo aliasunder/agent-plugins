@@ -87,7 +87,10 @@ Every test must satisfy BOTH bars:
   possible.
 - **Early-return pass**: a returned `0`/empty/`false` can come from the guard you're
   testing OR from the function bailing out early. Assert a side effect unique to the
-  intended path.
+  intended path. Concrete example: `expect(listNotes(escapingDir)).toEqual([])` passes
+  both when the containment guard fires AND when the directory is simply empty — add a
+  sentinel (spy on the warn log, or call `listNotes(vaultRoot)` and assert `length > 0`)
+  to prove the guard is the reason for the empty result.
 
 ### 3. Assertion quality
 - Exact assertions (`toBe`, `toHaveLength(2)`) over loose matchers
@@ -100,6 +103,9 @@ Every test must satisfy BOTH bars:
 - `const` per test over `let` + `beforeEach` when possible
 - `beforeEach` justified only for shared setup all tests in a `describe` need
 - Explicit callback parameter names (`orphan` not `o`, `entry` not `e`)
+- No `!` non-null assertions — banned in production AND test code. Use a guard
+  (`if (!x) throw`) or restructure the assertion (`toEqual([expect.objectContaining(...)])`)
+  instead of `results[0]!.path`
 - Use vitest helpers (`onTestFinished`, `vi.mocked`, `vi.each`) before hand-rolling
 
 ### 5. Completeness
