@@ -99,6 +99,18 @@ For each unresolved bot thread, do ALL of these in order:
 
 1. **Evaluate**: valid finding or false positive? Check against AGENTS.md conventions.
 
+   **There are only two outcomes: valid or false positive.** Do NOT invent a third
+   category. In particular:
+   - **"Pre-existing" is not a reason to skip.** If the PR touches the code path a
+     finding describes — even if the underlying pattern existed before — it is in scope.
+     A PR that widens a filter or adds a code path inherits the obligations of that path.
+   - **"Out of scope" is not yours to declare.** Only the user decides scope. If a
+     finding is valid and the fix is reasonable effort, fix it. If it's genuinely high
+     lift (major refactor, new async boundary, architectural change), describe the effort
+     and ask the user — don't defer it unilaterally.
+   - **"Belongs in a separate PR" is not a valid disposition.** Assess the lift. If
+     it's a few lines, fix it now. If it's large, present the tradeoff to the user.
+
 2. **Report as a one-liner** before acting:
    ```
    Thread 1 (callback naming): Valid — AGENTS.md requires descriptive params → fixed
@@ -106,7 +118,10 @@ For each unresolved bot thread, do ALL of these in order:
    Thread 3 (truncated sentence): False positive — line 621 is complete
    ```
 
-3. If valid: **make the code fix**.
+3. If valid: **make the code fix**. If the lift is unclear, assess it first (how many
+   lines? does it need tests? does it change an interface?) and state it in the one-liner.
+   Fix anything that's reasonable effort; only escalate to the user when the fix is
+   genuinely high lift.
 
 4. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment:
    ```

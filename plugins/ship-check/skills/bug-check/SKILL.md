@@ -168,6 +168,14 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    or implementation details that shouldn't reach clients?
 4. **Guard correctness**: Is a guard condition (`if (value !== "")`) the right
    check? Could it be unconditional, or does it need a different condition?
+5. **Widened eligibility**: When a filter or eligibility check is broadened
+   (new condition added via `||`, new file type accepted, new input source
+   supported), trace what guarantees the old filter implicitly provided.
+   The new branch must provide equivalent guarantees — or add explicit
+   validation for the ones it loses. Common: `isFile()` → `isFile() ||
+   isSymbolicLink()` without adding `realpath()` containment, `stat().isFile()`,
+   or broken-symlink handling. Also: widening a query scope, accepting a new
+   auth method, or supporting a new content type without corresponding validation.
 
 ### 7. Platform and encoding
 
@@ -180,6 +188,19 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
   codebase uses local time (or vice versa) is a subtle bug.
 - **Unicode**: String length/slice operations on multi-byte characters. Regex
   patterns that assume ASCII.
+- **Symlinks and filesystem indirection**: Does code that walks directories
+  or reads files follow symlinks without validating targets? Check for:
+  (a) containment — `realpath()` to resolve the target, then verify it stays
+  within the allowed root (lexical prefix checks on the original path are
+  insufficient); (b) type verification — after resolving, `stat().isFile()`
+  to reject directories masquerading as files (e.g., a directory named `*.md`);
+  (c) broken links — `realpath()` throws ENOENT for dangling symlinks, catch
+  and skip gracefully; (d) defense in depth — validate at every entry point
+  (search root, directory listing root, individual entries), not just the
+  innermost level. A symlinked search root can bypass all per-entry checks.
+- **TOCTOU (time-of-check-time-of-use)**: Is there a gap between checking a
+  file's properties (stat, readdir) and acting on it (readFile, index)? In
+  concurrent environments, the file can change between check and use.
 
 ## Procedure
 

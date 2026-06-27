@@ -88,6 +88,19 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   - Deploy workflows need `concurrency:` blocks to prevent overlapping deploys
   - `if:` conditions can't see step-level `env:` — GitHub evaluates `if:` before
     the step runs on the runner
+- **Filesystem security** (when code reads/writes/indexes files from a directory tree):
+  - Path traversal: are user-controlled or externally-sourced paths validated with
+    `realpath()` containment checks, not just lexical prefix matching? A symlink
+    or `../` sequence can escape a root directory that passes a string-prefix check
+  - Symlink safety: does code that accepts symlinks verify the target is within
+    bounds, is the expected type (file vs directory), and exists (not dangling)?
+  - Defense in depth: are containment checks applied at every entry point (root,
+    folder, individual file), not just the innermost level? Per-entry validation
+    is bypassed if the search root itself is a symlink pointing outside the
+    allowed tree
+  - Widened eligibility: when a filter is broadened (e.g., `isFile()` →
+    `isFile() || isSymbolicLink()`), check that validation covers the guarantees
+    the old filter implicitly provided
 
 ### 5. TDQS scoring (conditional)
 - **Only when tool descriptions changed.** If the PR modifies MCP tool descriptions
