@@ -153,9 +153,14 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 2. **Overly broad transformations**: An operation applied everywhere when it should
    be scoped to a specific context (e.g., stripping escape characters globally
    instead of only in table cells where they appear).
-3. **Shared helpers not used**: If a helper exists for IP extraction, timezone
-   conversion, or error formatting, verify all call sites use it. A new call site
-   that reimplements the logic instead of calling the helper will drift.
+3. **Shared helpers not used**: Before accepting a language primitive or stdlib
+   call in new code, grep `src/utils/` and nearby modules for an existing helper
+   that does the same job. This includes bounded alternatives to unbounded
+   primitives — if `mapWithConcurrency` exists and new code uses bare
+   `Promise.all` for the same fan-out pattern, that's a miss even though
+   `Promise.all` isn't "reimplementing" the helper. The trigger is: new code does
+   concurrent work, file manipulation, error formatting, or string processing →
+   grep for helpers first, then justify why the primitive is correct if one exists.
 4. **Inconsistent defaults**: Same parameter with different defaults in different
    functions — one uses `true`, another uses `false`, with no documented reason.
 

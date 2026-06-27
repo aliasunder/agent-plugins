@@ -97,6 +97,12 @@ Every test must satisfy BOTH bars:
   (`toBeGreaterThanOrEqual(1)`, `toBeDefined()`) when the expected value is known
 - Full object/output match (`toBe` on the whole value) over `contains`/substring
   when output is deterministic and inputs are controlled
+- **No decomposed assertions**: `toHaveLength(1)` + `results[0].path === "foo"`
+  is weaker than `expect(results.map(r => r.path)).toEqual(["foo"])` — the
+  decomposed form doesn't catch extra items, ordering changes, or unexpected
+  properties. When you can assert the whole shape in one statement, do it.
+  The trigger: any time you see `toHaveLength` followed by index-based property
+  checks, collapse into a single `toEqual`
 - Reserve `contains` for when only a fragment is genuinely under test
 
 ### 4. Test hygiene
