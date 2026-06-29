@@ -177,6 +177,11 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    or implementation details that shouldn't reach clients?
 4. **Guard correctness**: Is a guard condition (`if (value !== "")`) the right
    check? Could it be unconditional, or does it need a different condition?
+6. **Silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors with
+   no trace. Every catch must either log or re-throw. Catching without logging is
+   worse than not catching — it actively hides failures that affect debuggability.
+   When fixing a silent catch, always add a log call with the error and enough
+   context (file path, operation name) to diagnose the failure from the log alone.
 5. **Widened eligibility**: When a filter or eligibility check is broadened
    (new condition added via `||`, new file type accepted, new input source
    supported), trace what guarantees the old filter implicitly provided.

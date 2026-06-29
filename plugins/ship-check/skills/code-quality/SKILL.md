@@ -78,19 +78,25 @@ Work through the changed files. For each, check these dimensions in order:
   adjacent `string` roots or two adjacent `number` limits are a swap hazard —
   the call compiles fine with args reversed but does the wrong thing
 
-### 3. Comments
+### 3. Error handling hygiene
+- **No silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors
+  with no trace. Every catch must log or re-throw — never swallow silently.
+- When fixing a catch block, always include a log call with the error and enough
+  context (path, operation) to diagnose from the log alone
+
+### 4. Comments
 - Comments earn their place by clarifying non-obvious domain context
 - Never restate self-documenting names
 - If a long comment is needed, consider simplifying the code instead
 - Regex constants get doc comments explaining what they match
 
-### 4. Simplicity
+### 5. Simplicity
 - Simple code over clever code — fewer moving parts, fewer lines when achievable
 - Each line should say what it does on its own
 - Working is the floor, not the bar — ask whether a simpler structure exists
 - A reader should not need to pause to understand what the code does
 
-### 5. Module conventions (if project has module layering rules)
+### 6. Module conventions (if project has module layering rules)
 - Dependency direction respected
 - Exports match the project's style (namespace objects vs named exports)
 - Utils/ admission bars met

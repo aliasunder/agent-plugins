@@ -96,6 +96,14 @@ a real bug is not.
 
 Only defer when the **fix itself** is uncertain, risky, or requires a design decision.
 
+### No environment-specific dismissals
+
+Don't use one deployment's specs to dismiss resource, performance, or scaling concerns.
+"On Lightsail with 4GB RAM and 772 notes, this is negligible" is not a valid dismissal
+for an OSS project where users may have 10x the data on half the RAM. Evaluate against
+the worst reasonable use case for the project's audience — not the maintainer's current
+setup. And if the fix is trivial, fix it regardless of the impact assessment.
+
 ## Execution
 
 ### Phase 1: PR Review
