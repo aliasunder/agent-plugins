@@ -91,6 +91,11 @@ skipping decision points.
 
 ## Fixing and Committing
 
+- **Your fixes must follow the project's AGENTS.md conventions.** You loaded AGENTS.md
+  in orientation — apply it to the code you write, not just the code you review. If
+  AGENTS.md bans `as` assertions, your fix cannot use `as`. If it requires early
+  returns, your fix uses early returns. The bug-check phase runs after code-quality,
+  so no convention pass follows yours — convention violations in your fixes ship.
 - Fix all high-confidence findings directly.
 - For medium/low-confidence findings: fix if the change is trivial and safe (< 5
   lines, no interface change). Only flag when the fix itself is uncertain or risky.

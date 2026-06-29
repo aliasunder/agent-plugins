@@ -276,6 +276,14 @@ across the codebase" and "one call site" is the difference between deferring a
 finding and fixing it in 30 seconds. Never estimate effort from intuition when a
 10-second grep gives the real answer.
 
+### Your fixes must follow AGENTS.md
+
+You loaded AGENTS.md in "Before starting." Apply it to the code you WRITE, not
+just the code you review. If AGENTS.md bans `as` assertions, your fix uses a
+runtime guard instead. If it requires early returns, your fix uses early returns.
+Bug-check runs after code-quality in the pipeline — no convention pass follows
+yours. Convention violations in your fixes ship unchecked.
+
 ## Procedure
 
 1. **For each changed production file**, read the full file content (not just the
