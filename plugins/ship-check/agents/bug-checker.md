@@ -14,6 +14,7 @@ tools:
   - Edit
   - Bash
   - ToolSearch
+  - mcp__sequential-thinking__sequentialthinking
 skills:
   - bug-check
   - fable-mode

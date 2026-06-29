@@ -163,6 +163,13 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    grep for helpers first, then justify why the primitive is correct if one exists.
 4. **Inconsistent defaults**: Same parameter with different defaults in different
    functions — one uses `true`, another uses `false`, with no documented reason.
+5. **Config default divergence across file types**: When a PR adds or modifies
+   environment variables, check that defaults agree across all layers —
+   docker-compose (`${VAR:-value}`), `.env.example`, and the config parser in
+   code. A common trap: compose uses `${VAR:-}` (empty string when unset) but
+   the config parser uses `.default("true")` which only applies when the var is
+   absent, not when it's empty. Empty-string defaults bypass code-level defaults
+   and can cause startup failures or silent misconfiguration.
 
 ### 6. Input validation and error paths
 
@@ -215,6 +222,14 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 - **TOCTOU (time-of-check-time-of-use)**: Is there a gap between checking a
   file's properties (stat, readdir) and acting on it (readFile, index)? In
   concurrent environments, the file can change between check and use.
+- **Snapshot staleness in background tasks**: When a PR introduces background
+  processing using a startup snapshot (e.g., "snapshot all notes, then embed
+  them in the background"), check whether the live code path (file watcher,
+  API handler) can invalidate entries in the snapshot while it's being consumed.
+  Content-hash gating protects against stale updates (the hash won't match) but
+  NOT against deletes — if an entry is deleted after the snapshot but before the
+  background loop reaches it, the loop recreates stale data for a deleted entity.
+  Check: does the background loop verify the entity still exists before writing?
 
 ## Rules that override intuition
 

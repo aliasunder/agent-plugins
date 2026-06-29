@@ -14,6 +14,7 @@ tools:
   - Write
   - Bash
   - ToolSearch
+  - mcp__sequential-thinking__sequentialthinking
 skills:
   - test-audit
   - fable-mode
