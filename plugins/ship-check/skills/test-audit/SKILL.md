@@ -104,6 +104,27 @@ Every test must satisfy BOTH bars:
   The trigger: any time you see `toHaveLength` followed by index-based property
   checks, collapse into a single `toEqual`
 - Reserve `contains` for when only a fragment is genuinely under test
+- **No position-agnostic assertions on ordered collections.** When an API returns
+  results in a deterministic order (`Promise.allSettled` preserves input order,
+  `Array.map` preserves index, `Object.entries` preserves insertion order), assert
+  the exact positional shape — not "some element matches."
+  The trigger: `arrayContaining` or `.filter(r => r.status === ...)` on results
+  from `Promise.allSettled`, `Promise.all`, or any ordered collection where the
+  test description claims positional behavior ("the second call rejects", "first
+  result succeeds"). When you see this pattern, check whether the test name claims
+  a specific position — if it does, the assertion must verify that position.
+  Wrong: `expect(results).toEqual(expect.arrayContaining([expect.objectContaining({status: "rejected"})]))` — proves *some* call rejected, not *which* call.
+  Right: `expect(results).toEqual([expect.objectContaining({status: "fulfilled"}), expect.objectContaining({status: "rejected", reason: ...})])` — proves the first succeeded and the second rejected.
+- **No substring matching on deterministic error messages.** When the error message
+  is a hardcoded string literal in the source code (not interpolated, not dynamic),
+  assert the exact message — not a substring.
+  The trigger: `stringContaining("...")` or `toThrow("...")` (substring match) on
+  an error whose message text is a fixed literal. Read the production code to check
+  — if the `throw` or `reject` uses a template literal with variables, substring is
+  fine; if it's a plain string like `"concurrent write in progress"`, match exactly.
+  Wrong: `expect.stringContaining("concurrent write")` — matches any error that
+  happens to contain that substring.
+  Right: `message: "concurrent write in progress"` — matches only the intended error.
 
 ### 4. Test hygiene
 - `const` per test over `let` + `beforeEach` when possible
@@ -113,6 +134,15 @@ Every test must satisfy BOTH bars:
   (`if (!x) throw`) or restructure the assertion (`toEqual([expect.objectContaining(...)])`)
   instead of `results[0]!.path`
 - Use vitest helpers (`onTestFinished`, `vi.mocked`, `vi.each`) before hand-rolling
+- **No trailing cleanup that gets skipped on failure.** When a test creates
+  resources (temp directories, files, servers, connections), cleanup code at the
+  END of the test body is skipped if any assertion or `await` throws.
+  The trigger: `rm(...)`, `cleanup()`, `close()`, or any teardown call that appears
+  AFTER assertions in the same test body, without a corresponding `afterEach` or
+  `onTestFinished` registration.
+  Wrong: `await mkdir(dir); /* ...assertions... */ await rm(dir)` — `rm` never
+  runs if an assertion fails, leaving artifacts behind.
+  Right: `await mkdir(dir); onTestFinished(() => rm(dir, {recursive: true, force: true})); /* ...assertions... */` — cleanup runs regardless of test outcome.
 
 ### 5. Completeness
 - Error paths tested, not just happy path
