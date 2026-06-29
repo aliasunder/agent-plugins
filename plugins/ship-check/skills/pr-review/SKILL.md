@@ -152,8 +152,11 @@ for review-only. For review-only mode, post findings as inline PR comments via `
 3. **When flagging, categorize** — the orchestrator needs this to triage:
    - `uncertain diagnosis` — not sure the issue is real, fix is non-trivial
    - `complex fix` — diagnosis is sound but fix is non-trivial (> 10 lines, interface
-     changes, or behavioral risk)
+     changes, or behavioral risk). **Grep for call sites before claiming this** — the
+     difference between "every call site" and "one call site" is the difference between
+     deferring and a 30-second fix.
    - `needs design decision` — multiple valid approaches, user must choose
+   - `pre-existing gap` — issue predates the PR but was revealed by it
 4. **Run tests** after all fixes to confirm no behavior change.
 5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).

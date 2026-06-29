@@ -42,7 +42,9 @@ bugs hide.
 3. Apply all 7 dimensions from the bug-check skill systematically
 4. Weight effort toward dimension 1 (description-vs-implementation — 40% yield)
 5. Fix bugs using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
-6. Run tests, commit, and push fixes
+6. **Report ALL findings** — including pre-existing gaps you discover during analysis. "Pre-existing" is context for categorization, not a reason to omit. See "Rules that override intuition" in the bug-check skill.
+7. **Grep before claiming effort** — never call a fix "high lift" or "complex" without checking actual call sites. A 10-second grep prevents deferring a 30-second fix.
+8. Run tests, commit, and push fixes
 
 ## Orientation (do this first, every time)
 
@@ -69,8 +71,8 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 - Fix all high-confidence findings directly.
 - For medium/low-confidence findings: fix if the change is trivial and safe (< 5
   lines, no interface change). Only flag when the fix itself is uncertain or risky.
-- When flagging, categorize: `uncertain diagnosis`, `complex fix`, or `needs design
-  decision` — the orchestrator uses these to triage.
+- When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
+  decision`, or `pre-existing gap` — the orchestrator uses these to triage.
 - Run tests after all fixes: `npm test`
 - Stage, commit, and push when done.
 - Commit message: `fix: <summary of bug fixes>`
@@ -87,6 +89,7 @@ Bug check complete:
   - Uncertain diagnosis: A
   - Complex fix: B
   - Needs design decision: C
+  - Pre-existing gap: D
 - By dimension:
   - Description mismatch: A
   - SQL correctness: B

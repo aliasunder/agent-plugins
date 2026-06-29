@@ -65,19 +65,27 @@ Use **sequential thinking** to evaluate each flagged finding. This is not option
 sequential thinking forces you to deliberate instead of relaying.
 
 1. **Read the flag category** from the phase output. Sub-agents categorize each flagged
-   finding as: `uncertain diagnosis`, `complex fix`, or `needs design decision`.
-2. **Apply the triage matrix**:
+   finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`, or
+   `pre-existing gap`.
+2. **Verify effort claims before applying the matrix.** When a finding is flagged as
+   `complex fix`, don't take the sub-agent's effort estimate at face value. Grep for
+   actual call sites and usages. "Would change every call site across the codebase"
+   has turned out to mean "one call site, one-line fix." A 10-second grep prevents
+   deferring a 30-second fix.
+3. **Apply the triage matrix**:
 
-   | Diagnosis | Fix | Action |
+   | Category | Fix | Action |
    |-----------|-----|--------|
-   | Uncertain | Trivial (< 5 lines, no interface change) | Fix — safe even if diagnosis is wrong |
-   | Uncertain | Complex or risky | Defer to user |
-   | Certain | Trivial | Fix |
-   | Certain | Complex (> 10 lines or interface changes) | Defer to user |
+   | Uncertain diagnosis | Trivial (< 5 lines, no interface change) | Fix — safe even if diagnosis is wrong |
+   | Uncertain diagnosis | Complex or risky | Defer to user |
+   | Complex fix | Trivial (after grep — step 2) | Fix — the sub-agent overestimated |
+   | Complex fix | Actually complex (> 10 lines or interface changes) | Defer to user |
+   | Pre-existing gap | Trivial and mechanical | Fix — the PR revealed the gap |
+   | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
    | Any | Needs design decision | Always defer to user |
 
-3. **For fixes**: read the relevant code, apply the edit, run tests, commit and push.
-4. **Record results**: track triage fixes separately from phase fixes in the summary.
+4. **For fixes**: read the relevant code, apply the edit, run tests, commit and push.
+5. **Record results**: track triage fixes separately from phase fixes in the summary.
 
 ### Key principle: risk vs. confidence
 
@@ -181,7 +189,7 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
-- Triage:       N flagged findings triaged across all phases — M fixed, K deferred
+- Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
 - Verdict:      ship / ship-with-minor-fixes / needs-changes

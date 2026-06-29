@@ -211,6 +211,51 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
   file's properties (stat, readdir) and acting on it (readFile, index)? In
   concurrent environments, the file can change between check and use.
 
+## Rules that override intuition
+
+These rules exist because agents consistently rationalize skipping findings that
+turn out to be real and fixable. Each rule addresses a specific failure pattern.
+
+### No silent skipping
+
+Every finding must appear in the output — including pre-existing gaps discovered
+during analysis. "Pre-existing, not introduced by this PR" is context for
+categorization, not a reason to omit the finding. If you noticed it, report it.
+
+The orchestrator and user cannot act on findings they never see. A bug you found
+and silently dismissed is worse than a bug you missed — you confirmed the problem
+exists and then hid it.
+
+### Pre-existing analog gaps
+
+When the PR correctly implements a pattern (e.g., adds `EMBEDDING_ENABLED` to all
+6 docker-compose files), and you notice an analogous existing feature is missing
+from those same files (e.g., `MEMORY_ENABLED` absent from all of them) — that is a
+finding. Report it. The PR's correct implementation revealed the gap; the fix is
+typically mechanical (copy the pattern the PR already established).
+
+Categorize as: `pre-existing gap` with a note on whether the fix is trivial.
+The orchestrator decides scope; you decide what to report.
+
+### No environment-specific dismissals
+
+Don't use one deployment's specs to dismiss resource, performance, or scaling
+concerns. "On Lightsail with 4GB RAM and 772 notes, this is negligible" is not a
+valid dismissal for an OSS project where users may have 10x the data on half the
+RAM. Evaluate concerns against the worst reasonable use case for the project's
+audience — not the maintainer's current setup.
+
+And regardless of impact assessment: if the fix is trivial, fix it. A one-line
+null-out after data is consumed costs nothing and eliminates the concern entirely.
+
+### Verify effort before claiming it
+
+Before calling any fix "high lift," "would change every call site," or "complex
+refactor" — **grep for actual usages**. The difference between "every call site
+across the codebase" and "one call site" is the difference between deferring a
+finding and fixing it in 30 seconds. Never estimate effort from intuition when a
+10-second grep gives the real answer.
+
 ## Procedure
 
 1. **For each changed production file**, read the full file content (not just the
@@ -238,8 +283,9 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
      The cost of a safe no-op is near zero; the cost of missing a real bug is not.
      "Low-risk" is a reason TO fix, not a reason to defer.
    - **Low confidence + complex/risky fix** → flag with category.
-   When flagging, categorize as: `uncertain diagnosis`, `complex fix`, or
-   `needs design decision`. The orchestrator uses these categories to triage.
+   When flagging, categorize as: `uncertain diagnosis`, `complex fix`,
+   `needs design decision`, or `pre-existing gap`. The orchestrator uses
+   these categories to triage.
 4. Stage, commit, and push all fixes.
 5. Report:
 
