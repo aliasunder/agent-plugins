@@ -228,11 +228,18 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 3. **One line per finding, then fix it:**
    ```
    [D1] file.ts:612 — description refs vault_find_orphans, should be vault_get_backlinks → fixed
-   [D4] file.ts:88 — off-by-one in LIMIT, fetches N not N+1 for truncation → flagged (medium)
+   [D4] file.ts:88 — off-by-one in LIMIT, fetches N not N+1 for truncation → fixed (low confidence, trivial fix)
+   [D5] file.ts:200 — async init race if called concurrently → flagged (complex fix — needs mutex or queue)
    ```
-   Don't describe the planned fix — the diff speaks for itself. For medium/low
-   confidence, add brief reasoning after "flagged." Don't fix low-confidence
-   findings without asking the user.
+   Don't describe the planned fix — the diff speaks for itself.
+   **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity:
+   - **High/medium confidence** → fix directly.
+   - **Low confidence + trivial fix** (< 5 lines, no interface change) → fix it.
+     The cost of a safe no-op is near zero; the cost of missing a real bug is not.
+     "Low-risk" is a reason TO fix, not a reason to defer.
+   - **Low confidence + complex/risky fix** → flag with category.
+   When flagging, categorize as: `uncertain diagnosis`, `complex fix`, or
+   `needs design decision`. The orchestrator uses these categories to triage.
 4. Stage, commit, and push all fixes.
 5. Report:
 

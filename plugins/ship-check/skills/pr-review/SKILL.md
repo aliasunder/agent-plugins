@@ -135,14 +135,25 @@ for review-only. For review-only mode, post findings as inline PR comments via `
 
 ```
 [D1] file.ts:42 — issue description → fixed
-[D4] file.ts:88 — issue description → flagged (low confidence)
+[D4] file.ts:88 — issue description → fixed (low confidence, trivial fix)
+[D4] file.ts:200 — issue description → flagged (complex fix — needs mutex or queue)
 ```
 
-1. **Report each finding** as a one-liner: `[dimension] file:line — what's wrong → fixed / flagged`.
+1. **Report each finding** as a one-liner: `[dimension] file:line — what's wrong → fixed / flagged (category)`.
    Group by dimension when multiple findings exist. Don't describe the planned fix —
    the diff speaks for itself.
-2. **Fix** all high and medium confidence findings directly. Flag low-confidence
-   findings with brief reasoning — don't fix without asking.
-3. **Run tests** after all fixes to confirm no behavior change.
-4. **Summarize**: count by dimension and severity, test status, verdict
+2. **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity:
+   - **High/medium confidence** → fix directly, regardless of fix complexity.
+   - **Low confidence + trivial fix** (< 5 lines, no interface change, no behavioral
+     risk) → fix it. A safe no-op change costs nothing; a real bug left unfixed does.
+     "Low-risk" is a reason TO fix, not a reason to defer.
+   - **Low confidence + complex/risky fix** → flag with category.
+   - When in doubt about the diagnosis but not about the fix: **fix it.**
+3. **When flagging, categorize** — the orchestrator needs this to triage:
+   - `uncertain diagnosis` — not sure the issue is real, fix is non-trivial
+   - `complex fix` — diagnosis is sound but fix is non-trivial (> 10 lines, interface
+     changes, or behavioral risk)
+   - `needs design decision` — multiple valid approaches, user must choose
+4. **Run tests** after all fixes to confirm no behavior change.
+5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).

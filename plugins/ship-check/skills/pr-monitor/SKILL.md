@@ -182,10 +182,11 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
 
 1. Tell the user: *"Pushed fix(es). Waiting for bot reviews (~3 min)..."*
 
-2. **Schedule a follow-up check.** Call `ScheduleWakeup`:
+2. **Schedule a follow-up check.** ScheduleWakeup is available in all Claude Code
+   sessions — `/loop` context is NOT a prerequisite. Call it:
    ```
    ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after push",
-     prompt: "<the /loop prompt>")
+     prompt: "/pr-monitor")
    ```
 
 3. On wake: **re-run Step 2** (all four checks). Compare unresolved thread count to
@@ -198,7 +199,16 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
 
 ### If ScheduleWakeup is not available
 
-If invoked standalone (without `/loop`) and `ScheduleWakeup` fails or is unavailable:
+ScheduleWakeup is available in all Claude Code sessions. The fallback below applies
+**only when the ScheduleWakeup tool call itself returns an error** — not when you
+reason it "shouldn't be needed" or "the pipeline is finishing." If in doubt, call it —
+a rejected tool call is cheap, a missed bot comment is not.
+
+Never substitute your own judgment for this step. "CI was already green before I pushed"
+and "bots already commented" are not reasons to skip — bots re-analyze the entire PR
+after every push.
+
+If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 - Run an **immediate re-check** (Step 2) right after pushing -- this catches fast bots.
 - If no new comments yet, tell the user: *"Bot reviews typically take 2-5 minutes. Run
   `/loop /pr-monitor` for continuous monitoring, or say 'check' when you want me to
@@ -242,3 +252,13 @@ Continue monitoring after Step 5 — whether invoked via `/loop` or not:
 - **Never auto-terminate** for any other reason — not after clean checks, not after
   silence, not because the user hasn't responded. The user may be away and expects
   monitoring to keep running until they return.
+
+### Pipeline context
+
+When invoked as part of a pipeline (e.g., ship-check Phase 5), the pipeline's other
+phases being complete does NOT mean monitoring is done. Phase 5 outlives the pipeline.
+Continue monitoring until the user explicitly says stop or the PR is merged/closed.
+
+If you feel pressure to "wrap up" because a reporting template exists — that template
+is a status snapshot, not a termination signal. Output the report, then continue the
+monitoring loop.

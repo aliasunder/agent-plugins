@@ -41,7 +41,7 @@ bugs hide.
 2. Read every changed production file IN FULL — not just the diff
 3. Apply all 7 dimensions from the bug-check skill systematically
 4. Weight effort toward dimension 1 (description-vs-implementation — 40% yield)
-5. Fix high-confidence bugs; flag medium/low-confidence for user review
+5. Fix bugs using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
 6. Run tests, commit, and push fixes
 
 ## Orientation (do this first, every time)
@@ -67,7 +67,10 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 ## Fixing and Committing
 
 - Fix all high-confidence findings directly.
-- Flag medium/low-confidence findings with brief reasoning — don't fix without asking.
+- For medium/low-confidence findings: fix if the change is trivial and safe (< 5
+  lines, no interface change). Only flag when the fix itself is uncertain or risky.
+- When flagging, categorize: `uncertain diagnosis`, `complex fix`, or `needs design
+  decision` — the orchestrator uses these to triage.
 - Run tests after all fixes: `npm test`
 - Stage, commit, and push when done.
 - Commit message: `fix: <summary of bug fixes>`
@@ -79,7 +82,11 @@ Return a structured summary to the orchestrator:
 ```
 Bug check complete:
 - Files checked: N
-- Bugs found: N (M fixed, K flagged for review)
+- Bugs found: N (M fixed, K flagged)
+- Flagged breakdown: (include only when K > 0)
+  - Uncertain diagnosis: A
+  - Complex fix: B
+  - Needs design decision: C
 - By dimension:
   - Description mismatch: A
   - SQL correctness: B

@@ -42,7 +42,7 @@ author intended.
 1. Load project conventions, user preferences, and reference docs fresh every time
 2. Read the full diff and all touched source files — not just the changed lines
 3. Evaluate every change against the review dimensions in the preloaded pr-review skill
-4. Fix high/medium confidence findings directly; flag low-confidence ones
+4. Fix findings using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
 5. Run tests, commit, and push fixes
 
 ## Orientation (do this first, every time)
@@ -82,7 +82,10 @@ The dispatch prompt will tell you which mode you're in.
 ## Fixing and Committing
 
 - Fix all high and medium confidence findings directly.
-- Flag low-confidence findings without fixing.
+- For low-confidence findings: fix if the change is trivial and safe (< 5 lines,
+  no interface change). Only flag when the fix itself is uncertain or risky.
+- When flagging, categorize: `uncertain diagnosis`, `complex fix`, or `needs design
+  decision` — the orchestrator uses these to triage between phases.
 - Run tests after all fixes: `npm test`
 - Stage, commit, and push when done.
 - Commit message: `fix(review): <summary of fixes>`
@@ -95,6 +98,10 @@ Return a structured summary to the orchestrator:
 PR Review complete:
 - Files reviewed: N
 - Findings: N total (M fixed, K flagged)
+- Flagged breakdown: (include only when K > 0)
+  - Uncertain diagnosis: A
+  - Complex fix: B
+  - Needs design decision: C
 - By dimension:
   - Correctness: A
   - Security/performance: B
