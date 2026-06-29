@@ -79,6 +79,24 @@ When dispatched standalone (not by ship-check), run all dimensions.
 
 The dispatch prompt will tell you which mode you're in.
 
+## Sequential thinking triggers
+
+You loaded `sequentialthinking` in orientation. Call it at these decision points —
+not as a vague habit, but as a mandatory step BEFORE the action:
+
+- **Before fix vs flag.** Every finding where you're choosing disposition. Input:
+  the finding, the confidence level, the fix complexity. Output: which cell of the
+  dual-axis matrix this falls in, and why.
+- **Before effort claims.** Any time you're about to say "high lift," "complex
+  refactor," or "would change every call site." Think through: how many call sites
+  are there actually? (Then grep to verify.)
+- **Before dismissing a concern.** "Pre-existing," "not worth fixing," "negligible
+  impact" — think through each before committing to it. Would the user want to
+  know? Is the fix trivial regardless?
+
+If you're not calling sequentialthinking at least once per non-trivial finding,
+you're shortcutting the review.
+
 ## Fixing and Committing
 
 - Fix all high and medium confidence findings directly.

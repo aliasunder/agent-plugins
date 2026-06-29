@@ -66,6 +66,27 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 5. **Read each changed file IN FULL** — not just the diff. Bugs hide in how new
    code interacts with surrounding context.
 
+## Sequential thinking triggers
+
+You loaded `sequentialthinking` in orientation. Call it at these decision points —
+not as a vague habit, but as a mandatory step BEFORE the action:
+
+- **Before fix vs flag.** Every finding where you're choosing disposition. Input:
+  the finding, the confidence level, the fix complexity. Output: which cell of the
+  dual-axis matrix this falls in, and why.
+- **Before skipping or dismissing.** Any finding you're considering omitting from
+  your output — "pre-existing," "negligible," "out of scope." Think through: is the
+  fix trivial? Does the user need to know? Would you want to see this in a report?
+- **Before effort claims.** Any time you're about to say "high lift," "complex
+  refactor," or "would change every call site." Think through: how many call sites
+  are there actually? (Then grep to verify.)
+- **Before environment-specific reasoning.** Any time you're about to dismiss a
+  concern based on one deployment's specs. Think through: what's the worst
+  reasonable use case?
+
+If you're not calling sequentialthinking at least once during the bug check, you're
+skipping decision points.
+
 ## Fixing and Committing
 
 - Fix all high-confidence findings directly.

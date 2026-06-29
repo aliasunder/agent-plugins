@@ -282,7 +282,9 @@ finding and fixing it in 30 seconds. Never estimate effort from intuition when a
    [D5] file.ts:200 — async init race if called concurrently → flagged (complex fix — needs mutex or queue)
    ```
    Don't describe the planned fix — the diff speaks for itself.
-   **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity:
+   **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
+   **Call `sequentialthinking` before each disposition decision** — input the finding,
+   confidence level, and fix complexity; output which matrix cell it falls in and why:
    - **High/medium confidence** → fix directly.
    - **Low confidence + trivial fix** (< 5 lines, no interface change) → fix it.
      The cost of a safe no-op is near zero; the cost of missing a real bug is not.

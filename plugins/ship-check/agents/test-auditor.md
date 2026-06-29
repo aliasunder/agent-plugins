@@ -65,6 +65,17 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    Separate into test files (`.test.ts` / `.spec.ts`) and production files.
    If 0 of both, report "0 files in scope" and exit.
 
+## Sequential thinking triggers
+
+You loaded `sequentialthinking` in orientation. Call it at these decision points:
+
+- **Before concluding a test passes.** For each `it()` block, think through: does
+  this test actually prove what its description claims? Could it pass with a broken
+  implementation?
+- **Before deciding no coverage gap exists.** When production code changed but you
+  see no missing tests — think through: are all new branches, error paths, and edge
+  cases covered by existing tests?
+
 ## Output Format
 
 Return a structured summary to the orchestrator:

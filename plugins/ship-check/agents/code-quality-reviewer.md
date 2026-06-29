@@ -63,6 +63,17 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 5. **Identify changed files**: `git diff --name-only main...HEAD`
    Skip test files — test-audit handles those in a separate phase.
 
+## Sequential thinking triggers
+
+You loaded `sequentialthinking` in orientation. Call it at these decision points:
+
+- **Before dismissing a finding.** Any time you're leaning toward "not worth
+  fixing" or "stylistic preference" — think through: does the project's AGENTS.md
+  or vault memory have a rule that covers this? Is the fix trivial?
+- **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
+  think through: what error could occur here? What context would someone need in
+  the log to diagnose it?
+
 ## Fixing and Committing
 
 - Fix every finding directly — this is a "pass", not just a review.

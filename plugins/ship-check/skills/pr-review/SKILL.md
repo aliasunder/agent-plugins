@@ -142,7 +142,9 @@ for review-only. For review-only mode, post findings as inline PR comments via `
 1. **Report each finding** as a one-liner: `[dimension] file:line — what's wrong → fixed / flagged (category)`.
    Group by dimension when multiple findings exist. Don't describe the planned fix —
    the diff speaks for itself.
-2. **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity:
+2. **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
+   **Call `sequentialthinking` before each disposition decision** — input the finding,
+   confidence level, and fix complexity; output which matrix cell it falls in and why:
    - **High/medium confidence** → fix directly, regardless of fix complexity.
    - **Low confidence + trivial fix** (< 5 lines, no interface change, no behavioral
      risk) → fix it. A safe no-op change costs nothing; a real bug left unfixed does.
