@@ -15,6 +15,7 @@ tools:
   - Bash
   - ToolSearch
   - mcp__sequential-thinking__sequentialthinking
+  - mcp__claude_ai_Vault_Cortex__vault_get_memory
 skills:
   - bug-check
   - fable-mode
