@@ -35,8 +35,8 @@ to every changed file. It is systematic where pr-review is intuitive.
    git diff main --name-only
    ```
 4. **Scope check**: Production code (`.ts`, `.js`), infrastructure (`.yml`, `.yaml`,
-   `Dockerfile`, `docker-compose*`), and config files (`sst.config.*`, `*.json`) are
-   in scope. CI/workflow files ARE in scope — dimension 1
+   `Dockerfile`, `docker-compose*`), environment config (`.env`, `.env.*`,
+   `.env.example`), and config files (`sst.config.*`, `*.json`) are in scope. CI/workflow files ARE in scope — dimension 1
    (description-vs-implementation) applies to workflow step descriptions, job names,
    and conditional logic. User-facing documentation (`.md` guides, READMEs) is in
    scope for dimension 1 when the docs make factual claims about the system —
@@ -165,11 +165,17 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    functions — one uses `true`, another uses `false`, with no documented reason.
 5. **Config default divergence across file types**: When a PR adds or modifies
    environment variables, check that defaults agree across all layers —
-   docker-compose (`${VAR:-value}`), `.env.example`, and the config parser in
-   code. A common trap: compose uses `${VAR:-}` (empty string when unset) but
-   the config parser uses `.default("true")` which only applies when the var is
-   absent, not when it's empty. Empty-string defaults bypass code-level defaults
-   and can cause startup failures or silent misconfiguration.
+   docker-compose (`${VAR:-value}`), `.env.example`, CLI-generated `.env`
+   templates (e.g., `env.ts`), and the config parser in code. Check ALL
+   config surfaces — a var added to docker-compose and `.env.example` but
+   missing from CLI templates means `npx <tool> init` users never see it.
+   Also check that `.env.example` comments match their values: a comment
+   saying "Disable X" with a value of `# X=true` is a D1 bug — uncommenting
+   enables X, not disables it. A common trap: compose uses `${VAR:-}` (empty
+   string when unset) but the config parser uses `.default("true")` which
+   only applies when the var is absent, not when it's empty. Empty-string
+   defaults bypass code-level defaults and can cause startup failures or
+   silent misconfiguration.
 
 ### 6. Input validation and error paths
 
