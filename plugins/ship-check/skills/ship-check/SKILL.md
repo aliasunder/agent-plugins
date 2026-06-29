@@ -96,6 +96,22 @@ a real bug is not.
 
 Only defer when the **fix itself** is uncertain, risky, or requires a design decision.
 
+### Effort assessment is not optional
+
+This applies everywhere — inter-phase triage, bot comment handling, user requests,
+your own observations. Before calling ANY fix "high lift," "out of scope," "would
+change every call site," or deferring because a change "seems complex":
+
+1. **Grep for actual call sites / usages.** `grep -rn "functionName" --include="*.ts" src/`
+2. **Count the changes needed.** State the number explicitly: "2 call sites, ~4 lines each."
+3. **Then decide.** A fix with 1 call site is not "high lift" regardless of how it
+   sounds in the abstract.
+
+The failure this prevents: an agent says "refactoring its signature would change every
+call site across the codebase — that's high lift," and a 10-second grep reveals one
+call site and a one-line fix. Never estimate effort from intuition when a grep gives
+the real answer.
+
 ### No environment-specific dismissals
 
 Don't use one deployment's specs to dismiss resource, performance, or scaling concerns.
