@@ -101,9 +101,20 @@ For each unresolved bot thread, do ALL of these in order:
 
    **There are only two outcomes: valid or false positive.** Do NOT invent a third
    category. In particular:
+   - **"False positive" means the finding is factually wrong** — the code pattern it
+     describes does not actually exist, or the behavior it warns about cannot happen.
+     "The code was already like this" is NOT a false positive — it's a valid finding on
+     pre-existing code. If the finding describes a real issue (unsafe cast, missing
+     validation, incorrect type), it is valid regardless of when the code was written or
+     why it appears in the diff.
    - **"Pre-existing" is not a reason to skip.** If the PR touches the code path a
      finding describes — even if the underlying pattern existed before — it is in scope.
      A PR that widens a filter or adds a code path inherits the obligations of that path.
+   - **Formatter-exposed code is in scope.** When prettier, eslint --fix, or any
+     formatter brings pre-existing lines into the diff, and a bot flags something real
+     about those lines, that is a valid finding — not a false positive. The formatter
+     created an opportunity to fix it. Evaluate fix effort the same way you would for any
+     valid finding: if the fix is straightforward, fix it now.
    - **"Out of scope" is not yours to declare.** Only the user decides scope. If a
      finding is valid and the fix is reasonable effort, fix it. If it's genuinely high
      lift (major refactor, new async boundary, architectural change), describe the effort
