@@ -53,8 +53,7 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 2. **Load user preferences** — use ToolSearch to load the vault-cortex MCP schema:
    `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_get_memory" })`
-   Then call `vault_get_memory` for the Opinions file (Code patterns section) and
-   Principles. These contain the user's codified preferences from past review cycles.
+   Then call: `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
 
 3. **Load sequential thinking**:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`

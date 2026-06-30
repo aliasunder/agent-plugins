@@ -54,10 +54,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 1. **Read CLAUDE.local.md** from the project root for project-specific context
    (last session, key docs, infrastructure details).
 
-2. **Load user preferences** — call `vault_get_memory` via the vault-cortex MCP tools.
-   Before calling, use ToolSearch to load the schema:
+2. **Load user preferences** — use ToolSearch to load the vault-cortex MCP schema:
    `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_get_memory" })`
-   Retrieve the Opinions file (especially Code patterns) and Principles.
+   Then call: `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
 
 3. **Load sequential thinking** for organizing findings:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`

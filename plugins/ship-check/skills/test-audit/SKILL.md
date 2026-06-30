@@ -40,8 +40,9 @@ Load these sources fresh:
 1. **Project test conventions**: Read `AGENTS.md` (or `CLAUDE.md`) from the project
    root. Focus on the test conventions section.
 
-2. **User preferences**: Retrieve vault memory via `vault_get_memory` — the Opinions
-   file (Code patterns section) contains codified test rules from past review cycles.
+2. **User preferences**: Retrieve the `Code patterns` section from the Opinions
+   memory file — contains codified test rules from past review cycles:
+   `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
 
 3. **Reference docs**: For TypeScript projects, read
    `~/.claude/references/testing-patterns.md`.

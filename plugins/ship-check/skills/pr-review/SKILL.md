@@ -40,10 +40,10 @@ Load these sources fresh every time — do not rely on what is already in contex
    AGENTS.md exists) from the repo root. Pay attention to: code style, test conventions,
    module layering, naming rules, logging conventions, MCP tool description conventions.
 
-2. **User preferences**: Retrieve vault memory via `vault_get_memory` — specifically
-   the Opinions (especially Code patterns) and Principles files. These contain codified
-   preferences like naming rules, immutability requirements, comment philosophy, and
-   the two-bar test convention.
+2. **User preferences**: Retrieve the `Code patterns` section from the Opinions
+   memory file — it contains codified preferences like naming rules, immutability
+   requirements, comment philosophy, and the two-bar test convention:
+   `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
 
 3. **Reference docs**: If the project is TypeScript, read the three reference docs at
    `~/.claude/references/` (typescript-standards.md, testing-patterns.md,

@@ -29,7 +29,8 @@ to every changed file. It is systematic where pr-review is intuitive.
 ## Before starting
 
 1. Load AGENTS.md for project conventions.
-2. Load vault memory preferences via `vault_get_memory`.
+2. Load user preferences — retrieve the `Code patterns` section from the Opinions
+   memory file: `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
 3. Identify all files changed in the branch vs main:
    ```
    git diff main --name-only
