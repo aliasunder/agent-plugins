@@ -73,6 +73,16 @@ Work through the changed files. For each, check these dimensions in order:
 - No disguised-mutation folds (reduce that mutates its accumulator)
 - Named records over positional tuples where it aids readability
 - Named locals over inline expressions where it helps a line read on its own
+- **Callback decomposition trigger**: when a `.map()` / `.flatMap()` / `.reduce()`
+  callback spans more than a few lines, or contains its own intermediate variables
+  or nested chains (`.filter().map()` inside `.map()`), extract the body into a
+  named function. The parent then reads as a clean one-liner:
+  `items.map(formatItem).join("\n")`. Concrete signs it needs extraction: the
+  callback (a) builds multiple named intermediates then combines them, (b) contains
+  its own `.filter().map()` pipeline, or (c) has ternaries inside `${}`
+  template interpolation. Related smell: conditional spreads
+  (`...(cond ? [item] : [])`) — prefer building the full array with conditional
+  entries and calling `.filter(Boolean)`
 - **Named params trigger**: functions with >2 args, or with adjacent same-typed
   args that could be silently transposed, should use a named-params object. Two
   adjacent `string` roots or two adjacent `number` limits are a swap hazard —
