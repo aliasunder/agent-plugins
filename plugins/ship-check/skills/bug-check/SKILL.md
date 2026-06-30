@@ -129,6 +129,16 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
   Verify each is safe, or replace with a runtime guard.
 - **Missing narrowing**: After a type check (`typeof x === 'string'`), using `x`
   outside the narrowed block where it is still the union type.
+- **Buffer/ArrayBuffer view aliasing**: When code accesses `.buffer` on a
+  `TypedArray` (Float32Array, Uint8Array, etc.) and passes it to `Buffer.from()`,
+  `new DataView()`, or another constructor — check that `byteOffset` and
+  `byteLength` are also passed. `typedArray.buffer` returns the *entire*
+  backing `ArrayBuffer`, which is larger than the view when the typed array
+  is a subarray or slice. The 1-arg form `Buffer.from(arr.buffer)` silently
+  produces the wrong data with no error. Fix: use the 3-arg form
+  `Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength)`. This pattern is
+  especially common in embedding/ML pipelines where providers may return
+  Float32Array views over shared buffers.
 
 ### 4. Boundary and off-by-one
 
