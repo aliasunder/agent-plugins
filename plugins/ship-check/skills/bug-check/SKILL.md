@@ -103,6 +103,19 @@ capability lists, and API documentation. Trace the code path: if there's an earl
 return or `if (!dependency)` guard that skips the advertised behavior, the description
 is wrong for that branch.
 
+**Mechanism mischaracterization**: When a description uses lifecycle or state language
+— "starts X then switches to Y", "caches results", "batches requests", "streams
+results", "lazy-loads on first use", "queues work" — verify the code actually
+implements that mechanism, not just the outcome. A per-query fallback is not a state
+transition. A synchronous call is not a queue. The behavior may be correct (users get
+the right result) but the mechanism claim teaches a false mental model that misleads
+debugging and integration. Signal words to check: "starts", "transitions", "switches",
+"initializes once" in descriptions of stateless per-call logic; "batches", "queues",
+"pools" in descriptions of sequential per-item processing. Example: a README that says
+"search starts FTS-only while the vector index builds, then switches to hybrid
+automatically" when the code actually checks `vectorHits.length === 0` per-query with
+no global mode state — the fallback is stateless, not a one-time transition.
+
 **Stale claims:** Check that descriptions still match after refactoring. A renamed
 function, moved parameter, or changed return type can leave the description accurate
 for the old code but wrong for the new.
