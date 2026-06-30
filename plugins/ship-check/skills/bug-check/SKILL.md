@@ -90,6 +90,18 @@ or function by name:
    individually correct can still be wrong in context if the workflow logic is
    flawed.
 
+**Conditional capabilities described unconditionally**: When a description claims a
+capability (e.g., "Hybrid search combining FTS and vector similarity"), check whether
+that capability is gated behind a feature flag, env var, or optional dependency
+(embedder, API key, external service). If it is, the description must either qualify
+the claim ("when embeddings are enabled") or describe the degraded mode ("falls back
+to keyword-only search"). A description that presents a conditional capability as
+always-available is a D1 bug — the LLM reading it will instruct users about features
+that may not exist in their deployment. This applies to tool descriptions, README
+capability lists, and API documentation. Trace the code path: if there's an early
+return or `if (!dependency)` guard that skips the advertised behavior, the description
+is wrong for that branch.
+
 **Stale claims:** Check that descriptions still match after refactoring. A renamed
 function, moved parameter, or changed return type can leave the description accurate
 for the old code but wrong for the new.
@@ -159,7 +171,14 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 
 1. **Parallel code paths**: If function A handles wikilinks one way and markdown
    links another way, verify the difference is intentional, not an oversight.
-   Common: one path handles an edge case that the other path misses.
+   Common: one path handles an edge case that the other path misses. Also check
+   **merge/fusion points** — when parallel data sources (e.g., FTS + vector
+   search, cache + DB, local + remote) are combined into a single result set,
+   verify that constraints (filters, access controls, limits) are applied
+   equivalently to each source BEFORE the merge. Asymmetric filtering distorts
+   the merged ranking — one source contributes unfiltered items that dilute or
+   displace filtered results from the other source. Flag even if intentional —
+   the reviewer decides scope, you decide what to report.
 2. **Overly broad transformations**: An operation applied everywhere when it should
    be scoped to a specific context (e.g., stripping escape characters globally
    instead of only in table cells where they appear).

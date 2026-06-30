@@ -91,6 +91,18 @@ Every test must satisfy BOTH bars:
   both when the containment guard fires AND when the directory is simply empty — add a
   sentinel (spy on the warn log, or call `listNotes(vaultRoot)` and assert `length > 0`)
   to prove the guard is the reason for the empty result.
+- **Wrong-item pass**: an assertion checks a property of the result (non-empty,
+  defined, has length > 0, contains a substring) but doesn't verify the result is
+  the EXPECTED item. Common in search/query tests where multiple seeded items could
+  satisfy a loose assertion.
+  The trigger: test seeds multiple items, queries for a specific one, but asserts only
+  that "something was returned" — not "the right thing was returned." Trace the mock
+  setup: if the mock returns controlled values that make the output deterministic,
+  the test must assert the specific expected item (path, id, content), not just that
+  a result exists.
+  Wrong: `expect(results[0].snippet).toBeTruthy()` — passes even if the wrong
+  note was ranked first.
+  Right: `expect(results[0]).toMatchObject({ path: "expected.md", snippet: "exact text" })` — proves the intended item was returned.
 
 ### 3. Assertion quality
 - Exact assertions (`toBe`, `toHaveLength(2)`) over loose matchers
