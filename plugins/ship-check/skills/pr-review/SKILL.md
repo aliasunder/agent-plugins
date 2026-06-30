@@ -114,9 +114,29 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   and scoring references.
 
 ### 6. Feature surface docs (conditional)
-- **Only when the PR changes feature surface.** Check the "Files that track feature
-  surface" table in AGENTS.md (if it exists) for which docs need updating alongside
-  the code change.
+- **Trigger: the PR adds, removes, or changes a feature.** A feature surface change
+  is any of: new exported function/class, new tool or API endpoint, new env var or
+  config option, new search mode or query capability, changed behavior of an existing
+  feature (not just refactoring internals). If the PR summary or commit messages use
+  words like "add", "feat", "new", "support", "enable", or "hybrid" — it's likely a
+  feature surface change.
+- **Step 1 — identify which docs track feature surface.** Check AGENTS.md for a
+  "Files that track feature surface" table. If one exists, use it. If not, check for
+  these common doc files in the repo root: `README.md`, `ARCHITECTURE.md`, `DEPLOY.md`,
+  `.env.example`, `AGENTS.md` (structure tree section), `.devin/wiki.json`,
+  `CHANGELOG.md`, `docs/`. Also check for deploy-specific env files
+  (`deploy/*/.env.example`).
+- **Step 2 — for each doc file that exists**, grep for terms related to the changed
+  feature area (the module name, function names, env var names). If the doc describes
+  the area that changed but doesn't reflect the new behavior, that's a finding.
+- **Step 3 — check for docs that SHOULD mention the new feature but don't.** A new
+  search mode added to the codebase should appear in ARCHITECTURE.md's search section.
+  A new env var should appear in DEPLOY.md and `.env.example`. A new tool should appear
+  in README.md's capabilities section. Missing mentions are findings.
+- **Report as**: `[D6] ARCHITECTURE.md — no mention of hybridSearch/RRF fusion → needs update`
+  or `[D6] .env.example — EMBEDDING_ENABLED description still says "vector search", should
+  mention "hybrid search" → fixed`. Flag as `needs design decision` if you're unsure what
+  the docs should say (the author knows the feature better than the reviewer).
 
 ### 7. Stale path references (conditional)
 - **When files are moved, renamed, or directories created/removed.** Grep AGENTS.md
