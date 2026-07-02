@@ -7,15 +7,22 @@ Project conventions for AI-assisted development on agent-plugins — for Claude 
 Personal plugin marketplace for Claude Code and Claude Cowork. Hosts plugins
 that bundle agents, skills, commands, and hooks as distributable packages.
 
-Registered as a marketplace in `~/.claude/plugins/known_marketplaces.json`.
-Claude Code syncs the repo to `~/.claude/plugins/marketplaces/agent-plugins/`
-and reads plugins from there at runtime.
+Registered as a marketplace via `claude plugin marketplace add` (directory
+source for local development, `aliasunder/agent-plugins` for remote installs).
+Installing a plugin copies it to the cache at
+`~/.claude/plugins/cache/agent-plugins/<plugin>/<version>/` — Claude Code reads
+from the cache at runtime, not from the repo directly.
 
 ## Structure
 
 ```text
 .claude-plugin/
   marketplace.json            # Marketplace manifest — lists all plugins with metadata
+.github/
+  workflows/
+    auto_release.yml          # v* tag push → validate versions, build artifacts, GitHub release
+    manual_release.yml        # workflow_dispatch → bump version, tag, build, release
+  scripts/                    # Shared release-note and changelog helpers
 plugins/
   ship-check/                 # Ship-check pipeline plugin
     .claude-plugin/
@@ -26,10 +33,17 @@ plugins/
       test-auditor.md
       bug-checker.md
     skills/                   # Skills (SKILL.md in subdirectories)
-      ship-check/
-        SKILL.md              # Pipeline orchestrator skill
+      ship-check/             # Pipeline orchestrator
+      pr-review/              # Phase 1 — correctness, security, conditional checks
+      code-quality/           # Phase 2 — naming, structure, conventions
+      test-audit/             # Phase 3 — test quality + coverage gaps
+      bug-check/              # Phase 4 — systematic bug hunt
+      pr-monitor/             # Phase 5 — CI, bot comments, merge readiness
     README.md
 README.md                    # Marketplace README
+CHANGELOG.md                 # Release history (updated by CI on release)
+LICENSE                      # MIT
+SECURITY.md                  # Vulnerability reporting policy
 ```
 
 ## Adding a plugin
@@ -39,7 +53,7 @@ README.md                    # Marketplace README
 3. Add a `README.md` to the plugin directory
 4. Register the plugin in `.claude-plugin/marketplace.json` under the `plugins` array
 5. Update the root `README.md` plugin table
-6. Commit and push — the local symlink makes changes available immediately after `/reload-plugins`
+6. Commit and push, then refresh the install cache (`claude plugin update <plugin>@agent-plugins`, or uninstall/reinstall if the version didn't change) and `/reload-plugins` in the active session
 
 ## Conventions
 
@@ -49,6 +63,21 @@ README.md                    # Marketplace README
 - **Plugin manifests** use semver versioning
 - Agent `tools:` fields are allowlists — omit to give all tools, list explicitly to restrict
 - Agent `skills:` preloads skill content from any installed plugin or `~/.claude/skills/`
+
+## Releases
+
+Versions are kept in lockstep: `metadata.version` in `.claude-plugin/marketplace.json`,
+every `plugins[].version` entry, and each plugin's `plugin.json` `version` must all
+match the release tag. CI validates this on tag push and fails the release on mismatch.
+
+- **Manual release** (preferred): Actions → Manual Release → choose patch/minor/major.
+  Bumps all version fields, regenerates CHANGELOG.md from conventional commits, commits,
+  tags, builds plugin `.zip` and per-skill `.skill` artifacts, and publishes a GitHub release.
+- **Tag release**: bump the version fields yourself, push a matching `v*` tag, and
+  `auto_release.yml` validates, builds, and publishes.
+
+Commit messages follow conventional-commit syntax — the release-notes generator
+buckets them by type (`feat`, `fix`, `refactor`, `docs`, `ci`, `chore`).
 
 ## Cross-tool compatibility
 
