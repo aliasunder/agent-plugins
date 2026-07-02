@@ -18,19 +18,15 @@ and continuous monitoring, which agents can't do.
 
 ## External Dependencies
 
-Each agent preloads skills via `skills:` frontmatter. These skills must be installed
-in `~/.claude/skills/`:
-
-- `pr-review`
-- `code-quality`
-- `test-audit`
-- `bug-check`
-- `fable-mode`
+Each agent preloads skills via `skills:` frontmatter. The `pr-review`,
+`code-quality`, `test-audit`, and `bug-check` skills are bundled in this plugin;
+[fable-mode](https://github.com/mrtooher/fable-mode) is external and must be
+installed separately (e.g. in `~/.claude/skills/`).
 
 Each agent also uses MCP tools loaded at runtime via `ToolSearch`:
 
-- `vault_get_memory` (vault-cortex MCP) — user preferences
-- `sequentialthinking` (sequential-thinking MCP) — reasoning organization
+- `vault_get_memory` ([vault-cortex](https://github.com/aliasunder/vault-cortex) MCP) — user preferences
+- `sequentialthinking` ([sequential-thinking](https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking) MCP) — reasoning organization
 
 ## Usage
 
