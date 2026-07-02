@@ -7,12 +7,6 @@ Project conventions for AI-assisted development on agent-plugins — for Claude 
 Personal plugin marketplace for Claude Code and Claude Cowork. Hosts plugins
 that bundle agents, skills, commands, and hooks as distributable packages.
 
-Registered as a marketplace via `claude plugin marketplace add` (directory
-source for local development, `aliasunder/agent-plugins` for remote installs).
-Installing a plugin copies it to the cache at
-`~/.claude/plugins/cache/agent-plugins/<plugin>/<version>/` — Claude Code reads
-from the cache at runtime, not from the repo directly.
-
 ## Structure
 
 ```text
@@ -53,7 +47,7 @@ SECURITY.md                  # Vulnerability reporting policy
 3. Add a `README.md` to the plugin directory
 4. Register the plugin in `.claude-plugin/marketplace.json` under the `plugins` array
 5. Update the root `README.md` plugin table
-6. Commit and push, then refresh the install cache (`claude plugin update <plugin>@agent-plugins`, or uninstall/reinstall if the version didn't change) and `/reload-plugins` in the active session
+6. Commit and push
 
 ## Conventions
 
