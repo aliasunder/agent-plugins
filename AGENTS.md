@@ -36,6 +36,7 @@ plugins/
     README.md
 README.md                    # Marketplace README
 CHANGELOG.md                 # Release history (updated by CI on release)
+package.json                 # Repo-level version + metadata (kept in lockstep by CI)
 LICENSE                      # MIT
 SECURITY.md                  # Vulnerability reporting policy
 ```
@@ -61,8 +62,9 @@ SECURITY.md                  # Vulnerability reporting policy
 ## Releases
 
 Versions are kept in lockstep: `metadata.version` in `.claude-plugin/marketplace.json`,
-every `plugins[].version` entry, and each plugin's `plugin.json` `version` must all
-match the release tag. CI validates this on tag push and fails the release on mismatch.
+every `plugins[].version` entry, each plugin's `plugin.json` `version`, and the root
+`package.json` `version` must all match the release tag. CI validates this on tag push
+and fails the release on mismatch.
 
 - **Manual release** (preferred): Actions → Manual Release → choose patch/minor/major.
   Bumps all version fields, regenerates CHANGELOG.md from conventional commits, commits,
