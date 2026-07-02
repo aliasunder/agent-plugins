@@ -5,14 +5,14 @@
     "name": "aliasunder"
   },
   "metadata": {
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {
       "name": "ship-check",
       "source": "./plugins/ship-check",
       "description": "Fresh-eyes review agents for the ship-check pipeline. Four dedicated agent types (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker) plus the orchestrator skill.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "keywords": [
         "code-review",
         "ship-check",
