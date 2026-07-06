@@ -77,7 +77,19 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   see no missing tests — think through: are all new branches, error paths, and edge
   cases covered by existing tests?
 
+## Fixing and Committing
+
+### Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, do not edit files, write tests, commit,
+or push. Instead, follow the "Comment mode" section in your preloaded test-audit skill
+— collect findings and post them as a single GitHub PR review with inline comments via
+`gh api`. Coverage gaps are reported as comments on the production file, not as written
+tests.
+
 ## Output Format
+
+### Default mode
 
 Return a structured summary to the orchestrator:
 
@@ -95,4 +107,21 @@ Test audit complete:
 - Tests written: J
 - Mutation-tested: L
 - Suite: passing / N failures (total test count)
+```
+
+### Comment mode
+
+```
+Test audit complete (comment mode):
+- Test files audited: N
+- Findings: N total, all commented
+- Review posted: yes / no (0 findings)
+- By category:
+  - Two-bar violations: A
+  - Assertion quality: B
+  - Test hygiene: C
+  - Completeness: D
+  - Coverage regressions: E
+- Coverage gaps reported: K
+- Mutation-tested: L (diagnostic only)
 ```

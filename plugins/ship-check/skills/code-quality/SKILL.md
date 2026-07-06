@@ -126,3 +126,43 @@ Work through the changed files. For each, check these dimensions in order:
 2. **Fix** every finding directly — this is a "pass", not just a review.
 3. **Run tests** after all fixes to confirm no behavior change.
 4. **Summarize**: files touched, count by category, test status.
+
+## Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, do not edit files, commit, or push.
+Instead, collect all findings and post them as a single GitHub PR review with inline
+comments.
+
+### Procedure
+
+1. **Review normally** — check all dimensions (naming, structure, error handling,
+   comments, simplicity, module conventions). The only difference is the output path.
+2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
+   line number, category tag, and description with the suggested fix.
+3. **Post a single PR review** with all findings as inline comments:
+
+```bash
+gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
+  --method POST --input - <<'REVIEW'
+{
+  "event": "COMMENT",
+  "body": "## Phase 2: Code Quality\n\nN findings across M files.",
+  "comments": [
+    {
+      "path": "src/file.ts",
+      "line": 42,
+      "body": "**[naming]** `searchText` not `needle`\n\n```suggestion\nconst searchText = ...;\n```"
+    }
+  ]
+}
+REVIEW
+```
+
+Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+
+4. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
+5. **Format each inline comment body** as:
+   - Bold category tag: `**[naming]**`, `**[structure]**`, etc.
+   - One-line description of the issue
+   - Suggested fix as a code snippet (use GitHub's `suggestion` fence when the fix is
+     a direct replacement — this gives the PR author a one-click "Apply suggestion" button)

@@ -148,8 +148,8 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 
 ## How to report and fix
 
-**Default is fix, not report-only.** Always apply fixes unless the user explicitly asks
-for review-only. For review-only mode, post findings as inline PR comments via `gh api`.
+**Default is fix, not report-only.** Always apply fixes unless the dispatch prompt says
+comment mode.
 
 **One line per finding, then fix it.** Keep reports compact — the diff shows the fix:
 
@@ -182,3 +182,49 @@ for review-only. For review-only mode, post findings as inline PR comments via `
 4. **Run tests** after all fixes to confirm no behavior change.
 5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).
+
+## Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, do not edit files, commit, or push.
+Instead, collect all findings and post them as a single GitHub PR review with inline
+comments.
+
+### Procedure
+
+1. **Review normally** — run all dimensions, use sequential thinking for disposition
+   decisions, apply the same dual-axis (confidence × complexity) framework. The only
+   difference is the output path.
+2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
+   line number, dimension tag, and description.
+3. **Categorize each finding** the same way as default mode: `fixed` becomes `would fix`
+   (trivial, high confidence), and flagged findings keep their category (`uncertain
+   diagnosis`, `complex fix`, `needs design decision`, `pre-existing gap`).
+4. **Post a single PR review** with all findings as inline comments. Use this template:
+
+```bash
+gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
+  --method POST --input - <<'REVIEW'
+{
+  "event": "COMMENT",
+  "body": "## Phase 1: PR Review\n\nN findings across M files.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes",
+  "comments": [
+    {
+      "path": "src/file.ts",
+      "line": 42,
+      "body": "**[D1]** Description-vs-implementation mismatch\n\n<details about the finding and suggested fix>"
+    }
+  ]
+}
+REVIEW
+```
+
+Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+
+5. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
+6. **For findings without a specific line** (e.g., missing docs, cross-cutting concerns),
+   put them in the review `body` rather than as inline comments.
+7. **Format each inline comment body** as:
+   - Bold dimension tag: `**[D1]**`, `**[D4]**`, etc.
+   - One-line description of the issue
+   - Suggested fix (code snippet or description)
+   - Disposition: `Would fix (trivial)` or `Flagged: <category>`

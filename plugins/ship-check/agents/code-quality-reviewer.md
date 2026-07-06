@@ -82,7 +82,16 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 - Stage, commit, and push when done.
 - Commit message: `style: <summary of readability/convention fixes>`
 
+### Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, skip all of the above. Instead, follow
+the "Comment mode" section in your preloaded code-quality skill — collect findings and
+post them as a single GitHub PR review with inline comments via `gh api`. Do not edit
+any files, commit, or push.
+
 ## Output Format
+
+### Default mode
 
 Return a structured summary to the orchestrator:
 
@@ -97,4 +106,19 @@ Code quality complete:
   - Simplicity: D
   - Module conventions: E
 - Tests: passing / N failures
+```
+
+### Comment mode
+
+```
+Code quality complete (comment mode):
+- Files reviewed: N
+- Findings: N total, all commented
+- Review posted: yes / no (0 findings)
+- By category:
+  - Naming: A
+  - Structure: B
+  - Comments: C
+  - Simplicity: D
+  - Module conventions: E
 ```

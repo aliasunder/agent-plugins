@@ -246,3 +246,57 @@ This proves the test is load-bearing, not decorative.
   — don't repeat it here.
 - **Summarize**: files audited, count by category, tests mutation-verified,
   coverage gaps found and tests written.
+
+## Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, do not edit files, write tests, commit,
+or push. Instead, collect all findings and post them as a single GitHub PR review with
+inline comments.
+
+### Behavior changes from default
+
+- **Test quality findings**: posted as inline comments on the test file/line, with the
+  suggested fix as a code snippet.
+- **Coverage gaps**: posted as inline comments on the production file where the gap
+  exists (the new function, branch, or error path that lacks tests). Describe what test
+  is needed — don't write the test code.
+- **Mutation testing**: still run to verify your findings, but only as a diagnostic step.
+  The mutation result supports your comment's confidence level.
+
+### Procedure
+
+1. **Audit normally** — run all dimensions and coverage gap analysis. The only difference
+   is the output path.
+2. **Collect findings** as you go. Each finding needs: file path, line number, category
+   tag, and description.
+3. **Post a single PR review** with all findings as inline comments:
+
+```bash
+gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
+  --method POST --input - <<'REVIEW'
+{
+  "event": "COMMENT",
+  "body": "## Phase 3: Test Audit\n\nN test quality findings, K coverage gaps across M files.",
+  "comments": [
+    {
+      "path": "src/file.test.ts",
+      "line": 42,
+      "body": "**[two-bar]** Silent no-op — asserts state preserved but doesn't prove the operation ran\n\nAdd a side-effect assertion (spy on the log call, or assert a counter incremented)."
+    },
+    {
+      "path": "src/module.ts",
+      "line": 88,
+      "body": "**[coverage gap]** New error branch has no test\n\nNeeds a test that triggers this rejection and asserts the specific error message."
+    }
+  ]
+}
+REVIEW
+```
+
+Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+
+4. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
+5. **Format each inline comment body** as:
+   - Bold category tag: `**[two-bar]**`, `**[assertion]**`, `**[coverage gap]**`, etc.
+   - One-line description of the issue
+   - What to fix (for test quality) or what test to write (for coverage gaps)

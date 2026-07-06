@@ -36,6 +36,45 @@ Phase 5: pr-monitor (inline)              -> CI status, bot comment resolution, 
 2. Identify the base branch (usually `main`).
 3. Get the PR number and branch name — agents need this context in their briefing.
 
+## Comment mode (`--comment`)
+
+When `--comment` is active, the entire pipeline switches from fix-and-push to
+review-and-comment. Each phase posts findings as inline PR review comments via `gh api`
+instead of editing files. Phase 5 (pr-monitor) is skipped entirely — the pipeline is
+reviewing a PR it isn't responsible for.
+
+### Behavior changes
+
+| Aspect | Default mode | Comment mode |
+|--------|-------------|--------------|
+| Findings | Edit files, commit, push | Post as inline PR review comments |
+| Phase 5 | Runs (monitoring loop) | Skipped |
+| Phase sequencing | Sequential (each sees prior fixes) | Sequential (each sees prior findings to avoid duplicates) |
+| Test-audit | Writes missing tests | Reports coverage gaps as comments |
+| Inter-phase triage | Evaluates flagged findings, may fix | Evaluates flagged findings, may post additional comments |
+
+### Dispatch prompt addition
+
+When `--comment` is active, prepend this to every phase's dispatch prompt:
+
+```
+COMMENT MODE: Do NOT edit any files, commit, or push. Instead, collect all findings
+and post them as a single GitHub PR review with inline comments. Follow the "Comment
+mode" section in your preloaded skill for the gh api template. Only post a review if
+you have findings — skip the API call for 0 findings.
+```
+
+### Orchestrator setup
+
+Before dispatching Phase 1, resolve the repo identifier for `gh api` calls:
+
+```bash
+gh repo view --json nameWithOwner -q .nameWithOwner
+```
+
+Pass the result (e.g., `owner/repo`) in the dispatch prompt so agents don't each need
+to resolve it independently.
+
 ## Phase discipline
 
 1. **All 5 phases run by default.** The orchestrator never skips phases based on its own
@@ -85,6 +124,9 @@ sequential thinking forces you to deliberate instead of relaying.
    | Any | Needs design decision | Always defer to user |
 
 4. **For fixes**: read the relevant code, apply the edit, run tests, commit and push.
+   **In comment mode**: instead of editing, post a separate inline comment on the PR
+   for each triage fix — use the same `gh api` review template. Mark these as
+   orchestrator triage findings so they're distinguishable from phase findings.
 5. **Record results**: track triage fixes separately from phase fixes in the summary.
 
 ### Key principle: risk vs. confidence
@@ -137,7 +179,7 @@ Agent({
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
 flagged findings (see procedure above) before launching Phase 2. Then compose the
 Phase 2 dispatch prompt — append a one-line prior-phase context summarizing what
-Phase 1 fixed and what remains deferred.
+Phase 1 fixed (or commented on, in comment mode) and what remains deferred.
 
 ### Phase 2: Code Quality
 
@@ -186,6 +228,10 @@ flagged findings.
 
 ### Phase 5: PR Monitor (inline — does not end)
 
+**Skip this phase entirely in comment mode.** The pipeline is reviewing a PR it isn't
+responsible for — there are no pushed fixes to monitor, no bot comments to resolve, and
+no CI to watch. After Phase 4 completes, output the summary report and stop.
+
 Run /pr-monitor inline (not as an agent). This phase stays inline because it needs
 ScheduleWakeup, user interaction for human comments, and continuous monitoring.
 
@@ -203,6 +249,8 @@ follow ALL steps through Step 5, including:
 - **Step 5**: Continue monitoring — never auto-terminate
 
 ## Reporting
+
+### Default mode
 
 Output the summary below as a **status snapshot** during Phase 5 monitoring — not as a
 pipeline conclusion. Update it on each monitoring pass as PR status evolves.
@@ -225,13 +273,36 @@ their flag category and ask for a decision before declaring the verdict.
 After outputting this report, **continue the Phase 5 monitoring loop** — the report is a
 status update, not a termination signal.
 
+### Comment mode
+
+Output the final summary after Phase 4 completes — this is the pipeline conclusion.
+
+```
+Ship check complete (comment mode):
+- PR Review:    N findings commented (correctness, security, conditional)
+- Code Quality: N findings commented (conventions, readability)
+- Test Audit:   N findings commented (test quality); K coverage gaps reported
+- Bug Check:    N findings commented (by dimension)
+- Triage:       N flagged findings triaged across all phases — M commented, K deferred
+- PR Monitor:   skipped (comment mode)
+- Deferred:     <list each with flag category, or "none">
+- Verdict:      ship / ship-with-minor-fixes / needs-changes
+- Reviews posted: N (one per phase with findings)
+```
+
+Present deferred findings to the user with their flag category. The pipeline ends here
+— no Phase 5 monitoring loop.
+
 ## Options
 
 The user can customize the pipeline:
 
 - `/ship-check --skip code-quality` — skip a phase
 - `/ship-check --only pr-review,test-audit` — run specific phases
-- `/ship-check --no-fix` — report only, don't apply fixes
+- `/ship-check --no-fix` — report only, don't apply fixes (findings in agent output only)
+- `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
+  Implies --no-fix. Phase 5 (pr-monitor) is skipped — the pipeline is reviewing a PR it
+  isn't responsible for. Composable with --skip, --only, --inline, --fork.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
   eyes — useful when context from prior work is actually helpful)
 - `/ship-check --fork` — use forks instead of agents (legacy behavior — spawns forks

@@ -109,7 +109,16 @@ you're shortcutting the review.
 - Stage, commit, and push when done.
 - Commit message: `fix(review): <summary of fixes>`
 
+### Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, skip all of the above. Instead, follow
+the "Comment mode" section in your preloaded pr-review skill — collect findings and
+post them as a single GitHub PR review with inline comments via `gh api`. Do not edit
+any files, commit, or push.
+
 ## Output Format
+
+### Default mode
 
 Return a structured summary to the orchestrator:
 
@@ -128,5 +137,21 @@ PR Review complete:
   - Feature surface docs: D (or "N/A — no feature surface changes")
   - Stale paths: E (or "N/A — no file moves/renames")
 - Tests: passing / N failures
+- Verdict: ship / ship-with-minor-fixes / needs-changes
+```
+
+### Comment mode
+
+```
+PR Review complete (comment mode):
+- Files reviewed: N
+- Findings: N total (M would-fix, K flagged)
+- Review posted: yes / no (0 findings)
+- By dimension:
+  - Correctness: A
+  - Security/performance: B
+  - TDQS: C (or "N/A")
+  - Feature surface docs: D (or "N/A")
+  - Stale paths: E (or "N/A")
 - Verdict: ship / ship-with-minor-fixes / needs-changes
 ```

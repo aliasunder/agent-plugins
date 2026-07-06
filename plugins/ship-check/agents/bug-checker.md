@@ -105,7 +105,16 @@ skipping decision points.
 - Stage, commit, and push when done.
 - Commit message: `fix: <summary of bug fixes>`
 
+### Comment mode
+
+When the dispatch prompt says **COMMENT MODE**, skip all of the above. Instead, follow
+the "Comment mode" section in your preloaded bug-check skill — collect findings and
+post them as a single GitHub PR review with inline comments via `gh api`. Do not edit
+any files, commit, or push.
+
 ## Output Format
+
+### Default mode
 
 Return a structured summary to the orchestrator:
 
@@ -128,4 +137,22 @@ Bug check complete:
   - Platform/encoding: G
 - Confidence: N high, M medium, K low
 - Tests: passing / N failures
+```
+
+### Comment mode
+
+```
+Bug check complete (comment mode):
+- Files checked: N
+- Bugs found: N (M would-fix, K flagged)
+- Review posted: yes / no (0 findings)
+- By dimension:
+  - Description mismatch: A
+  - SQL correctness: B
+  - Type safety: C
+  - Boundary/off-by-one: D
+  - Behavioral consistency: E
+  - Input validation: F
+  - Platform/encoding: G
+- Confidence: N high, M medium, K low
 ```
