@@ -146,6 +146,19 @@ Every test must satisfy BOTH bars:
 - No `!` non-null assertions — banned in production AND test code. Use a guard
   (`if (!x) throw`) or restructure the assertion (`toEqual([expect.objectContaining(...)])`)
   instead of `results[0]!.path`
+- **`?.` is not `!` — don't conflate them.** The `!` ban targets non-null assertions
+  (`results[0]!.path`) that lie to the compiler. Optional chaining (`results[0]?.path`)
+  is the opposite — it safely handles undefined at array boundaries. Do not rewrite
+  `?.` array access into extracted variables with throw guards; that's verbosity without
+  improved test quality. Similarly, `?? fallback` in comparisons
+  (`toBeGreaterThan(x?.length ?? 0)`) is type narrowing, not a loose matcher — the
+  assertion still fails if the value doesn't meet the threshold.
+- **`continue` in a verification loop is not a silent no-op.** A `for` loop checking
+  ordering (`each count >= next count`) with a guard
+  `if (prev === undefined || curr === undefined) continue` is defending against array
+  index bounds, not silently skipping the operation under test. The two-bar "silent
+  no-op" rule targets tests where the *tested behavior* never executed — not TypeScript
+  narrowing guards on loop indices. Don't convert these to `throw`.
 - Use vitest helpers (`onTestFinished`, `vi.mocked`, `vi.each`) before hand-rolling
 - **No trailing cleanup that gets skipped on failure.** When a test creates
   resources (temp directories, files, servers, connections), cleanup code at the

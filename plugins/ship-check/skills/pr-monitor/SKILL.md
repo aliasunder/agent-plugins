@@ -147,6 +147,9 @@ For each unresolved bot thread, do ALL of these in order:
      *"Fixed -- [brief description of the change and why]."*
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning, reference to AGENTS.md if relevant]."*
+   - **Footer on every reply.** Since `gh` posts as the user's account, append a footer
+     for attribution: `\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*` — read your
+     model ID from your system context ("You are powered by the model named...").
 
 5. **Resolve the thread** (AFTER replying):
    ```
@@ -168,6 +171,8 @@ Handle the same way as bot threads -- evaluate, reply, fix if valid, resolve. Th
 from another Claude instance and do not require user approval. Include in your reply
 that you're addressing feedback from another Claude session, e.g.:
 *"Addressed -- [description]. (Responding to Claude-authored review.)"*
+
+   Include the same footer as bot thread replies.
 
 ### Human threads
 
