@@ -62,18 +62,24 @@ COMMENT MODE: Do NOT edit any files, commit, or push. Instead, collect all findi
 and post them as a single GitHub PR review with inline comments. Follow the "Comment
 mode" section in your preloaded skill for the gh api template. Only post a review if
 you have findings — skip the API call for 0 findings.
+Repo: OWNER_REPO | Model: MODEL_ID
+Append a footer to the review body AND every inline comment body:
+\n\n---\n*🔍 ship-check · PHASE_NAME · MODEL_ID*
 ```
 
 ### Orchestrator setup
 
-Before dispatching Phase 1, resolve the repo identifier for `gh api` calls:
+Before dispatching Phase 1, resolve two values and pass them in every dispatch prompt:
 
-```bash
-gh repo view --json nameWithOwner -q .nameWithOwner
-```
+1. **Repo identifier** for `gh api` calls:
+   ```bash
+   gh repo view --json nameWithOwner -q .nameWithOwner
+   ```
+2. **Model identifier** — use the model name from your own context (e.g.,
+   `claude-opus-4-6`, `claude-sonnet-5`). This goes into the comment footer so the
+   user can distinguish automated review comments from their own.
 
-Pass the result (e.g., `owner/repo`) in the dispatch prompt so agents don't each need
-to resolve it independently.
+Pass both as `Repo: owner/repo | Model: claude-opus-4-6` in the dispatch prompt.
 
 ## Phase discipline
 

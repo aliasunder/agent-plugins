@@ -146,23 +146,26 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 2: Code Quality\n\nN findings across M files.",
+  "body": "## Phase 2: Code Quality\n\nN findings across M files.\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",
       "line": 42,
-      "body": "**[naming]** `searchText` not `needle`\n\n```suggestion\nconst searchText = ...;\n```"
+      "body": "**[naming]** `searchText` not `needle`\n\n```suggestion\nconst searchText = ...;\n```\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*"
     }
   ]
 }
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+Replace `OWNER_REPO`, `PR_NUMBER`, and `MODEL_ID` with values from the dispatch prompt.
 
 4. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
-5. **Format each inline comment body** as:
+5. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*`
+   to the review body AND each inline comment body.
+6. **Format each inline comment body** as:
    - Bold category tag: `**[naming]**`, `**[structure]**`, etc.
    - One-line description of the issue
    - Suggested fix as a code snippet (use GitHub's `suggestion` fence when the fix is
      a direct replacement — this gives the PR author a one-click "Apply suggestion" button)
+   - Footer (see above)

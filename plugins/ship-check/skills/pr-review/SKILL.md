@@ -206,25 +206,29 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 1: PR Review\n\nN findings across M files.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes",
+  "body": "## Phase 1: PR Review\n\nN findings across M files.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",
       "line": 42,
-      "body": "**[D1]** Description-vs-implementation mismatch\n\n<details about the finding and suggested fix>"
+      "body": "**[D1]** Description-vs-implementation mismatch\n\n<details about the finding and suggested fix>\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*"
     }
   ]
 }
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+Replace `OWNER_REPO`, `PR_NUMBER`, and `MODEL_ID` with values from the dispatch prompt.
 
 5. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
 6. **For findings without a specific line** (e.g., missing docs, cross-cutting concerns),
    put them in the review `body` rather than as inline comments.
-7. **Format each inline comment body** as:
+7. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*`
+   to the review body AND each inline comment body. This distinguishes automated findings
+   from the repo owner's own comments.
+8. **Format each inline comment body** as:
    - Bold dimension tag: `**[D1]**`, `**[D4]**`, etc.
    - One-line description of the issue
    - Suggested fix (code snippet or description)
    - Disposition: `Would fix (trivial)` or `Flagged: <category>`
+   - Footer (see above)

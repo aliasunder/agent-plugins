@@ -276,27 +276,30 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 3: Test Audit\n\nN test quality findings, K coverage gaps across M files.",
+  "body": "## Phase 3: Test Audit\n\nN test quality findings, K coverage gaps across M files.\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.test.ts",
       "line": 42,
-      "body": "**[two-bar]** Silent no-op — asserts state preserved but doesn't prove the operation ran\n\nAdd a side-effect assertion (spy on the log call, or assert a counter incremented)."
+      "body": "**[two-bar]** Silent no-op — asserts state preserved but doesn't prove the operation ran\n\nAdd a side-effect assertion (spy on the log call, or assert a counter incremented).\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*"
     },
     {
       "path": "src/module.ts",
       "line": 88,
-      "body": "**[coverage gap]** New error branch has no test\n\nNeeds a test that triggers this rejection and asserts the specific error message."
+      "body": "**[coverage gap]** New error branch has no test\n\nNeeds a test that triggers this rejection and asserts the specific error message.\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*"
     }
   ]
 }
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+Replace `OWNER_REPO`, `PR_NUMBER`, and `MODEL_ID` with values from the dispatch prompt.
 
 4. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
-5. **Format each inline comment body** as:
+5. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*`
+   to the review body AND each inline comment body.
+6. **Format each inline comment body** as:
    - Bold category tag: `**[two-bar]**`, `**[assertion]**`, `**[coverage gap]**`, etc.
    - One-line description of the issue
    - What to fix (for test quality) or what test to write (for coverage gaps)
+   - Footer (see above)

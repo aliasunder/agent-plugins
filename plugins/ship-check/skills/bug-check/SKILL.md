@@ -405,24 +405,27 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 4: Bug Check\n\nN bugs found across M files.\nConfidence: A high, B medium, C low",
+  "body": "## Phase 4: Bug Check\n\nN bugs found across M files.\nConfidence: A high, B medium, C low\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",
       "line": 612,
-      "body": "**[D1]** Description refs `vault_find_orphans`, should be `vault_get_backlinks`\n\nThe description says \"find notes with broken links\" but `vault_find_orphans` finds notes with no *incoming* links. `vault_get_backlinks` is the correct tool for outgoing link validation.\n\n*Would fix (trivial, high confidence)*"
+      "body": "**[D1]** Description refs `vault_find_orphans`, should be `vault_get_backlinks`\n\nThe description says \"find notes with broken links\" but `vault_find_orphans` finds notes with no *incoming* links. `vault_get_backlinks` is the correct tool for outgoing link validation.\n\n*Would fix (trivial, high confidence)*\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*"
     }
   ]
 }
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with the values from the dispatch prompt.
+Replace `OWNER_REPO`, `PR_NUMBER`, and `MODEL_ID` with values from the dispatch prompt.
 
 5. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
-6. **Format each inline comment body** as:
+6. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*`
+   to the review body AND each inline comment body.
+7. **Format each inline comment body** as:
    - Bold dimension tag: `**[D1]**`, `**[D3]**`, etc.
    - One-line description of the bug
    - Evidence: quote the description sentence, trace the code path, explain the mismatch
    - Suggested fix (code snippet when possible)
    - Disposition: `Would fix (trivial, <confidence>)` or `Flagged: <category>`
+   - Footer (see above)
