@@ -75,11 +75,11 @@ Before dispatching Phase 1, resolve two values and pass them in every dispatch p
    ```bash
    gh repo view --json nameWithOwner -q .nameWithOwner
    ```
-2. **Model identifier** — use the model name from your own context (e.g.,
-   `claude-opus-4-6`, `claude-sonnet-5`). This goes into the comment footer so the
-   user can distinguish automated review comments from their own.
+2. **Model identifier** — read from your system context (the "You are powered by
+   the model named..." line includes the exact model ID). This goes into the comment
+   footer so the user can distinguish automated review comments from their own.
 
-Pass both as `Repo: owner/repo | Model: claude-opus-4-6` in the dispatch prompt.
+Pass both as `Repo: owner/repo | Model: <your-model-id>` in the dispatch prompt.
 
 ## Phase discipline
 
