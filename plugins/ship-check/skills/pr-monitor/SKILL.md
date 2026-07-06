@@ -134,22 +134,24 @@ For each unresolved bot thread, do ALL of these in order:
    Fix anything that's reasonable effort; only escalate to the user when the fix is
    genuinely high lift.
 
-4. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment:
+4. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
+
+   Since `gh` posts as the user's account, every reply MUST include an attribution
+   footer. Read your model ID from your system context ("You are powered by the model
+   named..."). The footer format is: `\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*`
+
    ```
    gh api graphql -f query='mutation {
      addPullRequestReviewThreadReply(input: {
        pullRequestReviewThreadId: "THREAD_ID",
-       body: "YOUR_REPLY"
+       body: "YOUR_REPLY\n\n---\n*🔍 ship-check · pr-monitor · MODEL_ID*"
      }) { comment { id } }
    }'
    ```
    - **Valid finding** -- reply explaining what you fixed:
-     *"Fixed -- [brief description of the change and why]."*
+     *"Fixed -- [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **False positive** -- reply explaining why:
-     *"This is intentional -- [reasoning, reference to AGENTS.md if relevant]."*
-   - **Footer on every reply.** Since `gh` posts as the user's account, append a footer
-     for attribution: `\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*` — read your
-     model ID from your system context ("You are powered by the model named...").
+     *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
 5. **Resolve the thread** (AFTER replying):
    ```
@@ -170,9 +172,7 @@ For each unresolved bot thread, do ALL of these in order:
 Handle the same way as bot threads -- evaluate, reply, fix if valid, resolve. These are
 from another Claude instance and do not require user approval. Include in your reply
 that you're addressing feedback from another Claude session, e.g.:
-*"Addressed -- [description]. (Responding to Claude-authored review.)"*
-
-   Include the same footer as bot thread replies.
+*"Addressed -- [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
 ### Human threads
 
