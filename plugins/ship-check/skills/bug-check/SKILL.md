@@ -123,8 +123,24 @@ for the old code but wrong for the new.
 **CI/workflow files** (`.yml`): Apply dimension 1 to step names, job names, and
 conditional logic. A step named "Configure Tailscale" that is always skipped due to
 an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
+- **Multi-trigger event guards**: when a workflow has multiple triggers in `on:`
+  (e.g., `pull_request` + `issue_comment`), check whether each job or step should
+  run for ALL triggers or only specific ones. Steps that make sense only for PRs
+  (review phases, diff analysis, CI checks) need `if: github.event_name ==
+  'pull_request'` guards — otherwise a comment-triggered run executes them too.
+  The trigger: a workflow with >1 event in `on:` and steps/jobs without `if:`
+  guards on `github.event_name`. Trace each step's purpose and ask "does this
+  make sense when triggered by [other event]?"
 - `if:` conditions reference variables that are actually visible at evaluation time
   (GitHub evaluates `if:` before the step runs — step-level `env:` is not visible)
+- **Action pinning inconsistency**: if some actions in the workflow are pinned to
+  commit SHAs and others use mutable tags (`v2`, `@main`), the unpinned ones are
+  a D1 mismatch — the workflow's security posture is inconsistent. Check all
+  `uses:` lines; flag any third-party action on a tag when siblings are on SHAs
+- **Permissions wider than usage**: compare `permissions:` grants against what the
+  job's steps actually use. If every step authenticates via a GitHub App token and
+  never uses `GITHUB_TOKEN` for writes, `contents: write` or `pull-requests: write`
+  on the default token is unnecessary privilege
 - Secrets are scoped to the narrowest level (step, not job) to limit exposure
 - `persist-credentials: false` on checkout steps
 - Deploy workflows have `concurrency:` blocks to prevent overlapping runs

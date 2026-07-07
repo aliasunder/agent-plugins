@@ -86,6 +86,17 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 - Performance: unnecessary allocations, N+1 queries, unbounded loops
 - Logging security: no PII, credentials, or sensitive data in logs
 - **CI/workflow security** (when `.yml` workflow files changed):
+  - **Action pinning**: third-party actions must be pinned to a full commit SHA, not
+    a mutable tag (`v2`, `v3`, `latest`). Tags can be force-pushed — a compromised
+    tag is a supply chain attack. Pin to the SHA and add a comment with the version:
+    `uses: org/action@<sha> # v2.1.0`. First-party `actions/*` are lower risk but
+    should still be pinned in security-sensitive workflows
+  - **Permissions least privilege**: `permissions:` at job or workflow level should
+    grant only what the job actually needs. If all steps authenticate via a GitHub
+    App token (`create-github-app-token`), the default `GITHUB_TOKEN` only needs
+    `read` (or can be omitted). Write permissions on `GITHUB_TOKEN` when unused is
+    unnecessary attack surface. Check each permission key against actual usage in
+    the job's steps
   - Secrets scoped to the narrowest level — job-level `env:` exposes secrets to
     every step; prefer step-level `env:` or `${{ secrets.X }}` inline
   - `persist-credentials: false` on `actions/checkout` — prevents the token from

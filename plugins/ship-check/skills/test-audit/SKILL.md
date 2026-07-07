@@ -57,8 +57,10 @@ Load these sources fresh:
   weakened assertions, deleted branches). When no test files were changed, gap analysis
   on production files is the primary audit. Do NOT short-circuit with "0 findings."
 - **Fast exit**: After identifying changed files, if there are 0 test files AND 0
-  production files in scope, report "0 test files, 0 production files changed — nothing
-  to audit" and exit. Do not report "0 findings" — report that nothing was in scope.
+  testable files in scope, report "0 test files, 0 testable files changed — nothing
+  to audit" and exit. CI/CD workflows (`.yml`), IaC, Dockerfiles, and pure config
+  files are not testable in the unit-test sense — a PR that only changes these is a
+  valid fast exit. Do not report "0 findings" — report that nothing was in scope.
   This keeps the ship-check pipeline summary accurate (the phase ran and assessed the
   diff, rather than being skipped by the orchestrator).
 

@@ -54,6 +54,14 @@ Load these sources fresh — do not rely on what is already in context:
   Use `git diff --name-only main...HEAD` to find them.
 - **If the user specifies files or a scope**: use that instead.
 - **Skip test files** — those have their own skill (/test-audit).
+- **All code file types are in scope** — TypeScript, JavaScript, YAML, Dockerfile,
+  JSON config, shell scripts, etc. CI/CD and IaC are reviewable code. Apply the
+  dimensions below to whatever format the changed files use. For YAML (workflows,
+  IaC, docker-compose), check naming (job/step IDs), structure (DRY via anchors,
+  step ordering, logical grouping), comments (non-obvious conditions), and simplicity
+  (unnecessary complexity in `if:` expressions, redundant steps). For Dockerfiles,
+  check layer ordering, naming, and simplicity. If the applicable dimensions produce
+  0 findings, report "0 findings" — that is a valid result, not a reason to skip.
 
 ## What to check
 

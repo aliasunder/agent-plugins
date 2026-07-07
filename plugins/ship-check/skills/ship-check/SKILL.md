@@ -83,12 +83,18 @@ Pass both as `Repo: owner/repo | Model: <your-model-id>` in the dispatch prompt.
 
 ## Phase discipline
 
-1. **All 5 phases run by default.** The orchestrator never skips phases based on its own
-   assessment of the PR's content. Only the user can skip phases — via `--skip` or `--only`.
+1. **All 5 phases run by default.** The orchestrator NEVER skips, refuses, or
+   short-circuits phases based on its own assessment of the PR's content. This
+   includes PRs that only change CI/CD workflows (`.yml`), IaC, Dockerfiles,
+   configuration, or documentation — **CI/CD and IaC are reviewable code**, not
+   boilerplate to wave through. Each phase determines its own scope and exits
+   cleanly when nothing is applicable; the orchestrator dispatches unconditionally.
+   Only the user can skip phases — via `--skip` or `--only`.
 
 2. **Each phase handles its own scope.** If a phase detects nothing in scope, it reports
    "0 files in scope" and exits cleanly. The orchestrator reports this result, not its
-   own judgment.
+   own judgment. A "0 findings" result from a dispatched agent is a valid outcome —
+   it is never a reason to have skipped the dispatch.
 
 3. **Phases run sequentially.** Each phase reviews the code *after* the previous phase's
    fixes are committed and pushed. Never parallelize review phases.
@@ -195,7 +201,7 @@ Dispatch the `code-quality-reviewer` agent type:
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
   description: "Code quality — conventions, readability",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed production files for naming, structure, comments, simplicity, and module conventions. Skip test files. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>."
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>."
 })
 ```
 
@@ -210,7 +216,7 @@ Dispatch the `test-auditor` agent type:
 Agent({
   subagent_type: "ship-check:test-auditor",
   description: "Test audit — quality + coverage gaps",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed production files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-2 fixed and any deferred findings>."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-2 fixed and any deferred findings>."
 })
 ```
 
@@ -225,7 +231,7 @@ Dispatch the `bug-checker` agent type:
 Agent({
   subagent_type: "ship-check:bug-checker",
   description: "Bug check — 7-dimension systematic hunt",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed production file in full. Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
 })
 ```
 
