@@ -67,6 +67,40 @@ Append a footer to the review body AND every inline comment body:
 \n\n---\n*🔍 ship-check · PHASE_NAME · MODEL_ID*
 ```
 
+### Verify the tree stays clean
+
+Comment mode is a promise that the pipeline leaves the repo untouched — but review
+agents carry Edit/Write tools and can drift back into fix-mode habits despite the
+dispatch instruction. Run `git status` after EVERY comment-mode phase, before
+triage. If the tree is dirty: stop any running phase, show the user the diff, and
+ask how to dispose of the edits. Do not assume the review agents produced them — a
+dirty tree can equally be a concurrent session working in the same checkout (e.g.
+the PR author applying fixes for the very findings the pipeline just posted, which
+looks identical to an agent violating comment mode). Never dispatch the next phase
+against a contaminated tree — its file reads and line anchors would reflect
+uncommitted edits rather than the PR head, producing wrong or missing findings.
+Treat an agent report of "no files edited" as a claim to verify, not a fact — and
+treat a dirty tree as a claim about the agents to verify, not a verdict.
+
+A related hazard: the checkout itself can change out from under the pipeline
+(branch switched, work moved to a worktree). If the PR branch is no longer checked
+out where the pipeline started, pin a dedicated detached review worktree at the PR
+head (`git worktree add --detach <path> origin/<branch>`) and point subsequent
+phases at it.
+
+### Non-inline findings still land on the PR
+
+Not every finding anchors to a diff line — beyond-diff findings, file-level or
+repo-level issues, and orchestrator triage deferrals. These must still be visible on
+the PR itself, not only in the chat transcript. Sub-agents include what they can in
+their review body (e.g. a "Findings beyond the diff" section), but **ensuring
+coverage is the primary agent's responsibility, not the sub-agents'**: in default
+mode, verify and post as part of Phase 5 (pr-monitoring); in comment mode (Phase 5
+skipped), verify after Phase 4 triage and post anything missing before the final
+summary. Post via `gh pr comment` /
+`POST /repos/{owner}/{repo}/issues/{n}/comments`. A finding that exists only in
+agent output is invisible to anyone reading the PR.
+
 ### Orchestrator setup
 
 Before dispatching Phase 1, resolve two values and pass them in every dispatch prompt:
@@ -139,7 +173,14 @@ sequential thinking forces you to deliberate instead of relaying.
    **In comment mode**: instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
-5. **Record results**: track triage fixes separately from phase fixes in the summary.
+5. **Report deferrals immediately — never silently.** Deferring a finding to the user
+   is a message to the user, not a bookkeeping state. The moment triage defers a
+   finding, say so in the status update before dispatching the next phase: file:line,
+   flag category, what the issue is, the options with their tradeoffs, and what
+   decision is needed. Phases take minutes each — a deferral held back until the
+   final summary is a decision the user didn't know they were sitting on. The final
+   summary re-lists deferrals; it is never their first disclosure.
+6. **Record results**: track triage fixes separately from phase fixes in the summary.
 
 ### Key principle: risk vs. confidence
 
@@ -259,6 +300,11 @@ follow ALL steps through Step 5, including:
   wakeup: `ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after
   push", prompt: "/pr-monitor")`
 - **Step 5**: Continue monitoring — never auto-terminate
+
+As part of this phase, the primary agent also ensures PR visibility for non-inline
+findings: any deferred finding or beyond-diff issue not already visible on the PR
+(inline comment or review body) gets a PR-level comment (`gh pr comment`) so the
+decision trail lives on the PR, not only in the chat transcript.
 
 ## Reporting
 
