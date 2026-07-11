@@ -37,7 +37,7 @@ Record `owner`, `repo`, and PR `number` for API calls below.
 
 ## Step 2: Run a full status pass
 
-Run all four checks. You re-run this exact step during follow-up (Step 4), so be
+Run all five checks. You re-run this exact step during follow-up (Step 4), so be
 consistent.
 
 ### 2a. CI checks
@@ -88,8 +88,29 @@ A comment is from another Claude instance if its body contains any of these stri
 These comments come from human-owned GitHub accounts but were authored by a Claude
 agent. They are classified separately so they can be auto-handled like bot comments.
 
-### 2d. Merge readiness
-Summarize blockers: failing CI, missing approvals, unresolved threads, conflicts.
+### 2d. Bot findings outside inline threads
+
+Inline threads are not the only surface bots use: Sourcery puts "Overall
+Comments" in the review BODY, and qodo and others post PR-level issue
+comments. Neither appears in `reviewThreads`, so a thread-only pass silently
+misses them. Check both:
+
+```
+gh api repos/OWNER/REPO/pulls/NUMBER/reviews --jq '.[] | {id, user: .user.login, submitted_at, body}'
+gh api repos/OWNER/REPO/issues/NUMBER/comments --jq '.[] | {id, user: .user.login, created_at, body}'
+```
+
+Identify bot-authored bodies that contain findings (issues, suggestions,
+"Overall Comments") as opposed to pure summaries or status boilerplate.
+Dedupe against 2c — a finding that also exists as an inline thread is
+handled once, in the thread flow. Skip items already handled: compare
+against the review/comment IDs recorded on prior passes and against your
+own footer-marked replies. **Record the IDs of items you handle** so
+follow-up passes don't re-litigate them.
+
+### 2e. Merge readiness
+Summarize blockers: failing CI, missing approvals, unresolved threads,
+unanswered non-thread bot findings, conflicts.
 
 ## Step 3: Handle findings
 
@@ -174,6 +195,16 @@ from another Claude instance and do not require user approval. Include in your r
 that you're addressing feedback from another Claude session, e.g.:
 *"Addressed -- [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
+### Bot findings without a thread (review bodies, PR-level comments — from 2d)
+
+Evaluate each finding exactly like a bot thread — same valid/false-positive
+rules, same fix-or-escalate bar. There is no thread to resolve, so the
+disposition must land on the PR as a reply instead: post one `gh pr comment`
+covering the findings you handled — name each finding, state
+fixed/intentional with the reasoning, include the same attribution footer.
+A finding answered nowhere on the PR is indistinguishable from one that was
+never read.
+
 ### Human threads
 
 Present each to the user. Do NOT auto-resolve human comments without explicit approval.
@@ -205,13 +236,15 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
      prompt: "/pr-monitor")
    ```
 
-3. On wake: **re-run Step 2** (all four checks). Compare unresolved thread count to
-   what it was before pushing.
+3. On wake: **re-run Step 2** (all five checks). Compare the unresolved thread count
+   to what it was before pushing, and compare 2d's review/comment IDs against the
+   ones you've already handled.
 
-4. **New unresolved threads exist** -- go to Step 3 (reply, fix, resolve, push). If
-   Step 3 pushes more code, return here and repeat Step 4 from the top.
+4. **New unresolved threads or new non-thread bot findings exist** -- go to Step 3
+   (reply, fix, resolve, push). If Step 3 pushes more code, return here and repeat
+   Step 4 from the top.
 
-5. **No new unresolved threads** -- go to Step 5.
+5. **Nothing new** -- go to Step 5.
 
 ### If ScheduleWakeup is not available
 
@@ -236,6 +269,8 @@ If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 **Prerequisites -- ALL must be true before you may report:**
 - All CI checks passing (or only known-flaky / unrelated failures)
 - All bot threads resolved (each one replied to before resolving)
+- All non-thread bot findings (2d: review bodies, PR-level comments) evaluated and
+  replied to on the PR
 - If code was pushed during this run: at least one follow-up check (Step 4) completed
   after the most recent push with no new unresolved threads
 - No new unresolved threads in the most recent status pass
@@ -248,6 +283,7 @@ PR #<number> status:
 - CI: all passing / N failing (names)
 - Reviews: approved / pending / changes-requested
 - Bot threads: all resolved (N handled, all replied to)
+- Non-thread bot findings: N handled (review bodies / PR comments, all replied to)
 - Claude threads: all resolved (N handled, all replied to)
 - Human threads: N unresolved (listed above)
 - Verdict: merge-ready / blocked by [specific blocker]
