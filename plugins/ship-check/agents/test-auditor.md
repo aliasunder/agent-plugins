@@ -6,7 +6,7 @@ description: >
   for Phase 3, a user asking to audit tests or check test quality against conventions,
   and checking whether production code changes have adequate test coverage. See "When
   to invoke" in the agent body for worked scenarios.
-model: inherit
+model: opus
 color: yellow
 tools:
   - Read

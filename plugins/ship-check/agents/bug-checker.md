@@ -7,7 +7,7 @@ description: >
   a deep correctness check or to look for subtle bugs, and verifying that tool
   descriptions match their implementations after changes. See "When to invoke" in the
   agent body for worked scenarios.
-model: inherit
+model: opus
 color: red
 tools:
   - Read

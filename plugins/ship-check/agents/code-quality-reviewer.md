@@ -7,7 +7,7 @@ description: >
   conventions), a user asking for a convention-grounded code quality pass, and reviewing
   changed files against project-specific naming and immutability rules. See "When to
   invoke" in the agent body for worked scenarios.
-model: inherit
+model: opus
 color: green
 tools:
   - Read
