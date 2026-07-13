@@ -59,6 +59,42 @@ SECURITY.md                  # Vulnerability reporting policy
 - Agent `tools:` fields are allowlists — omit to give all tools, list explicitly to restrict
 - Agent `skills:` preloads skill content from any installed plugin or `~/.claude/skills/`
 
+## Skill authoring
+
+### Trigger structure
+
+Procedural triggers (the "when X → do Y" rules in skill dimensions) follow a
+three-part structure:
+
+1. **Action** — what to flag or fix
+2. **Condition** — when the trigger applies (the pattern to match)
+3. **Boundary** — when NOT to apply (encodes the "why" as a decision criterion,
+   preventing false positives at edge cases)
+
+Abstract rules ("simplify code") get skipped. Concrete triggers with all three
+parts fire reliably and safely. If a trigger has no meaningful boundary, say so
+explicitly.
+
+### Generalization
+
+Rule text (the directive the agent follows) should use generic language — these
+skills run across multiple repos and languages. Domain-specific terms in rule
+text may cause the agent to skip checks in repos that don't match the framing.
+
+Illustrative examples embedded in triggers are fine to keep domain-specific —
+they help the agent understand the pattern concretely. Only generalize the rule
+itself.
+
+### Deriving triggers from PR evidence
+
+When a PR reveals patterns that ship-check missed (user had to correct manually):
+
+1. Categorize each correction — which phase and dimension should have caught it
+2. Check whether a trigger already exists — if it does but didn't fire, that's a
+   model execution gap, not a trigger gap (note for calibration, don't add text)
+3. Write the trigger with action + condition + boundary
+4. Use generic language in the rule, concrete examples from the source PR
+
 ## Releases
 
 Versions are kept in lockstep: `metadata.version` in `.claude-plugin/marketplace.json`,
