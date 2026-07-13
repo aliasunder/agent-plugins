@@ -122,14 +122,15 @@ Work through the changed files. For each, check these dimensions in order:
   wraps a trivially cheap, side-effect-free computation that every call site
   has ready, flag: accept `T` directly. If every call site passes
   `() => alreadyComputedValue`, the thunk adds indirection without benefit
-- **Layer-appropriate error messages trigger**: data-layer and utility functions
-  must not reference MCP tool names, tool parameters, or suggest tool-level
-  remediation in their error messages. Error messages at the data layer describe
-  what went wrong in the function's own domain ("no done lane detected"), not
-  how to fix tool input ("pass lane explicitly via vault_update_task"). The tool
-  description's Errors section owns remediation guidance. Related: error
+- **Layer-appropriate error messages trigger**: internal/data-layer functions
+  must not reference API-surface names (tool names, route paths, CLI flags) or
+  suggest caller-level remediation in their error messages. Error messages
+  describe what went wrong in the function's own domain
+  ("no done lane detected"), not how to fix the caller's input
+  ("pass lane explicitly via the update call"). Remediation guidance belongs in
+  the API surface (tool description, route docs, CLI help text). Related: error
   messages should use the module's own naming convention (camelCase in TS
-  modules), not the API surface's convention (snake_case tool param names)
+  modules), not the API surface's convention (snake_case, kebab-case, etc.)
 
 ### 3. Error handling hygiene
 - **No silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors
