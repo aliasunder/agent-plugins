@@ -63,37 +63,38 @@ SECURITY.md                  # Vulnerability reporting policy
 
 ### Trigger structure
 
-Procedural triggers (the "when X → do Y" rules in skill dimensions) follow a
-three-part structure:
+When a skill includes procedural rules ("when X → do Y"), each rule should have
+three parts:
 
-1. **Action** — what to flag or fix
-2. **Condition** — when the trigger applies (the pattern to match)
-3. **Boundary** — when NOT to apply (encodes the "why" as a decision criterion,
-   preventing false positives at edge cases)
+1. **Action** — what to do (flag, fix, suggest)
+2. **Condition** — when it applies (the pattern to match)
+3. **Boundary** — when NOT to apply (the decision criterion that prevents false
+   positives at edge cases)
 
-Abstract rules ("simplify code") get skipped. Concrete triggers with all three
-parts fire reliably and safely. If a trigger has no meaningful boundary, say so
-explicitly.
+The boundary encodes the "why" — not as motivation, but as the line between
+"apply" and "skip." Abstract rules ("simplify code") get skipped by agents.
+Concrete rules with all three parts fire reliably. If a rule has no meaningful
+boundary (always applies), say so explicitly.
 
 ### Generalization
 
-Rule text (the directive the agent follows) should use generic language — these
-skills run across multiple repos and languages. Domain-specific terms in rule
-text may cause the agent to skip checks in repos that don't match the framing.
+Rule text should use generic language — skills in this repo may run across
+multiple projects, repos, and languages. Domain-specific terms in rule text may
+cause the agent to skip checks in contexts that don't match the framing.
 
-Illustrative examples embedded in triggers are fine to keep domain-specific —
-they help the agent understand the pattern concretely. Only generalize the rule
-itself.
+Illustrative examples are fine to keep domain-specific — they help the agent
+understand the pattern concretely. Only generalize the rule itself.
 
-### Deriving triggers from PR evidence
+### Improving skills from real-world evidence
 
-When a PR reveals patterns that ship-check missed (user had to correct manually):
+When real-world use reveals patterns a skill missed (user had to correct
+manually, bot caught something the skill didn't):
 
-1. Categorize each correction — which phase and dimension should have caught it
-2. Check whether a trigger already exists — if it does but didn't fire, that's a
-   model execution gap, not a trigger gap (note for calibration, don't add text)
-3. Write the trigger with action + condition + boundary
-4. Use generic language in the rule, concrete examples from the source PR
+1. Categorize each miss — which skill and which dimension should have caught it
+2. Check whether a rule already exists — if it does but didn't fire, that's a
+   model execution gap, not a rule gap (note for calibration, don't add text)
+3. Write the rule with action + condition + boundary
+4. Use generic language in the rule, concrete examples from the source
 
 ## Releases
 
