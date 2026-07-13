@@ -211,7 +211,11 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    the reviewer decides scope, you decide what to report.
 2. **Overly broad transformations**: An operation applied everywhere when it should
    be scoped to a specific context (e.g., stripping escape characters globally
-   instead of only in table cells where they appear).
+   instead of only in table cells where they appear). Concrete instance:
+   `trim()` vs `trimEnd()` — when only trailing whitespace cleanup is intended
+   but leading whitespace carries semantic meaning (indentation, list nesting
+   level), `trim()` silently destroys structure. Flag `trim()` on any string
+   where leading whitespace encodes hierarchy or formatting.
 3. **Shared helpers not used**: Before accepting a language primitive or stdlib
    call in new code, grep `src/utils/` and nearby modules for an existing helper
    that does the same job. This includes bounded alternatives to unbounded

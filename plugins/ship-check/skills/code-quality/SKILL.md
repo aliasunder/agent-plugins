@@ -95,6 +95,41 @@ Work through the changed files. For each, check these dimensions in order:
   args that could be silently transposed, should use a named-params object. Two
   adjacent `string` roots or two adjacent `number` limits are a swap hazard —
   the call compiles fine with args reversed but does the wrong thing
+- **Verbose null/undefined guards trigger**: when a conditional checks
+  `!== undefined`, `!== null`, or both — check whether the falsy set (0,
+  `false`, `""`) matters for the variable's type. If the variable holds an
+  optional object, array, string ID, regex result, or config value where
+  0/`false`/`""` are not valid values, flag: replace with truthy/falsy check
+  (`if (x)` / `if (!x)` / `Boolean(x)`). Regex `.exec()` results are always
+  replaceable — they return `null` on no-match, never 0 or `false`. Only keep
+  explicit null/undefined checks when 0, `false`, or `""` are legitimate values
+  that must not be treated as absent (e.g., `if (count !== 0)`)
+- **Optional chaining trigger**: when an undefined/null guard is immediately
+  followed by property access or method call on the guarded value, collapse to
+  optional chaining: `value?.prop ?? fallback` over
+  `value === undefined ? fallback : value.prop`. Applies to array indexing too:
+  `arr[i]?.trim()` over
+  `const x = arr[i]; if (x === undefined) break; x.trim()`. Also applies to
+  ternary access patterns:
+  `nearestHeading?.text ?? null` over
+  `nearestHeading === undefined ? null : nearestHeading.text`
+- **Type predicates on `.filter()` trigger**: when `.filter()` removes
+  `undefined` or `null` from a typed array, use a type predicate
+  (`(x): x is T => x !== undefined`) so TypeScript narrows the downstream type.
+  Without it, the filtered array retains `| undefined` and forces unnecessary
+  guards or assertions downstream
+- **Plain values over thunks trigger**: when a callback parameter (`() => T`)
+  wraps a trivially cheap, side-effect-free computation that every call site
+  has ready, flag: accept `T` directly. If every call site passes
+  `() => alreadyComputedValue`, the thunk adds indirection without benefit
+- **Layer-appropriate error messages trigger**: data-layer and utility functions
+  must not reference MCP tool names, tool parameters, or suggest tool-level
+  remediation in their error messages. Error messages at the data layer describe
+  what went wrong in the function's own domain ("no done lane detected"), not
+  how to fix tool input ("pass lane explicitly via vault_update_task"). The tool
+  description's Errors section owns remediation guidance. Related: error
+  messages should use the module's own naming convention (camelCase in TS
+  modules), not the API surface's convention (snake_case tool param names)
 
 ### 3. Error handling hygiene
 - **No silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors
