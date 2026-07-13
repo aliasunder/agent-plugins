@@ -82,9 +82,9 @@ or function by name:
    just check the name exists. Confirm it actually does what the referencing
    description claims it does.
 2. **Verify directionality** — the most common error is naming the wrong sibling
-   (e.g., "use vault_find_orphans to find notes with broken links" when orphans
-   are notes with no *incoming* links, not notes with broken *outgoing* links;
-   or "use vault_get_outgoing_links" when vault_get_backlinks is correct).
+   (e.g., "use findOrphans to find broken links" when orphans are nodes with no
+   *incoming* links, not nodes with broken *outgoing* links; or referencing
+   `getOutgoingLinks` when `getBacklinks` is the correct direction).
 3. **Verify workflows end-to-end** — when a description prescribes a multi-step
    procedure ("after doing X, use Y to find Z"), trace the full workflow. Each
    step must produce the output the next step expects. A cross-reference that is
@@ -199,8 +199,8 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 
 **Look for asymmetric handling of similar constructs:**
 
-1. **Parallel code paths**: If function A handles wikilinks one way and markdown
-   links another way, verify the difference is intentional, not an oversight.
+1. **Parallel code paths**: If function A handles one input variant one way and
+   a sibling variant another way, verify the difference is intentional.
    Common: one path handles an edge case that the other path misses. Also check
    **merge/fusion points** — when parallel data sources (e.g., FTS + vector
    search, cache + DB, local + remote) are combined into a single result set,
@@ -249,8 +249,8 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    fallthrough where an error or early return is needed.
 2. **Input normalization**: Case-sensitive comparisons on user input that could
    arrive in mixed case (URLs, file extensions, header values).
-3. **Error message safety**: Do error messages include vault paths, internal state,
-   or implementation details that shouldn't reach clients?
+3. **Error message safety**: Do error messages include internal file paths,
+   internal state, or implementation details that shouldn't reach clients?
 4. **Guard correctness**: Is a guard condition (`if (value !== "")`) the right
    check? Could it be unconditional, or does it need a different condition?
 6. **Silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors with

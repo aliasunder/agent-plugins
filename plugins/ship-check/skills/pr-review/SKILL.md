@@ -71,7 +71,7 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 - Scan for obvious convention violations — naming, structure, module layering
 - Focus on what /code-quality won't catch: module boundary violations (wrong
   dependency direction), logging convention mismatches (info vs debug boundary,
-  two-arg pattern), MCP wire format issues (snake_case vs camelCase)
+  two-arg pattern), API wire format issues (snake_case vs camelCase)
 - **For thorough convention review, follow up with /code-quality**
 
 ### 3. Test quality (high-level scan)
