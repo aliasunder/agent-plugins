@@ -18,7 +18,7 @@ tools:
   - mcp__claude_ai_Vault_Cortex__vault_get_memory
   - mcp__claude_ai_Vault_Cortex__vault_read_note
   - mcp__claude_ai_Vault_Cortex__vault_memory_recall
-  - mcp__claude_ai_Vault_Cortex__vault_search_by_tag
+  - mcp__claude_ai_Vault_Cortex__vault_search
 skills:
   - test-audit
   - fable-mode
@@ -57,9 +57,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 2. **Load code standards + preference recall** — use ToolSearch to load the vault-cortex
    MCP schemas:
-   `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_search_by_tag,mcp__claude_ai_Vault_Cortex__vault_read_note,mcp__claude_ai_Vault_Cortex__vault_memory_recall" })`
+   `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_search,mcp__claude_ai_Vault_Cortex__vault_read_note,mcp__claude_ai_Vault_Cortex__vault_memory_recall" })`
    First discover the current set — hardcoded lists go stale as notes are added:
-   `vault_search_by_tag({ tag: "code-standards" })`
+   `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` the phase-relevant results (currently the testing note),
    plus any newer note matching this phase's focus or the repo's stack.
    Then recall the dated evidence trail for the change's domain — it surfaces

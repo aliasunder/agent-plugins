@@ -33,7 +33,7 @@ to every changed file. It is systematic where pr-review is intuitive.
    (the set grows; hardcoded lists go stale), read the pass-relevant results,
    then recall the dated evidence trail for the change's domain (surfaces
    preferences newer than the notes):
-   - `vault_search_by_tag({ tag: "code-standards" })`
+   - `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    - `vault_read_note` the results (currently typescript and docs), plus any newer
      note matching the repo's language/stack
    - `vault_memory_recall({ query: "<change domain>" })`

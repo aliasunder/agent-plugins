@@ -44,7 +44,7 @@ Load these sources fresh — do not rely on what is already in context:
 
 2. **Code standards + preference recall**: Discover the standards notes first — the
    set grows and hardcoded lists go stale:
-   `vault_search_by_tag({ tag: "code-standards" })`
+   `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` the pass-relevant results (currently typescript and
    logging-observability), plus any newer note matching the repo's language/stack.
    Then recall the dated evidence trail for the change's domain — it surfaces

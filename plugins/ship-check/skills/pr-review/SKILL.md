@@ -42,7 +42,7 @@ Load these sources fresh every time — do not rely on what is already in contex
 
 2. **Code standards + preference recall**: Discover the cross-project standards notes
    first — the set grows and hardcoded lists go stale:
-   `vault_search_by_tag({ tag: "code-standards" })`
+   `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` EVERY note the tag returns (distilled current consensus —
    currently typescript, testing, logging-observability, docs).
    Then recall the dated evidence trail for the change's domain — it surfaces

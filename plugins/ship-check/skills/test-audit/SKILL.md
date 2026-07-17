@@ -42,7 +42,7 @@ Load these sources fresh:
 
 2. **Code standards + preference recall**: Discover the standards notes first — the
    set grows and hardcoded lists go stale:
-   `vault_search_by_tag({ tag: "code-standards" })`
+   `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` the audit-relevant results (currently the testing note),
    plus any newer note matching this audit's focus or the repo's stack.
    Then recall the dated evidence trail for the change's domain — it surfaces
