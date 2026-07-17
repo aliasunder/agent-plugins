@@ -66,6 +66,34 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   flow, storage locations, capability descriptions — match the implementation.
   A guide that says "no external communication" when the system has an outbound
   sync service is a correctness bug, not a style issue
+- **Documentation coherence** (when the PR adds or restructures user-facing
+  guides, READMEs, or setup instructions): line-level fact-checking cannot catch
+  these — every sentence can be individually true while the document contradicts
+  itself. Check coherence by simulating readers, not by scanning sentences:
+  - **Multi-path walkthrough**: when a doc offers more than one way to accomplish
+    the same goal (alternative install methods, setup tools, runtimes, OS
+    variants), enumerate the offered paths, then walk EACH path through the
+    entire document. Every operational section — update, restart, monitor,
+    verify, troubleshoot, apply-config-change — must either work for every
+    offered path or explicitly scope itself to the paths it serves. A status
+    command that returns nothing for the default path's users, a lifecycle
+    section covering two of three offered methods, or a platform note attached
+    to one path when it applies to all are each findings. Check the reverse too:
+    a section must not reference a path the document never offers. Skip the
+    walkthrough only when the doc offers a single path.
+  - **Default-shift framing**: when the PR (or the change it documents) changes
+    which method or option is default/recommended, check that every doc's
+    framing agrees with the new default — intro prose, section ordering, which
+    method is the main body vs folded into a collapsible aside. Individual
+    commands survive a default shift; framing sentences ("X is used below") and
+    document structure go stale silently. Skip when no default or
+    recommendation changed.
+  - **Sibling-doc consistency**: when the repo has parallel variants of the same
+    document (per-environment, per-OS, per-version guides), review the set
+    together, section-by-section — per-file review structurally cannot catch
+    cross-file contradictions. Expect the same lead method and the same section
+    skeleton; divergence is a finding unless the variant's real differences
+    justify it.
 
 ### 2. Convention compliance (high-level scan)
 - Scan for obvious convention violations — naming, structure, module layering

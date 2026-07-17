@@ -43,10 +43,13 @@ to every changed file. It is systematic where pr-review is intuitive.
    scope for dimension 1 when the docs make factual claims about the system —
    privacy/security guarantees, architecture, data flow, storage locations, capability
    claims, or tool categorization. Verify each claim against the implementation. Pure
-   formatting/prose/structural changes to docs are out of scope — but a docs PR that
+   formatting/prose changes to docs are out of scope — but a docs PR that
    says "no external communication" when the system has an outbound sync service is a
-   D1 bug, not a style issue. Only report "docs only — nothing to check" when no
-   factual claims about the system are present.
+   D1 bug, not a style issue. Structural changes (reordering sections, changing which
+   method leads, folding content into asides) are NOT out of scope: they trigger the
+   D1 structural self-reference check and the D5 alternative-command-path check.
+   Only report "docs only — nothing to check" when no factual claims about the
+   system are present AND no doc was restructured.
 5. Skip test files — test-audit handles those.
 6. **Read each changed file in full** — not just the diff. Bugs hide in how new
    code interacts with surrounding context.
@@ -119,6 +122,16 @@ no global mode state — the fallback is stateless, not a one-time transition.
 **Stale claims:** Check that descriptions still match after refactoring. A renamed
 function, moved parameter, or changed return type can leave the description accurate
 for the old code but wrong for the new.
+
+**Structural self-references in docs**: prose that references the document's own
+structure — "shown below", "the manual setup above", "the following section", "as
+described earlier" — is a claim about the document, and restructuring breaks it the
+same way refactoring breaks code claims. For each such reference in a changed doc,
+resolve it against the CURRENT document: the target content must still exist, still
+sit in the stated position, and still be what the sentence says it is. A reference
+to content that was replaced, moved, or demoted into a collapsible aside is a D1
+bug even when every command in the document still works. References that still
+resolve correctly need no change.
 
 **CI/workflow files** (`.yml`): Apply dimension 1 to step names, job names, and
 conditional logic. A step named "Configure Tailscale" that is always skipped due to
@@ -239,6 +252,21 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    only applies when the var is absent, not when it's empty. Empty-string
    defaults bypass code-level defaults and can cause startup failures or
    silent misconfiguration.
+6. **Alternative command paths in docs**: when documentation offers more than one
+   literal command sequence for the same task (quick-start one-liner vs config
+   file vs installer/CLI tool), treat them as parallel code paths. Compare the
+   resource identifiers they create or reference — data volume/directory names,
+   container/service names, project names, ports, generated file paths. Mismatched
+   identifiers mean a user who switches methods silently loses access to existing
+   data or state; either the identifiers must match across methods or the doc must
+   state that the methods are not interchangeable. Also compare configuration
+   flags: an alternative that silently omits behavior the other methods set up
+   (health checks, restart policy, log limits) needs a note saying what it omits.
+   Skip when the methods are explicitly documented as independent of each other.
+   Example: a manual `docker run` one-liner mounting `-v vault_data:/vault` while
+   the CLI and Compose paths both use the prefixed `vault-cortex_vault_data`
+   volume — a user who starts with the one-liner and later runs the CLI gets
+   empty volumes and a full re-sync.
 
 ### 6. Input validation and error paths
 
