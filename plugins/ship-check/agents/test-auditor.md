@@ -16,6 +16,8 @@ tools:
   - ToolSearch
   - mcp__sequential-thinking__sequentialthinking
   - mcp__claude_ai_Vault_Cortex__vault_get_memory
+  - mcp__claude_ai_Vault_Cortex__vault_read_note
+  - mcp__claude_ai_Vault_Cortex__vault_memory_recall
 skills:
   - test-audit
   - fable-mode
@@ -52,17 +54,18 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 1. **Read CLAUDE.local.md** from the project root for project context.
 
-2. **Load user preferences** — use ToolSearch to load the vault-cortex MCP schema:
-   `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_get_memory" })`
-   Then call: `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
+2. **Load code standards + preference recall** — use ToolSearch to load the vault-cortex
+   MCP schemas:
+   `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_read_note,mcp__claude_ai_Vault_Cortex__vault_memory_recall" })`
+   Then read the testing standards note (distilled current consensus):
+   - `vault_read_note({ path: "Reference/code-standards-testing.md" })`
+   Then recall the dated evidence trail for the change's domain — it surfaces
+   preferences newer than the note: `vault_memory_recall({ query: "testing conventions <change domain>" })`
 
 3. **Load sequential thinking**:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
-4. **For TypeScript projects**, read:
-   - `/Users/tanishaaberdeen/.claude/references/testing-patterns.md`
-
-5. **Identify changed files**: `git diff --name-only main...HEAD`
+4. **Identify changed files**: `git diff --name-only main...HEAD`
    Separate into test files (`.test.ts` / `.spec.ts`) and production files.
    If 0 of both, report "0 files in scope" and exit.
 

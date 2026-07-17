@@ -42,11 +42,12 @@ Load these sources fresh — do not rely on what is already in context:
    Focus on the code style section — naming, immutability, early returns, comment
    philosophy, module layering, export style.
 
-2. **User preferences**: Retrieve the `Code patterns` section from the Opinions
-   memory file — contains the user's codified preferences from past review cycles:
-   `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
-
-3. **Reference docs**: For TypeScript projects, read `~/.claude/references/typescript-standards.md`.
+2. **Code standards + preference recall**: Read the standards notes for this pass —
+   distilled current consensus from past review cycles:
+   - `vault_read_note({ path: "Reference/code-standards-typescript.md" })`
+   - `vault_read_note({ path: "Reference/code-standards-logging-observability.md" })`
+   Then recall the dated evidence trail for the change's domain — it surfaces
+   preferences newer than the notes: `vault_memory_recall({ query: "<change domain>" })`
 
 ## Scope
 

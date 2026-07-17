@@ -29,8 +29,12 @@ to every changed file. It is systematic where pr-review is intuitive.
 ## Before starting
 
 1. Load AGENTS.md for project conventions.
-2. Load user preferences — retrieve the `Code patterns` section from the Opinions
-   memory file: `vault_get_memory({ file: "Opinions", section: "Code patterns" })`
+2. Load code standards + preference recall — read the standards notes for this pass
+   (distilled current consensus), then recall the dated evidence trail for the
+   change's domain (surfaces preferences newer than the notes):
+   - `vault_read_note({ path: "Reference/code-standards-typescript.md" })`
+   - `vault_read_note({ path: "Reference/code-standards-docs.md" })`
+   - `vault_memory_recall({ query: "<change domain>" })`
 3. Identify all files changed in the branch vs main:
    ```
    git diff main --name-only
