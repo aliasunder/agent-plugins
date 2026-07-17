@@ -40,13 +40,11 @@ Load these sources fresh every time — do not rely on what is already in contex
    AGENTS.md exists) from the repo root. Pay attention to: code style, test conventions,
    module layering, naming rules, logging conventions, MCP tool description conventions.
 
-2. **Code standards + preference recall**: Read the four cross-project standards notes
-   from the vault — distilled current consensus on naming, immutability, two-bar
-   tests, logging, and docs coherence:
-   - `vault_read_note({ path: "Reference/code-standards-typescript.md" })`
-   - `vault_read_note({ path: "Reference/code-standards-testing.md" })`
-   - `vault_read_note({ path: "Reference/code-standards-logging-observability.md" })`
-   - `vault_read_note({ path: "Reference/code-standards-docs.md" })`
+2. **Code standards + preference recall**: Discover the cross-project standards notes
+   first — the set grows and hardcoded lists go stale:
+   `vault_search_by_tag({ tag: "code-standards" })`
+   Then `vault_read_note` EVERY note the tag returns (distilled current consensus —
+   currently typescript, testing, logging-observability, docs).
    Then recall the dated evidence trail for the change's domain — it surfaces
    preferences newer than the notes:
    `vault_memory_recall({ query: "<change domain, e.g. 'error handling'>" })`

@@ -42,10 +42,11 @@ Load these sources fresh — do not rely on what is already in context:
    Focus on the code style section — naming, immutability, early returns, comment
    philosophy, module layering, export style.
 
-2. **Code standards + preference recall**: Read the standards notes for this pass —
-   distilled current consensus from past review cycles:
-   - `vault_read_note({ path: "Reference/code-standards-typescript.md" })`
-   - `vault_read_note({ path: "Reference/code-standards-logging-observability.md" })`
+2. **Code standards + preference recall**: Discover the standards notes first — the
+   set grows and hardcoded lists go stale:
+   `vault_search_by_tag({ tag: "code-standards" })`
+   Then `vault_read_note` the pass-relevant results (currently typescript and
+   logging-observability), plus any newer note matching the repo's language/stack.
    Then recall the dated evidence trail for the change's domain — it surfaces
    preferences newer than the notes: `vault_memory_recall({ query: "<change domain>" })`
 

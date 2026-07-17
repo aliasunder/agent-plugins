@@ -29,11 +29,13 @@ to every changed file. It is systematic where pr-review is intuitive.
 ## Before starting
 
 1. Load AGENTS.md for project conventions.
-2. Load code standards + preference recall — read the standards notes for this pass
-   (distilled current consensus), then recall the dated evidence trail for the
-   change's domain (surfaces preferences newer than the notes):
-   - `vault_read_note({ path: "Reference/code-standards-typescript.md" })`
-   - `vault_read_note({ path: "Reference/code-standards-docs.md" })`
+2. Load code standards + preference recall — discover the standards notes first
+   (the set grows; hardcoded lists go stale), read the pass-relevant results,
+   then recall the dated evidence trail for the change's domain (surfaces
+   preferences newer than the notes):
+   - `vault_search_by_tag({ tag: "code-standards" })`
+   - `vault_read_note` the results (currently typescript and docs), plus any newer
+     note matching the repo's language/stack
    - `vault_memory_recall({ query: "<change domain>" })`
 3. Identify all files changed in the branch vs main:
    ```

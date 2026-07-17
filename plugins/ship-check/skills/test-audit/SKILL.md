@@ -40,11 +40,13 @@ Load these sources fresh:
 1. **Project test conventions**: Read `AGENTS.md` (or `CLAUDE.md`) from the project
    root. Focus on the test conventions section.
 
-2. **Code standards + preference recall**: Read the testing standards note — distilled
-   current consensus on test design from past review cycles:
-   - `vault_read_note({ path: "Reference/code-standards-testing.md" })`
+2. **Code standards + preference recall**: Discover the standards notes first — the
+   set grows and hardcoded lists go stale:
+   `vault_search_by_tag({ tag: "code-standards" })`
+   Then `vault_read_note` the audit-relevant results (currently the testing note),
+   plus any newer note matching this audit's focus or the repo's stack.
    Then recall the dated evidence trail for the change's domain — it surfaces
-   preferences newer than the note:
+   preferences newer than the notes:
    `vault_memory_recall({ query: "testing conventions <change domain>" })`
 
 ## Scope
