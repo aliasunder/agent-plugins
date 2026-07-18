@@ -1,6 +1,6 @@
 {
   "name": "agent-plugins",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Plugin marketplace for Claude Code and Claude Cowork — fresh-eyes code review agents, workflow orchestrators, and specialized skills",
   "keywords": [
     "ai-agents",

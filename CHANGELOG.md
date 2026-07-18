@@ -1,5 +1,41 @@
 # Changelog
 
+
+## [1.0.2] — 2026-07-18
+
+### Features
+
+- **ship-check:** Discover standards notes by tag before reading
+- **ship-check:** Load code standards from vault instead of local reference files
+- **ship-check:** Add CI/CD and IaC as reviewable code across all phases
+- **ship-check:** Add phase/model footer to comment-mode PR reviews
+- **ship-check:** Add --comment mode for review-only PR commenting
+
+### Bug Fixes
+
+- **ship-check:** Anchor standards discovery on property triple, not tag alone
+- **ship-check:** Add docs-coherence triggers from vault-cortex PR #339 review gaps
+- **ship-check:** Generalize layer-appropriate error messages trigger
+- **ship-check:** Add 6 idiomatic-TS triggers from vault-cortex PR #321 review
+- **ship-check:** Pr-monitor also sweeps review bodies and PR-level bot comments
+- **ship-check:** Surface deferrals immediately, PR-visibility + clean-tree guards
+- **ship-check:** Embed footer in pr-monitor reply templates
+- **ship-check:** Add ?./?? carve-outs to test-audit, footer to pr-monitor replies
+- **ship-check:** Make model ID dynamic in comment-mode dispatch
+
+### Refactoring
+
+- **ship-check:** Generalize domain-specific language in rule text
+
+### Documentation
+
+- **agents:** Generalize skill authoring section beyond ship-check
+- **agents:** Add skill authoring conventions — trigger structure, generalization, PR-derived triggers
+
+### Maintenance
+
+- **ship-check:** Set all agents to model: opus
+
 ## [1.0.1] — 2026-07-02
 
 ### Features
