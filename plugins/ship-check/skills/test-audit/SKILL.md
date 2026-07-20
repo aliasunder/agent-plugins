@@ -112,15 +112,62 @@ Every test must satisfy BOTH bars:
 ### 3. Assertion quality
 - Exact assertions (`toBe`, `toHaveLength(2)`) over loose matchers
   (`toBeGreaterThanOrEqual(1)`, `toBeDefined()`) when the expected value is known
-- Full object/output match (`toBe` on the whole value) over `contains`/substring
-  when output is deterministic and inputs are controlled
-- **No decomposed assertions**: `toHaveLength(1)` + `results[0].path === "foo"`
-  is weaker than `expect(results.map(r => r.path)).toEqual(["foo"])` — the
-  decomposed form doesn't catch extra items, ordering changes, or unexpected
-  properties. When you can assert the whole shape in one statement, do it.
-  The trigger: any time you see `toHaveLength` followed by index-based property
-  checks, collapse into a single `toEqual`
-- Reserve `contains` for when only a fragment is genuinely under test
+- **No decomposed assertions — assert the whole object.** Multiple `expect()`
+  calls picking off individual properties of the same result is weaker than one
+  `toEqual` on the full shape. The decomposed form doesn't catch extra
+  properties, structural drift, added fields, or formatting changes — each
+  assertion passes in isolation while the overall object silently diverges from
+  what the test intends.
+  The trigger: two or more `expect()` calls in a test that reach into the same
+  object (same root variable, same array element, or chained properties like
+  `result.content[0]?.type` and `result.content[0]?.text`). When you see this,
+  check whether the full object shape is deterministic — if it is, collapse
+  into a single `toEqual` or `toMatchObject` (when only a subset of properties
+  matters and the rest are tested elsewhere).
+  Boundary: decomposition IS appropriate when (a) the properties come from
+  different sources with different determinism (one controlled, one dynamic),
+  (b) the assertion needs a different matcher per property (`toBeInstanceOf`
+  on one, `toBe` on another) that `toEqual` can't express, or (c) the object
+  is large and only a narrow slice is relevant to THIS test's concern — but
+  even then, prefer `toMatchObject` with the relevant subset over individual
+  property picks.
+  Wrong:
+  ```
+  expect(result.isError).toBeUndefined()
+  expect(result.content).toHaveLength(1)
+  expect(result.content[0]?.type).toBe("text")
+  expect(result.content[0]?.text).toBe("Hello PDF")
+  ```
+  — passes even if `result` gains an `error` field, `content[0]` gains extra
+  properties, or `isError` is `null` instead of `undefined`.
+  Right:
+  ```
+  expect(result).toEqual({
+    content: [{ type: "text", text: "Hello PDF" }],
+  })
+  ```
+  — locks the entire shape. Any structural drift fails the test.
+- **No substring matching on deterministic output.** When the production code
+  returns a fixed or fully-controlled string (hardcoded literal, template with
+  all-controlled variables, mock/fixture-supplied text), assert the exact value
+  — not a substring.
+  The trigger: `toContain("...")`, `toMatch(...)`, `stringContaining("...")`, or
+  any partial-match assertion on a string value. Trace the value to its source:
+  if every variable in the string is controlled by the test (fixture data, mock
+  return value, hardcoded constant), the output is deterministic and the
+  assertion must be exact. This applies to ALL string outputs — content text,
+  formatted messages, rendered output, file contents — not only error messages.
+  Boundary: substring matching IS appropriate when (a) the output includes
+  genuinely non-deterministic segments (timestamps, UUIDs, random IDs, system
+  paths), (b) the test intentionally checks only a fragment because the rest is
+  tested elsewhere, or (c) the format is explicitly unstable (e.g. a
+  human-readable summary that may gain preamble text). When in doubt, check
+  whether the test controls the full input — if it does, the output is
+  deterministic and `toBe` is correct.
+  Wrong: `expect(result.content[0]?.text).toContain("Hello PDF")` — passes if
+  the text is `"Hello PDF world"`, `"Error: Hello PDF not found"`, or anything
+  containing the substring.
+  Right: `expect(result.content[0]?.text).toBe("Hello PDF content extracted successfully")` — proves the exact expected output.
 - **No position-agnostic assertions on ordered collections.** When an API returns
   results in a deterministic order (`Promise.allSettled` preserves input order,
   `Array.map` preserves index, `Object.entries` preserves insertion order), assert
@@ -132,16 +179,6 @@ Every test must satisfy BOTH bars:
   a specific position — if it does, the assertion must verify that position.
   Wrong: `expect(results).toEqual(expect.arrayContaining([expect.objectContaining({status: "rejected"})]))` — proves *some* call rejected, not *which* call.
   Right: `expect(results).toEqual([expect.objectContaining({status: "fulfilled"}), expect.objectContaining({status: "rejected", reason: ...})])` — proves the first succeeded and the second rejected.
-- **No substring matching on deterministic error messages.** When the error message
-  is a hardcoded string literal in the source code (not interpolated, not dynamic),
-  assert the exact message — not a substring.
-  The trigger: `stringContaining("...")` or `toThrow("...")` (substring match) on
-  an error whose message text is a fixed literal. Read the production code to check
-  — if the `throw` or `reject` uses a template literal with variables, substring is
-  fine; if it's a plain string like `"concurrent write in progress"`, match exactly.
-  Wrong: `expect.stringContaining("concurrent write")` — matches any error that
-  happens to contain that substring.
-  Right: `message: "concurrent write in progress"` — matches only the intended error.
 
 ### 4. Test hygiene
 - `const` per test over `let` + `beforeEach` when possible
