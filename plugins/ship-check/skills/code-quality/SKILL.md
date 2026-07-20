@@ -151,6 +151,48 @@ Work through the changed files. For each, check these dimensions in order:
 - Each line should say what it does on its own
 - Working is the floor, not the bar — ask whether a simpler structure exists
 - A reader should not need to pause to understand what the code does
+- **No imperative collection-building where a declarative expression works.**
+  A for-loop that pushes into an array, sets on a Map, or adds to a Set is the
+  mutable version of `.map()`, `new Map(arr.map(...))`, or `new Set(arr.map(...))`.
+  When the loop body is a straight transform — no early exits, no conditional
+  pushes, no accumulator logic beyond the single output — the declarative form
+  is shorter, immutable, and harder to misread.
+  The trigger: a `for` loop whose body's only side effect is `.push()`,
+  `.set()`, or `.add()` on a collection declared immediately before the loop.
+  Check whether the loop has conditional logic (if/continue/break) — if it
+  doesn't, or if the only conditional is a filter, the loop is a `.map()` or
+  `.filter().map()`.
+  Boundary: the imperative form IS appropriate when (a) the loop body has early
+  exits or conditional pushes that don't map to a single `.filter().map()`
+  chain, (b) the accumulator is more complex than append (e.g. dedup-by-key
+  with a seen set), or (c) the loop mutates external state beyond the
+  collection being built.
+  Wrong:
+  ```
+  const levels = new Map()
+  for (let i = 0; i < sizes.length; i++) {
+    levels.set(sizes[i], i + 1)
+  }
+  return levels
+  ```
+  Right:
+  ```
+  return new Map(sizes.map((size, index) => [size, index + 1]))
+  ```
+- **No index-based iteration when `for...of` works.** `for (let i = 0; ...)`
+  with `arr[i]` access is justified when the index is used for something beyond
+  element access — positional output, adjacent-element comparison by offset, or
+  subarray slicing. When the index only serves to access the current element,
+  `for...of` is cleaner and eliminates array-bounds guards the type checker
+  forces on `arr[i]`.
+  The trigger: a `for (let i = ...)` loop where `i` appears only in `arr[i]`
+  expressions (or `arr[i - 1]` for adjacent comparison). If the adjacent
+  comparison can be replaced by a state variable (e.g. `let lastY = prev.y`),
+  `for...of` with the state variable is simpler.
+  Boundary: index-based IS appropriate when (a) the index is used in the output
+  (position labels, offset calculations), (b) the loop skips or jumps indices
+  (`i += 2`, `i = nextIndex`), or (c) the loop needs simultaneous access to
+  more than two adjacent elements.
 
 ### 6. Module conventions (if project has module layering rules)
 - Dependency direction respected

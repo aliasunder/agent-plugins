@@ -54,6 +54,12 @@ Load these sources fresh:
 - **Default**: audit all test files changed in the current branch (vs main/base).
   Use `git diff --name-only main...HEAD` to find changed `.test.ts` / `.spec.ts` files.
 - **If the user specifies files or "all tests"**: use that scope instead.
+- **Same-pattern sweep**: when a D3 trigger fires on changed code, also scan the
+  rest of the file for the same anti-pattern in unchanged tests. Pre-existing tests
+  are often the source of the pattern (copy-paste inheritance) — fixing only the new
+  instance leaves the original infection in place. This is a targeted expansion, not
+  a full-file audit: only sweep for the specific anti-pattern that fired, not all
+  dimensions.
 - **Always run coverage gap analysis** on all changed files — production files need
   tests, and changed test files need review for coverage regressions (removed tests,
   weakened assertions, deleted branches). When no test files were changed, gap analysis
