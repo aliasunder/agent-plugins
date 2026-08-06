@@ -109,11 +109,13 @@ Before dispatching Phase 1, resolve two values and pass them in every dispatch p
    ```bash
    gh repo view --json nameWithOwner -q .nameWithOwner
    ```
-2. **Model identifier** — read from your system context (the "You are powered by
-   the model named..." line includes the exact model ID). This goes into the comment
-   footer so the user can distinguish automated review comments from their own.
+2. **Model identifier** — the model the phase agents run on, NOT your own: read the
+   `model:` value from the ship-check agent definitions' frontmatter (all four pin
+   the same model). This goes into the comment footer to attribute the review; the
+   orchestrator may run a different model than the agents, so your own model ID
+   would misattribute it.
 
-Pass both as `Repo: owner/repo | Model: <your-model-id>` in the dispatch prompt.
+Pass both as `Repo: owner/repo | Model: <agent-model>` in the dispatch prompt.
 
 ## Phase discipline
 
