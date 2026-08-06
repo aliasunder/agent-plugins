@@ -1,6 +1,27 @@
 # Changelog
 
 
+## [1.0.3] — 2026-08-06
+
+### Features
+
+- **ship-check:** Simplicity triggers + same-pattern sweep scope
+
+### Bug Fixes
+
+- **ship-check:** Add local vault-cortex tool names to agent allowlists (#2)
+- **ship-check:** Replace soft assertion preferences with procedural triggers
+
+### CI / Infrastructure
+
+- Scope app token to contents:write only
+- Use GitHub App token for release workflows and add CodeRabbit config
+
+### Maintenance
+
+- Expand .gitignore with common exclusions
+
+
 ## [1.0.2] — 2026-07-18
 
 ### Features
