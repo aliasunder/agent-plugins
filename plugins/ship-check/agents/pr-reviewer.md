@@ -19,6 +19,10 @@ tools:
   - mcp__claude_ai_Vault_Cortex__vault_read_note
   - mcp__claude_ai_Vault_Cortex__vault_memory_recall
   - mcp__claude_ai_Vault_Cortex__vault_search
+  - mcp__vault-cortex__vault_get_memory
+  - mcp__vault-cortex__vault_read_note
+  - mcp__vault-cortex__vault_memory_recall
+  - mcp__vault-cortex__vault_search
 skills:
   - pr-review
   - fable-mode
@@ -59,7 +63,10 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 2. **Load code standards + preference recall** — use ToolSearch to load the vault-cortex
    MCP schemas:
-   `ToolSearch({ query: "select:mcp__claude_ai_Vault_Cortex__vault_search,mcp__claude_ai_Vault_Cortex__vault_read_note,mcp__claude_ai_Vault_Cortex__vault_memory_recall" })`
+   `ToolSearch({ query: "select:mcp__vault-cortex__vault_search,mcp__vault-cortex__vault_read_note,mcp__vault-cortex__vault_memory_recall" })`
+   (local Claude Code registers the server as `vault-cortex`; on claude.ai/Desktop the
+   same tools are named `mcp__claude_ai_Vault_Cortex__*` — select whichever prefix this
+   environment lists)
    First discover the current set — hardcoded lists go stale as notes are added:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` EVERY note the tag returns (distilled current consensus —
