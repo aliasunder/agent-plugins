@@ -217,6 +217,38 @@ for an OSS project where users may have 10x the data on half the RAM. Evaluate a
 the worst reasonable use case for the project's audience — not the maintainer's current
 setup. And if the fix is trivial, fix it regardless of the impact assessment.
 
+## Pre-merge delta review
+
+Phases 1-4 review a snapshot, but the PR keeps moving after they finish — bot-response
+fixes, scope growth, manual cleanups. On real PRs the majority of commits can land
+after Phase 4 (observed: 11 of 19 commits over the 22 hours after the phases ran,
+including a monitoring-cycle fix that introduced a real bug only an external bot
+caught). Post-phase commits that no phase ever sees are the largest source of shipped
+misses. This section closes that hole. Comment mode skips it (Phase 5 doesn't run and
+the pipeline pushes nothing).
+
+1. **Record the reviewed SHA.** When Phase 4 completes (including its triage fixes),
+   note the branch head SHA — the high-water mark of what the phases have seen.
+2. **Check the delta before every merge-ready verdict.** In Phase 5, before declaring
+   merge-ready (and again before re-declaring it on later passes), run
+   `git diff <reviewed-sha>..HEAD --stat`. An empty or trivial delta (typo-level docs
+   edits, lockfile churn) needs no action — state that the delta was checked and its
+   commit range.
+3. **Dispatch a delta review when the delta is substantive** — any new or changed
+   logic, API shape, config/CI behavior, or restructured docs. Scope the dispatch to
+   the delta diff only, naming the commits under review: dispatch
+   `ship-check:bug-checker` when the delta contains logic changes,
+   `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
+   when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
+4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
+   pr-monitor itself authors in the bot-response cycle is unreviewed content like any
+   other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
+   reviewed"; a monitoring-cycle fix has replaced byte-exact truncation with
+   character-count truncation on a confidently wrong invariant claim, and no phase
+   ever saw it.
+5. **Advance the reviewed SHA** once a delta review (and its fixes) completes, then
+   repeat step 2 on subsequent passes. Deltas shrink, so this converges.
+
 ## Execution
 
 ### Phase 1: PR Review
@@ -244,7 +276,7 @@ Dispatch the `code-quality-reviewer` agent type:
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
   description: "Code quality — conventions, readability",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>."
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>."
 })
 ```
 
@@ -307,6 +339,10 @@ As part of this phase, the primary agent also ensures PR visibility for non-inli
 findings: any deferred finding or beyond-diff issue not already visible on the PR
 (inline comment or review body) gets a PR-level comment (`gh pr comment`) so the
 decision trail lives on the PR, not only in the chat transcript.
+
+Phase 5 also owns the **pre-merge delta review** (see the section above): before any
+merge-ready verdict, diff the current head against the last phase-reviewed SHA and
+dispatch a delta review if the difference is substantive.
 
 ## Reporting
 
