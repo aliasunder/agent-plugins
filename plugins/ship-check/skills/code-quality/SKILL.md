@@ -47,6 +47,9 @@ Load these sources fresh — do not rely on what is already in context:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` the pass-relevant results (currently typescript and
    logging-observability), plus any newer note matching the repo's language/stack.
+   When the diff includes markdown docs or substantial comment changes, also read
+   the docs standards note (currently `Reference/code-standards-docs`) — it grounds
+   dimension 7.
    Then recall the dated evidence trail for the change's domain — it surfaces
    preferences newer than the notes: `vault_memory_recall({ query: "<change domain>" })`
 
@@ -64,6 +67,14 @@ Load these sources fresh — do not rely on what is already in context:
   (unnecessary complexity in `if:` expressions, redundant steps). For Dockerfiles,
   check layer ordering, naming, and simplicity. If the applicable dimensions produce
   0 findings, report "0 findings" — that is a valid result, not a reason to skip.
+- **Markdown docs are in scope for dimension 7 only** — changed `.md` files (README,
+  guides, ARCHITECTURE, env templates) get the concision pass, not the code dimensions.
+- **Same-pattern sweep**: when a trigger fires on changed code, scan the rest of the
+  file — and grep for sibling call sites — for other instances of the same pattern,
+  including pre-existing ones. Copy-paste inheritance and partial manual cleanups both
+  leave siblings behind (observed: an author's own fix of a flagged pattern corrected
+  1 of 3 identical sites). This is a targeted expansion: sweep only the specific
+  pattern that fired, not all dimensions.
 
 ## What to check
 
@@ -76,6 +87,11 @@ Work through the changed files. For each, check these dimensions in order:
 - Callback params are explicit (`orphan` not `o`, `entry` not `e`)
 - SQL aliases are descriptive (`element` not `je`)
 - Booleans named for the affirmative state (`hardLinksSupported` not `hardLinksUnsupported`)
+- **No side-effect prefixes on value-returning functions.** When callers consume the
+  return value (`const engine = await ensurePdfEngine()`), a prefix like `ensure*`,
+  `check*`, `init*`, or `setup*` misstates the point — name the return
+  (`getPdfEngine`, `resolveConfig`, `loadIndex`). Boundary: keep the side-effect name
+  when every call site ignores the return — a true ensure-invariant function
 
 ### 2. Structure
 - Early returns over nested if/else
@@ -145,6 +161,23 @@ Work through the changed files. For each, check these dimensions in order:
 - Never restate self-documenting names
 - If a long comment is needed, consider simplifying the code instead
 - Regex constants get doc comments explaining what they match
+- **State the why once, tersely.** Keep the context that makes a non-obvious helper
+  or constraint make sense; flag restated justification chains, padding with
+  derivable detail, and facts already documented elsewhere (PR description, platform
+  docs, AGENTS.md). One statement of the why, then stop. Trim-safety boundary: see
+  dimension 7 — compression must never merge two distinct claims into one
+- **Durable rationale only.** Transition history ("renamed from X") and design
+  narratives arguing rejected alternatives age badly — comments state the
+  forward-looking constraints a future editor needs (why this shape, what breaks if
+  changed); migration context and the design argument belong in the PR description
+- **Inline dense regex → named constant.** A regex with character classes,
+  alternation, or quoting semantics sitting inline in a function body gets hoisted
+  to a module-level named constant with a doc comment stating what it matches
+  (e.g. `/for="?([^";,]+)"?/i` inline → `FORWARDED_FOR_CLIENT` with a comment on
+  its capture-stop semantics). Boundary: trivial single-use patterns (`/^\d+$/`)
+  stay inline
+- Comments sit directly above the line they explain and lead with the claim about
+  that line, mechanism second
 
 ### 5. Simplicity
 - Simple code over clever code — fewer moving parts, fewer lines when achievable
@@ -193,11 +226,77 @@ Work through the changed files. For each, check these dimensions in order:
   (position labels, offset calculations), (b) the loop skips or jumps indices
   (`i += 2`, `i = nextIndex`), or (c) the loop needs simultaneous access to
   more than two adjacent elements.
+- **Built-ins over manual string surgery.** When code splits, slices, or indexes a
+  string that has a formal structure — URL, file path, query string, header, date —
+  check the runtime's stdlib for a parser of that structure (`URL.parse`,
+  `URLSearchParams`, `path.*`, date libraries) and flag the manual version.
+  Delimiter surgery silently mishandles edge inputs the parser already covers
+  (fragments, encoding, empty segments).
+  Wrong: `req.originalUrl.split("?")[0] ?? req.originalUrl`
+  Right: `URL.parse(req.originalUrl, "http://localhost")?.pathname ?? req.originalUrl`
+  Boundary: don't flag genuinely lexical operations (a delimiter the format defines
+  as flat, e.g. splitting a CSV cell) or formats with no stdlib parser — there a
+  documented regex is the floor.
+- **Fallbacks that exist only to satisfy the type checker are a smell.** When a
+  `?? fallback` or guard protects a state the runtime cannot produce (e.g.
+  `split(...)[0] ?? x` under `noUncheckedIndexedAccess` — `split` never returns an
+  empty array), the construct is wrong, not the guard: look for an API whose types
+  match reality. Boundary: keep the guard — with a comment saying so — when the
+  impossible state is only conventionally impossible (depends on a remote contract
+  or unvalidated input).
+- **Hand-rolled conversion beside an established helper.** When changed code
+  performs a conversion or formatting inline (`String(error)`, manual message
+  assembly), grep for an existing codebase helper covering it; 3+ existing call
+  sites make it the idiom — flag alignment (`describeError(error)` over
+  `String(error)` when the codebase converts errors that way everywhere else).
+  Boundary: skip when the helper's semantics genuinely differ from what the site
+  needs.
 
 ### 6. Module conventions (if project has module layering rules)
 - Dependency direction respected
 - Exports match the project's style (namespace objects vs named exports)
 - Utils/ admission bars met
+
+### 7. Docs & comment concision
+
+Applies to changed markdown docs (README, guides, ARCHITECTURE, env templates) and
+to doc comments in code. Correct-but-padded prose is a finding: verbosity that ships
+gets trimmed manually in follow-up commits, at real cost.
+
+**Trim-safety boundary — applies to every trigger in this dimension: compression
+must never merge two distinct claims into one.** Verify each compressed sentence
+against the code before proposing it — a trim that collapses "A self-heals; B does
+not" into "self-heals" is a correctness bug, not a style win. When unsure whether a
+clause is load-bearing, keep it and flag the uncertainty instead of trimming.
+
+- **Rationale duplication across artifacts** — a comment or doc section restating
+  design narrative that already lives in the PR description, commit message, or
+  another doc. Keep the load-bearing constraint; cut the justification story.
+- **Doc-comment padding** — sentences restating what the signature or adjacent code
+  already shows ("Returns the raw string unchanged"), or explaining the benign case
+  at length. Boundary: a one-line gloss of genuinely non-obvious behavior stays.
+- **Use-case narration in config templates** — env/template comments narrating
+  scenarios ("useful when X is off or you use plugin Y") instead of stating the
+  setting's behavior, default chain, and value shape. Scenarios belong in the
+  user-facing guide.
+- **Sibling-doc depth duplication** — the same mechanics explained at full depth in
+  multiple docs (README + deploy guide + template + architecture doc). One canonical
+  home carries the depth; siblings get a one-sentence concept + link. Boundary: a
+  short restatement is fine where the audience can't follow a link (offline
+  templates, generated output).
+- **Repeated chain or caveat** — a precedence chain or caveat spelled out in full at
+  every mention (tool-description opener AND parameter doc AND README). State it
+  once per artifact; later mentions reference it.
+- **Filler lead-ins** — scaffolding sentences that add nothing ("What this looks
+  like in practice:"). Delete them; start with the content.
+- **Wall paragraphs** — one paragraph carrying multiple topics (feature list + edge
+  case + mechanism + config). One topic per paragraph; use a list for enumerable
+  facts. Boundary: a paragraph is not a wall for being long — the trigger is
+  multiple topics, not line count.
+- **Wrong-level rationale** — prose justifying a decision by incidental mechanics
+  ("its dependency profile is compatible with the folder's lint rules") instead of
+  the conceptual reason ("the two modules are a unit"). The facts are correct but
+  explain the wrong why — flag for the conceptual framing.
 
 ## How to report and fix
 
@@ -224,7 +323,8 @@ comments.
 ### Procedure
 
 1. **Review normally** — check all dimensions (naming, structure, error handling,
-   comments, simplicity, module conventions). The only difference is the output path.
+   comments, simplicity, module conventions, docs & comment concision). The only
+   difference is the output path.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, category tag, and description with the suggested fix.
 3. **Post a single PR review** with all findings as inline comments:

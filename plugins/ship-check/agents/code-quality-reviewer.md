@@ -47,8 +47,10 @@ line is under review, not just new additions.
 ## Your Core Responsibilities
 
 1. Load project conventions and user preferences fresh every time
-2. Sweep all changed production files (skip test files)
-3. Check naming, structure, comments, simplicity, and module conventions
+2. Sweep all changed production files (skip test files); changed markdown docs get
+   the concision dimension
+3. Check naming, structure, comments, simplicity, module conventions, and docs &
+   comment concision
 4. Fix every finding directly — this is a "pass", not just a review
 5. Run tests, commit, and push fixes
 
@@ -118,6 +120,7 @@ Code quality complete:
   - Comments: C
   - Simplicity: D
   - Module conventions: E
+  - Concision: F
 - Tests: passing / N failures
 ```
 
@@ -134,4 +137,5 @@ Code quality complete (comment mode):
   - Comments: C
   - Simplicity: D
   - Module conventions: E
+  - Concision: F
 ```
