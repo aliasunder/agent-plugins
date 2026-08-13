@@ -140,6 +140,12 @@ For each unresolved bot thread, do ALL of these in order:
      finding is valid and the fix is reasonable effort, fix it. If it's genuinely high
      lift (major refactor, new async boundary, architectural change), describe the effort
      and ask the user — don't defer it unilaterally.
+   - **"Cross-cutting" requires a count.** Before dispositioning a valid finding as a
+     cross-cutting refactor or too large, grep the actual sites and state the numbers:
+     files touched, import sites, net line change. A contained, net-neutral move — a
+     handful of files, no interface or behavior change — is reasonable effort; do it
+     now. (A fixture-consolidation finding dispositioned "valid but out of scope" was
+     implemented by the author 4 minutes later: 4 import sites, net-neutral diff.)
    - **"Belongs in a separate PR" is not a valid disposition.** Assess the lift. If
      it's a few lines, fix it now. If it's large, present the tradeoff to the user.
 
@@ -274,6 +280,11 @@ If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 - If code was pushed during this run: at least one follow-up check (Step 4) completed
   after the most recent push with no new unresolved threads
 - No new unresolved threads in the most recent status pass
+- **Pipeline context only (ship-check Phase 5)**: the pre-merge delta review has run
+  against the current head — the diff from the last phase-reviewed SHA was checked,
+  and if substantive, a delta review was dispatched and completed (see the ship-check
+  skill's "Pre-merge delta review" section). Fixes this monitoring loop wrote are part
+  of that delta, not exempt from it.
 
 If any prerequisite is not met, go back to the relevant step.
 
