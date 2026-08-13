@@ -185,6 +185,26 @@ Every test must satisfy BOTH bars:
   a specific position — if it does, the assertion must verify that position.
   Wrong: `expect(results).toEqual(expect.arrayContaining([expect.objectContaining({status: "rejected"})]))` — proves *some* call rejected, not *which* call.
   Right: `expect(results).toEqual([expect.objectContaining({status: "fulfilled"}), expect.objectContaining({status: "rejected", reason: ...})])` — proves the first succeeded and the second rejected.
+- **No assertions derived from the mock call log.** A test that reaches into
+  `mock.calls` (positional access like `.at(-1)?.[1]` or `[0][1]`) to obtain the
+  value it then asserts on rests on non-local reasoning about call ordering — and
+  proves only that the code agrees with itself.
+  The trigger: `mock.calls` access whose result feeds a later assertion. Derive the
+  expected value test-side instead — compute it independently, the same way
+  production is supposed to (resolve the same package path, build the same string)
+  — and assert `toHaveBeenCalledWith(expectedValue)`.
+  Boundary: reading the call log is correct when the log itself is the assertion
+  subject — call counts, call ordering, or argument-shape tests.
+- **No weak matchers where an exact value is derivable.** `expect.stringMatching`,
+  `expect.any`, or `objectContaining` on a value the test could compute exactly
+  under-asserts — the matcher passes for a whole family of wrong values.
+  The trigger: a weak matcher on a value whose exact form the test can derive with
+  the same mechanism production uses.
+  Wrong: `standardFontDataUrl: expect.stringMatching(/standard_fonts\/$/)`
+  Right: `standardFontDataUrl: join(expectedPdfjsRoot, "standard_fonts/")` — where
+  `expectedPdfjsRoot` is resolved test-side from the package location.
+  Boundary: keep the weak matcher when the value is genuinely nondeterministic or
+  platform-dependent beyond the test's ability to derive.
 
 ### 4. Test hygiene
 - `const` per test over `let` + `beforeEach` when possible
