@@ -62,9 +62,10 @@ COMMENT MODE: Do NOT edit any files, commit, or push. Instead, collect all findi
 and post them as a single GitHub PR review with inline comments. Follow the "Comment
 mode" section in your preloaded skill for the gh api template. Only post a review if
 you have findings — skip the API call for 0 findings.
-Repo: OWNER_REPO | Model: MODEL_ID
-Append a footer to the review body AND every inline comment body:
-\n\n---\n*🔍 ship-check · PHASE_NAME · MODEL_ID*
+Repo: OWNER_REPO
+Append a footer to the review body AND every inline comment body using your own
+model ID (from your system prompt):
+\n\n---\n*🔍 ship-check · PHASE_NAME · YOUR_MODEL_ID*
 ```
 
 ### Verify the tree stays clean
@@ -103,19 +104,15 @@ agent output is invisible to anyone reading the PR.
 
 ### Orchestrator setup
 
-Before dispatching Phase 1, resolve two values and pass them in every dispatch prompt:
+Before dispatching Phase 1, resolve the **repo identifier** for `gh api` calls:
 
-1. **Repo identifier** for `gh api` calls:
-   ```bash
-   gh repo view --json nameWithOwner -q .nameWithOwner
-   ```
-2. **Model identifier** — the model the phase agents run on, NOT your own: read the
-   `model:` value from the ship-check agent definitions' frontmatter (all four pin
-   the same model). This goes into the comment footer to attribute the review; the
-   orchestrator may run a different model than the agents, so your own model ID
-   would misattribute it.
+```bash
+gh repo view --json nameWithOwner -q .nameWithOwner
+```
 
-Pass both as `Repo: owner/repo | Model: <agent-model>` in the dispatch prompt.
+Pass it as `Repo: owner/repo` in the dispatch prompt. In comment mode, agents
+include their own model ID in the footer (they know it from their system prompt) —
+the orchestrator does not need to look it up or pass it.
 
 ## Phase discipline
 

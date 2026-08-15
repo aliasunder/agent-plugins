@@ -257,7 +257,8 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
 REVIEW
 ```
 
-Replace `OWNER_REPO`, `PR_NUMBER`, and `MODEL_ID` with values from the dispatch prompt.
+Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
+`MODEL_ID` with your own model ID (from your system prompt).
 
 5. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
 6. **For findings without a specific line** (e.g., missing docs, cross-cutting concerns),
