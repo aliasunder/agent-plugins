@@ -70,7 +70,7 @@ gh api graphql -f query='{
 }'
 ```
 List each UNRESOLVED thread: author, file/line, summary, and classify as one of:
-- **Bot** -- author is a known review bot (qodo-merge-pro, coderabbitai, etc.)
+- **Bot** -- author is a known review bot (qodo-merge-pro, coderabbitai, umm-actually, etc.)
 - **Claude** -- author is a human account but the comment body contains a Claude
   footer (see classification rules below)
 - **Human** -- everything else
@@ -88,20 +88,71 @@ A comment is from another Claude instance if its body contains any of these stri
 These comments come from human-owned GitHub accounts but were authored by a Claude
 agent. They are classified separately so they can be auto-handled like bot comments.
 
-### 2d. Bot findings outside inline threads
+### 2d. Findings outside inline threads (reviews + issue comments)
 
 Inline threads are not the only surface bots use: Sourcery puts "Overall
 Comments" in the review BODY, and qodo and others post PR-level issue
 comments. Neither appears in `reviewThreads`, so a thread-only pass silently
-misses them. Check both:
+misses them. **This step is mandatory** — it is not supplementary to 2c.
+
+Fetch both surfaces with pagination to ensure no comments are missed:
 
 ```
-gh api repos/OWNER/REPO/pulls/NUMBER/reviews --jq '.[] | {id, user: .user.login, submitted_at, body}'
-gh api repos/OWNER/REPO/issues/NUMBER/comments --jq '.[] | {id, user: .user.login, created_at, body}'
+gh api repos/OWNER/REPO/pulls/NUMBER/reviews --paginate --jq '.[] | {id, user: .user.login, submitted_at, body}'
+gh api repos/OWNER/REPO/issues/NUMBER/comments --paginate --jq '.[] | {id, user: .user.login, created_at, body}'
 ```
 
-Identify bot-authored bodies that contain findings (issues, suggestions,
-"Overall Comments") as opposed to pure summaries or status boilerplate.
+**Classify every comment** — not just bot-authored ones. Use the same
+classification as 2c review threads:
+- **Bot** — author is a known review bot (qodo-merge-pro, coderabbitai,
+  sourcery-ai, umm-actually, etc.)
+- **Claude** — author is a human account but the body contains a Claude
+  footer (see 2c classification rules)
+- **Human** — everything else
+- **Pipeline** — the body contains this pipeline's own footer
+  (`🔍 ship-check`) — these are the pipeline's own prior replies, skip them
+
+**Proof-of-work listing.** For each non-pipeline comment found, output a
+one-liner before evaluating:
+```
+Issue comment #<id> (<author>, <classification>): <first-line summary>
+Review body #<id> (<author>, <classification>): <first-line summary>
+```
+This listing is mandatory — it proves you fetched and read every comment.
+If the listing is empty, state "0 issue comments, 0 review bodies with
+findings" explicitly.
+
+**Review bodies are NOT summaries — parse them for embedded findings.**
+Bot review bodies routinely contain findings that were NOT posted as inline
+threads — nitpicks, low-value suggestions, and "Overall Comments" that the
+bot triaged below its inline-comment threshold. These body-only findings
+are invisible to the 2c thread pass and are the most commonly missed class
+of bot feedback. A review body is never pure boilerplate if it contains
+code suggestions, diff blocks, or file-specific recommendations.
+
+How to parse review bodies:
+1. **Look for the "Prompt for AI agents" section** (or equivalent). Bots
+   like CodeRabbit include a machine-readable flat list of ALL findings —
+   both inline-thread and body-only — formatted specifically for AI
+   consumption. This is the canonical finding list. Dedupe against 2c
+   threads: anything in this list that does NOT have a corresponding
+   inline thread is a body-only finding that needs evaluation.
+2. **Expand `<details>` blocks.** Findings are often nested inside
+   collapsed sections labeled "Nitpick comments", "Suggestions",
+   "Low-priority", or similar. Do not skip collapsed sections — they
+   contain actionable items the bot deliberately included.
+3. **Ignore the bot's own severity labels** (`Trivial`, `Low value`,
+   `💤`) when deciding whether to evaluate. The pipeline evaluates every
+   finding on its own merits — a "trivial" nitpick may be a real
+   simplification worth applying. Only the valid/false-positive assessment
+   matters, not the bot's priority label.
+
+**Record the count per review body**: "Review #<id>: N body-only findings,
+M already covered by inline threads." A disposition of "summary — no
+findings" for a review body containing specific code suggestions or diff
+blocks is a miss — this is the primary failure mode for review body
+handling.
+
 Dedupe against 2c — a finding that also exists as an inline thread is
 handled once, in the thread flow. Skip items already handled: compare
 against the review/comment IDs recorded on prior passes and against your
@@ -201,15 +252,28 @@ from another Claude instance and do not require user approval. Include in your r
 that you're addressing feedback from another Claude session, e.g.:
 *"Addressed -- [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
-### Bot findings without a thread (review bodies, PR-level comments — from 2d)
+### Bot and Claude findings without a thread (review bodies, PR-level comments — from 2d)
 
-Evaluate each finding exactly like a bot thread — same valid/false-positive
-rules, same fix-or-escalate bar. There is no thread to resolve, so the
-disposition must land on the PR as a reply instead: post one `gh pr comment`
-covering the findings you handled — name each finding, state
+Evaluate each body-only finding exactly like a bot thread — same
+valid/false-positive rules, same fix-or-escalate bar. This includes
+**nitpicks and suggestions embedded in review bodies** — items the bot
+triaged below its inline-thread threshold but still reported. They are
+findings, not decoration.
+
+There is no thread to resolve, so the disposition must land on the PR as
+a reply instead: post one `gh pr comment` covering the body-only findings
+you handled — name each finding by its review ID and description, state
 fixed/intentional with the reasoning, include the same attribution footer.
 A finding answered nowhere on the PR is indistinguishable from one that was
 never read.
+
+### Human findings without a thread (issue comments from 2d classified as Human)
+
+Present each to the user — the same way you handle human review threads.
+Quote the comment text and author. Do NOT auto-resolve, auto-reply, or
+dismiss human issue comments without explicit user approval. If the user
+provides a response, reply on their behalf via `gh pr comment` (with the
+attribution footer).
 
 ### Human threads
 
@@ -275,8 +339,11 @@ If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 **Prerequisites -- ALL must be true before you may report:**
 - All CI checks passing (or only known-flaky / unrelated failures)
 - All bot threads resolved (each one replied to before resolving)
-- All non-thread bot findings (2d: review bodies, PR-level comments) evaluated and
-  replied to on the PR
+- All non-thread findings (2d: review bodies, PR-level comments — bot, Claude, AND
+  human) evaluated and replied to on the PR (human findings presented to user)
+- **Issue comment coverage check**: the number of issue comments evaluated plus
+  pipeline-own replies equals the total issue comment count on the PR. If counts
+  don't match, re-fetch with `--paginate` before proceeding
 - If code was pushed during this run: at least one follow-up check (Step 4) completed
   after the most recent push with no new unresolved threads
 - No new unresolved threads in the most recent status pass
@@ -294,9 +361,10 @@ PR #<number> status:
 - CI: all passing / N failing (names)
 - Reviews: approved / pending / changes-requested
 - Bot threads: all resolved (N handled, all replied to)
-- Non-thread bot findings: N handled (review bodies / PR comments, all replied to)
+- Non-thread findings: N handled (review bodies / PR comments — bot: A, Claude: B, human: C)
 - Claude threads: all resolved (N handled, all replied to)
 - Human threads: N unresolved (listed above)
+- Issue comment coverage: N/M evaluated (pipeline replies excluded)
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
 

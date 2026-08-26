@@ -123,6 +123,13 @@ skipping decision points.
 - Stage, commit, and push when done.
 - Commit message: `fix: <summary of bug fixes>`
 
+### Attribution
+
+Every PR comment or review you post — inline comments, review bodies, PR-level
+comments — MUST include the footer: `\n\n---\n*🔍 ship-check · bug-check · <model-id>*`
+where `<model-id>` is your own model ID from your system prompt. No exceptions — a
+comment without a footer misattributes automated output to the repo owner.
+
 ### Comment mode
 
 When the dispatch prompt says **COMMENT MODE**, skip all of the above. Instead, follow

@@ -29,6 +29,28 @@ Phase 4: ship-check:bug-checker           -> description-vs-code, SQL, type coer
 Phase 5: pr-monitor (inline)              -> CI status, bot comment resolution, loop until ready
 ```
 
+## Attribution
+
+Every piece of text the pipeline posts to a PR — inline review comments, review
+bodies, PR-level comments, thread replies — MUST include the attribution footer.
+This applies in ALL modes (default and comment), to ALL participants (phase agents,
+orchestrator triage, pr-monitor replies).
+
+**Footer format**: `\n\n---\n*🔍 ship-check · <component> · <model-id>*`
+
+- `<component>` is the phase or role: `pr-review`, `code-quality`, `test-audit`,
+  `bug-check`, `pr-monitor`, or `triage` (for orchestrator inter-phase triage posts).
+- `<model-id>` is the poster's own model ID, read from the system prompt ("You are
+  powered by the model named..."). Agents self-identify — the orchestrator does not
+  look up or pass model IDs for them.
+- **The orchestrator's own PR-level comments** (non-inline findings, deferred items
+  posted via `gh pr comment`) use the orchestrator's own model ID with component
+  `triage` or `ship-check`.
+
+A comment posted without a footer is indistinguishable from the repo owner's manual
+comments and misattributes automated output to a human. Every `gh api` and
+`gh pr comment` call in the pipeline includes the footer — no exceptions.
+
 ## Before starting
 
 1. Confirm a PR exists for the current branch (or that changes are committed and pushed).
@@ -99,8 +121,9 @@ coverage is the primary agent's responsibility, not the sub-agents'**: in defaul
 mode, verify and post as part of Phase 5 (pr-monitoring); in comment mode (Phase 5
 skipped), verify after Phase 4 triage and post anything missing before the final
 summary. Post via `gh pr comment` /
-`POST /repos/{owner}/{repo}/issues/{n}/comments`. A finding that exists only in
-agent output is invisible to anyone reading the PR.
+`POST /repos/{owner}/{repo}/issues/{n}/comments` — include the attribution footer
+(see Attribution section above). A finding that exists only in agent output is
+invisible to anyone reading the PR.
 
 ### Orchestrator setup
 
