@@ -19,6 +19,18 @@
         "agents",
         "pipeline"
       ]
+    },
+    {
+      "name": "plan-check",
+      "source": "./plugins/plan-check",
+      "description": "Pre-implementation plan review. A fresh-eyes agent (plan-reviewer) plus the plan-review skill: premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, and verification-plan safety — before any code exists.",
+      "version": "1.0.3",
+      "keywords": [
+        "plan-review",
+        "plan-check",
+        "premise-audit",
+        "agents"
+      ]
     }
   ]
 }
