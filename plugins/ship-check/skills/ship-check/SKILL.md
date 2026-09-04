@@ -373,6 +373,7 @@ pipeline conclusion. Update it on each monitoring pass as PR status evolves.
 
 ```
 Ship check complete:
+- Reviewed at:  <last phase-reviewed SHA; delta since then checked in Phase 5>
 - PR Review:    N findings, M fixed (correctness, security, conditional)
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
@@ -380,6 +381,7 @@ Ship check complete:
 - Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
+- Dismissed:    N across phases (roll up the phases' proof-of-dismissal lines — or "none")
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
 
@@ -395,6 +397,7 @@ Output the final summary after Phase 4 completes — this is the pipeline conclu
 
 ```
 Ship check complete (comment mode):
+- Reviewed at:  <PR head SHA the phases reviewed>
 - PR Review:    N findings commented (correctness, security, conditional)
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
@@ -402,6 +405,7 @@ Ship check complete (comment mode):
 - Triage:       N flagged findings triaged across all phases — M commented, K deferred
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
+- Dismissed:    N across phases (roll up the phases' proof-of-dismissal lines — or "none")
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 - Reviews posted: N (one per phase with findings)
 ```
