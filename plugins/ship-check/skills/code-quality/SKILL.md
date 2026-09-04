@@ -11,7 +11,7 @@ description: >
   generic simplification without convention grounding (use /simplify).
 skills:
   - fable-mode
-tools:
+allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
 

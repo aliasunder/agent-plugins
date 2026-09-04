@@ -12,7 +12,7 @@ description: >
   or code simplification without a PR context (use code-quality).
 skills:
   - fable-mode
-tools:
+allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
 

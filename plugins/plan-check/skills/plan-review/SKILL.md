@@ -13,7 +13,7 @@ description: >
   the plan itself (that's fable-mode + Plan agents), or auditing tests (test-audit).
 skills:
   - fable-mode
-tools:
+allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
 

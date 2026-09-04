@@ -12,7 +12,7 @@ description: >
   review (use security-review), or high-level correctness review (use pr-review).
 skills:
   - fable-mode
-tools:
+allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
 
