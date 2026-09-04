@@ -474,7 +474,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 4: Bug Check\n\nN bugs found across M files. Reviewed at <HEAD_SHA>.\nConfidence: A high, B medium, C low\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
+  "body": "## Phase 4: Bug Check\n\nN bugs found across M files. Reviewed at <HEAD_SHA>.\nConfidence: A high, B medium, C low\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",
@@ -489,7 +489,10 @@ REVIEW
 Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
 `MODEL_ID` with your own model ID (from your system prompt).
 
-5. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
+5. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
+   to the orchestrator only. With 0 findings but cleared suspicions, post a
+   body-only review carrying the dismissal list — that is the artifact that lets
+   a PR reader tell a clean diff from an unexamined one.
 6. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*`
    to the review body AND each inline comment body.
 7. **Format each inline comment body** as:
