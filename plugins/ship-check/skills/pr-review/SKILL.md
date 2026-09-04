@@ -222,6 +222,18 @@ comment mode.
 5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).
 
+**Output honesty (both modes):**
+
+- **State what you reviewed.** The summary names the PR head SHA actually
+  reviewed — a review that doesn't say what it checked is indistinguishable
+  from one that checked nothing. It also lets the orchestrator cross-check
+  what this phase actually saw against the delta-review baseline it records
+  itself at Phase 4 close.
+- **Close with proof of dismissal.** One line per suspicion you seriously
+  considered and dropped, with the reason it doesn't bite — or "none". The
+  clean-bill claims are part of the review: without them, "no findings" could
+  mean a clean diff or an unexamined one, and the reader can't tell which.
+
 ## Comment mode
 
 When the dispatch prompt says **COMMENT MODE**, do not edit files, commit, or push.
@@ -245,7 +257,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 1: PR Review\n\nN findings across M files.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*",
+  "body": "## Phase 1: PR Review\n\nN findings across M files. Reviewed at <HEAD_SHA>.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",
@@ -260,7 +272,10 @@ REVIEW
 Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
 `MODEL_ID` with your own model ID (from your system prompt).
 
-5. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
+5. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
+   to the orchestrator only. With 0 findings but cleared suspicions, post a
+   body-only review carrying the dismissal list — that is the artifact that lets
+   a PR reader tell a clean diff from an unexamined one.
 6. **For findings without a specific line** (e.g., missing docs, cross-cutting concerns),
    put them in the review `body` rather than as inline comments.
 7. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*`

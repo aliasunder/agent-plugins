@@ -118,6 +118,7 @@ Return a structured summary to the orchestrator:
 ```
 Test audit complete:
 - Test files audited: N
+- Reviewed at: <PR head SHA>
 - Findings: N total (M fixed)
 - By category:
   - Two-bar violations: A
@@ -129,6 +130,7 @@ Test audit complete:
 - Tests written: J
 - Mutation-tested: L
 - Suite: passing / N failures (total test count)
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 
 ### Comment mode
@@ -136,6 +138,7 @@ Test audit complete:
 ```
 Test audit complete (comment mode):
 - Test files audited: N
+- Reviewed at: <PR head SHA>
 - Findings: N total, all commented
 - Review posted: yes / no (0 findings)
 - By category:
@@ -146,4 +149,5 @@ Test audit complete (comment mode):
   - Coverage regressions: E
 - Coverage gaps reported: K
 - Mutation-tested: L (diagnostic only)
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

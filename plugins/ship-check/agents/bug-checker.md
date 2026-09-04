@@ -148,6 +148,7 @@ Return a structured summary to the orchestrator:
 ```
 Bug check complete:
 - Files checked: N
+- Reviewed at: <PR head SHA>
 - Bugs found: N (M fixed, K flagged)
 - Flagged breakdown: (include only when K > 0)
   - Uncertain diagnosis: A
@@ -164,6 +165,7 @@ Bug check complete:
   - Platform/encoding: G
 - Confidence: N high, M medium, K low
 - Tests: passing / N failures
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 
 ### Comment mode
@@ -171,6 +173,7 @@ Bug check complete:
 ```
 Bug check complete (comment mode):
 - Files checked: N
+- Reviewed at: <PR head SHA>
 - Bugs found: N (M would-fix, K flagged)
 - Review posted: yes / no (0 findings)
 - By dimension:
@@ -182,4 +185,5 @@ Bug check complete (comment mode):
   - Input validation: F
   - Platform/encoding: G
 - Confidence: N high, M medium, K low
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

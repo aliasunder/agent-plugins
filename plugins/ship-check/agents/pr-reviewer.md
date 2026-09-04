@@ -145,6 +145,7 @@ Return a structured summary to the orchestrator:
 ```
 PR Review complete:
 - Files reviewed: N
+- Reviewed at: <PR head SHA>
 - Findings: N total (M fixed, K flagged)
 - Flagged breakdown: (include only when K > 0)
   - Uncertain diagnosis: A
@@ -158,6 +159,7 @@ PR Review complete:
   - Stale paths: E (or "N/A — no file moves/renames")
 - Tests: passing / N failures
 - Verdict: ship / ship-with-minor-fixes / needs-changes
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 
 ### Comment mode
@@ -165,6 +167,7 @@ PR Review complete:
 ```
 PR Review complete (comment mode):
 - Files reviewed: N
+- Reviewed at: <PR head SHA>
 - Findings: N total (M would-fix, K flagged)
 - Review posted: yes / no (0 findings)
 - By dimension:
@@ -174,4 +177,5 @@ PR Review complete (comment mode):
   - Feature surface docs: D (or "N/A")
   - Stale paths: E (or "N/A")
 - Verdict: ship / ship-with-minor-fixes / needs-changes
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

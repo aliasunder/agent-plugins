@@ -314,6 +314,18 @@ clause is load-bearing, keep it and flag the uncertainty instead of trimming.
 3. **Run tests** after all fixes to confirm no behavior change.
 4. **Summarize**: files touched, count by category, test status.
 
+**Output honesty (both modes):**
+
+- **State what you reviewed.** The summary names the PR head SHA actually
+  reviewed — a review that doesn't say what it checked is indistinguishable
+  from one that checked nothing. It also lets the orchestrator cross-check
+  what this phase actually saw against the delta-review baseline it records
+  itself at Phase 4 close.
+- **Close with proof of dismissal.** One line per suspicion you seriously
+  considered and dropped, with the reason it doesn't bite — or "none". The
+  clean-bill claims are part of the review: without them, "no findings" could
+  mean a clean diff or an unexamined one, and the reader can't tell which.
+
 ## Comment mode
 
 When the dispatch prompt says **COMMENT MODE**, do not edit files, commit, or push.
@@ -334,7 +346,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 2: Code Quality\n\nN findings across M files.\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*",
+  "body": "## Phase 2: Code Quality\n\nN findings across M files. Reviewed at <HEAD_SHA>.\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",
@@ -349,7 +361,10 @@ REVIEW
 Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
 `MODEL_ID` with your own model ID (from your system prompt).
 
-4. **If 0 findings**, skip the API call — report "0 findings" to the orchestrator only.
+4. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
+   to the orchestrator only. With 0 findings but cleared suspicions, post a
+   body-only review carrying the dismissal list — that is the artifact that lets
+   a PR reader tell a clean diff from an unexamined one.
 5. **Footer on every comment.** Append `\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*`
    to the review body AND each inline comment body.
 6. **Format each inline comment body** as:
