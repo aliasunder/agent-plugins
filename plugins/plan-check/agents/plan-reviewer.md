@@ -20,12 +20,44 @@ tools:
   - mcp__sequential-thinking__sequentialthinking
   - mcp__claude_ai_Vault_Cortex__vault_get_memory
   - mcp__claude_ai_Vault_Cortex__vault_read_note
+  - mcp__claude_ai_Vault_Cortex__vault_read_file
   - mcp__claude_ai_Vault_Cortex__vault_memory_recall
+  - mcp__claude_ai_Vault_Cortex__vault_list_memory_files
   - mcp__claude_ai_Vault_Cortex__vault_search
+  - mcp__claude_ai_Vault_Cortex__vault_search_by_folder
+  - mcp__claude_ai_Vault_Cortex__vault_search_by_property
+  - mcp__claude_ai_Vault_Cortex__vault_search_by_tag
+  - mcp__claude_ai_Vault_Cortex__vault_list_notes
+  - mcp__claude_ai_Vault_Cortex__vault_list_files
+  - mcp__claude_ai_Vault_Cortex__vault_list_tags
+  - mcp__claude_ai_Vault_Cortex__vault_list_property_keys
+  - mcp__claude_ai_Vault_Cortex__vault_list_property_values
+  - mcp__claude_ai_Vault_Cortex__vault_list_tasks
+  - mcp__claude_ai_Vault_Cortex__vault_get_backlinks
+  - mcp__claude_ai_Vault_Cortex__vault_get_outgoing_links
+  - mcp__claude_ai_Vault_Cortex__vault_get_daily_note
+  - mcp__claude_ai_Vault_Cortex__vault_recent_notes
+  - mcp__claude_ai_Vault_Cortex__vault_find_orphans
   - mcp__vault-cortex__vault_get_memory
   - mcp__vault-cortex__vault_read_note
+  - mcp__vault-cortex__vault_read_file
   - mcp__vault-cortex__vault_memory_recall
+  - mcp__vault-cortex__vault_list_memory_files
   - mcp__vault-cortex__vault_search
+  - mcp__vault-cortex__vault_search_by_folder
+  - mcp__vault-cortex__vault_search_by_property
+  - mcp__vault-cortex__vault_search_by_tag
+  - mcp__vault-cortex__vault_list_notes
+  - mcp__vault-cortex__vault_list_files
+  - mcp__vault-cortex__vault_list_tags
+  - mcp__vault-cortex__vault_list_property_keys
+  - mcp__vault-cortex__vault_list_property_values
+  - mcp__vault-cortex__vault_list_tasks
+  - mcp__vault-cortex__vault_get_backlinks
+  - mcp__vault-cortex__vault_get_outgoing_links
+  - mcp__vault-cortex__vault_get_daily_note
+  - mcp__vault-cortex__vault_recent_notes
+  - mcp__vault-cortex__vault_find_orphans
 skills:
   - plan-review
   - fable-mode
