@@ -84,7 +84,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 4. **Load sequential thinking**:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 5. **Classify the change** (feature / guard-control / refactor / infra / docs) —
-   this selects the conditional dimensions (4, 6a) in the skill.
+   this selects conditional dimension 4 in the skill. Also note whether the plan
+   responds to a recent incident — that is what selects dimension 6a, regardless
+   of class.
 
 ## Output
 

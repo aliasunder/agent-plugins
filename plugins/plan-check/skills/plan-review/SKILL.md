@@ -59,7 +59,9 @@ author, who holds context the reviewer doesn't.
    record the commit you verified against for the output's verification-basis
    line.
 6. Classify the change: feature / guard-or-control / refactor / infra / docs.
-   Dimensions 4 and 6a are conditional on that classification.
+   Dimension 4 is conditional on that classification. In the same pass, note
+   whether the plan responds to a recent incident — that property, not the
+   class, is what makes dimension 6a run.
 
 ## Dimensions
 
