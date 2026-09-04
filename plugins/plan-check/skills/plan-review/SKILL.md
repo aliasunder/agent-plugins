@@ -79,6 +79,9 @@ of them is wasted work.
   a one-sentence problem — don't demand ceremony.
 - **Flag** when no one is named who experiences the problem. A problem no one has
   is a mechanism looking for a justification.
+  **Boundary:** shares the mechanical-task carve-out above — a one-sentence
+  problem for small mechanical work names its sufferer implicitly (the failing
+  lint, the stale dependency); don't demand a cast list.
 
 ### 2. Premise and assumption audit
 
@@ -98,9 +101,14 @@ it, then classify it: *verified in the plan* (evidence cited), *checkable now*
   rule come from? Agents have designed around constraints that turned out to be
   invented; a constraint that can't be traced to a doc, a decision, or a
   measurement is a hallucination until shown otherwise.
+  **Boundary:** if one read or search can trace the constraint, do that instead
+  of flagging (the checkable-now rule) — flag only what fails the search or
+  can't be checked from here.
 - **Flag** observations promoted to requirements. "The system currently does X"
   is a fact; "the system must keep doing X" is a decision — the plan must not
   silently convert one into the other.
+  **Boundary:** an explicit decision to preserve current behavior, with a stated
+  reason, is legitimate — the flag is for the silent conversion only.
 - For each premise, ask: **how would we know if this is false?** A premise with
   no falsification path is not load-bearing evidence, it's hope. Example of a
   premise that failed exactly this way: "a missing file needs bootstrapping" —
