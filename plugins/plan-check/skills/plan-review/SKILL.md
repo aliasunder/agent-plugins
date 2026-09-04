@@ -69,6 +69,11 @@ Run every applicable dimension. Dimension 2 gets the most time — false or
 unverified premises are the highest-cost failures, because everything downstream
 of them is wasted work.
 
+Verb-to-severity mapping: **Block** always produces a blocker. A **Flag** lands
+as must-answer or recommendation via the guess test defined under Output format
+— unless the dimension assigns the severity itself (dimension 4's who-pays rule
+and dimension 5's silent-writers rule do).
+
 ### 1. Problem framing
 
 - **Flag** when the problem is stated as the absence of the proposed mechanism
