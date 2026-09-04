@@ -397,7 +397,7 @@ Output the final summary after Phase 4 completes — this is the pipeline conclu
 
 ```
 Ship check complete (comment mode):
-- Reviewed at:  <PR head SHA the phases reviewed>
+- Reviewed at:  <PR head SHA at Phase 4 completion — or per-phase SHAs when the head moved mid-pipeline (each phase reports its own)>
 - PR Review:    N findings commented (correctness, security, conditional)
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
