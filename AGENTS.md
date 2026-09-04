@@ -34,6 +34,15 @@ plugins/
       bug-check/              # Phase 4 — systematic bug hunt
       pr-monitor/             # Phase 5 — CI, bot comments, merge readiness
     README.md
+  plan-check/                 # Pre-implementation plan review plugin
+    .claude-plugin/
+      plugin.json             # Plugin manifest
+    agents/
+      plan-reviewer.md        # Fresh-eyes plan critique agent
+    skills/
+      plan-review/            # Premise audit, alternatives, guard arithmetic,
+                              # concurrent-writer analysis, verification safety
+    README.md
 README.md                    # Marketplace README
 CHANGELOG.md                 # Release history (updated by CI on release)
 package.json                 # Repo-level version + metadata (kept in lockstep by CI)

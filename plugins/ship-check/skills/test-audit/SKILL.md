@@ -11,7 +11,7 @@ description: >
   NOT for: production code quality (use code-quality) or full PR review (use pr-review).
 skills:
   - fable-mode
-tools:
+allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
 
