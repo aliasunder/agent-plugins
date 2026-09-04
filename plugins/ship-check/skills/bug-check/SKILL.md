@@ -425,6 +425,7 @@ yours. Convention violations in your fixes ship unchecked.
 ```
 Bug check complete:
 - Files checked: N
+- Reviewed at: <PR head SHA>
 - Bugs found: N (M fixed, K flagged for review)
 - By dimension:
   - Description mismatch: A
@@ -435,7 +436,21 @@ Bug check complete:
   - Input validation: F
   - Platform/encoding: G
 - Confidence: N high, M medium, K low
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
+
+**Output honesty (both modes):**
+
+- **State what you reviewed.** The summary names the PR head SHA actually
+  reviewed — a review that doesn't say what it checked is indistinguishable
+  from one that checked nothing. The pipeline's pre-merge delta review keys
+  off this SHA.
+- **Close with proof of dismissal.** One line per suspicion you seriously
+  considered and dropped, with the reason it doesn't bite — or "none". This
+  extends "No silent skipping" to the negative space: findings you confirmed
+  go in the report, and suspicions you cleared go in the dismissal list —
+  without them, "no findings" could mean a clean diff or an unexamined one,
+  and the reader can't tell which.
 
 ## Comment mode
 
@@ -459,7 +474,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 4: Bug Check\n\nN bugs found across M files.\nConfidence: A high, B medium, C low\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
+  "body": "## Phase 4: Bug Check\n\nN bugs found across M files. Reviewed at <HEAD_SHA>.\nConfidence: A high, B medium, C low\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",

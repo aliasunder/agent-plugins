@@ -122,6 +122,7 @@ Return a structured summary to the orchestrator:
 ```
 Code quality complete:
 - Files reviewed: N
+- Reviewed at: <PR head SHA>
 - Findings: N total, all fixed
 - By category:
   - Naming: A
@@ -131,6 +132,7 @@ Code quality complete:
   - Module conventions: E
   - Concision: F
 - Tests: passing / N failures
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 
 ### Comment mode
@@ -138,6 +140,7 @@ Code quality complete:
 ```
 Code quality complete (comment mode):
 - Files reviewed: N
+- Reviewed at: <PR head SHA>
 - Findings: N total, all commented
 - Review posted: yes / no (0 findings)
 - By category:
@@ -147,4 +150,5 @@ Code quality complete (comment mode):
   - Simplicity: D
   - Module conventions: E
   - Concision: F
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

@@ -222,6 +222,17 @@ comment mode.
 5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).
 
+**Output honesty (both modes):**
+
+- **State what you reviewed.** The summary names the PR head SHA actually
+  reviewed — a review that doesn't say what it checked is indistinguishable
+  from one that checked nothing. The pipeline's pre-merge delta review keys
+  off this SHA.
+- **Close with proof of dismissal.** One line per suspicion you seriously
+  considered and dropped, with the reason it doesn't bite — or "none". The
+  clean-bill claims are part of the review: without them, "no findings" could
+  mean a clean diff or an unexamined one, and the reader can't tell which.
+
 ## Comment mode
 
 When the dispatch prompt says **COMMENT MODE**, do not edit files, commit, or push.
@@ -245,7 +256,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 1: PR Review\n\nN findings across M files.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*",
+  "body": "## Phase 1: PR Review\n\nN findings across M files. Reviewed at <HEAD_SHA>.\n\n**Verdict**: ship / ship-with-minor-fixes / needs-changes\n\n---\n*🔍 ship-check · pr-review · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",

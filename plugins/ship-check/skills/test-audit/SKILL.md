@@ -327,6 +327,17 @@ This proves the test is load-bearing, not decorative.
 - **Summarize**: files audited, count by category, tests mutation-verified,
   coverage gaps found and tests written.
 
+**Output honesty (both modes):**
+
+- **State what you reviewed.** The summary names the PR head SHA actually
+  reviewed — a review that doesn't say what it checked is indistinguishable
+  from one that checked nothing. The pipeline's pre-merge delta review keys
+  off this SHA.
+- **Close with proof of dismissal.** One line per suspicion you seriously
+  considered and dropped, with the reason it doesn't bite — or "none". The
+  clean-bill claims are part of the review: without them, "no findings" could
+  mean a clean diff or an unexamined one, and the reader can't tell which.
+
 ## Comment mode
 
 When the dispatch prompt says **COMMENT MODE**, do not edit files, write tests, commit,
@@ -356,7 +367,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 3: Test Audit\n\nN test quality findings, K coverage gaps across M files.\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*",
+  "body": "## Phase 3: Test Audit\n\nN test quality findings, K coverage gaps across M files. Reviewed at <HEAD_SHA>.\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.test.ts",
