@@ -1,6 +1,40 @@
 # Changelog
 
 
+## [1.1.0] — 2026-09-04
+
+### Features
+
+- **ship-check:** Carry Reviewed-at and Dismissed into the pipeline snapshot (#10)
+- **ship-check:** Port output-honesty contracts from plan-review (#9)
+- **plan-check:** Pre-implementation plan review agent + skill (#3)
+- **ship-check:** Attribution enforcement + review body finding parsing
+- **test-audit:** Mock-call-log provenance + derivable-exact-value triggers
+- **code-quality:** Docs & comment concision dimension + simplification triggers
+- **pr-monitor:** Delta-review prerequisite + cross-cutting-requires-a-count rule
+- **ship-check:** Pre-merge delta review of post-phase commits
+
+### Bug Fixes
+
+- **ship-check:** Give phase agents the Grep and Glob tools (#4)
+- **ship-check:** Comment footer model ID comes from agent frontmatter, not orchestrator
+- **ship-check:** Add local vault-cortex tool names to agent allowlists
+
+### Refactoring
+
+- **ship-check:** Agents self-identify model ID in comment footers
+
+### CI / Infrastructure
+
+- Bump umm-actually to v0.3.14 (#8)
+- Add umm-actually review workflow (#5)
+- Add dependabot config for GitHub Actions bumps (#6)
+
+### Maintenance
+
+- **deps:** Bump actions/checkout from 5 to 7 (#7)
+
+
 ## [1.0.3] — 2026-08-06
 
 ### Features
