@@ -9,7 +9,7 @@ description: >
   review of its ratified plan, and pre-implementation review of any card that
   adds behavior, adds a guard or control, or spans sessions. See "When to invoke"
   in the agent body for worked scenarios.
-model: opus
+model: inherit
 color: blue
 tools:
   - Read
