@@ -100,6 +100,7 @@ Fetch both surfaces with pagination to ensure no comments are missed:
 ```
 gh api repos/OWNER/REPO/pulls/NUMBER/reviews --paginate --jq '.[] | {id, user: .user.login, submitted_at, body}'
 gh api repos/OWNER/REPO/issues/NUMBER/comments --paginate --jq '.[] | {id, user: .user.login, created_at, body}'
+gh api repos/OWNER/REPO/pulls/NUMBER/comments --paginate --jq '.[] | {id, user: .user.login, created_at, path, body}'
 ```
 
 **Classify every comment** — not just bot-authored ones. Use the same
@@ -117,6 +118,7 @@ one-liner before evaluating:
 ```
 Issue comment #<id> (<author>, <classification>): <first-line summary>
 Review body #<id> (<author>, <classification>): <first-line summary>
+Inline comment #<id> (<author>, <classification>): <path> — <first-line summary>
 ```
 This listing is mandatory — it proves you fetched and read every comment.
 If the listing is empty, state "0 issue comments, 0 review bodies with
