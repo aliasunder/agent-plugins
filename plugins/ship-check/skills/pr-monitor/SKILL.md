@@ -122,7 +122,7 @@ Inline comment #<id> (<author>, <classification>): <path> — <first-line summar
 ```
 This listing is mandatory — it proves you fetched and read every comment.
 If the listing is empty, state "0 issue comments, 0 review bodies with
-findings" explicitly.
+findings, 0 inline comments" explicitly.
 
 **Review bodies are NOT summaries — parse them for embedded findings.**
 Bot review bodies routinely contain findings that were NOT posted as inline
@@ -328,8 +328,9 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
 
 3. On wake: **re-run Step 2** (all five checks). Compare the unresolved thread count
    to what it was before pushing, and compare 2d's review/comment IDs and
-   `created_at` timestamps against the ones you've already handled — new-ness
-   is decided by id and timestamp, never by body text (see 2d).
+   per-surface timestamps (`submitted_at` for review bodies, `created_at`
+   for issue and inline comments) against the ones you've already handled —
+   new-ness is decided by id and timestamp, never by body text (see 2d).
 
 4. **New unresolved threads or new non-thread bot findings exist** -- go to Step 3
    (reply, fix, resolve, push). If Step 3 pushes more code, return here and repeat
