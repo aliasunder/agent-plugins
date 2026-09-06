@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [1.1.1] — 2026-09-06
+
+### Bug Fixes
+
+- **pr-monitor:** Decide comment new-ness by id and timestamp, not body text (#13)
+- **plan-check:** Unpin plan-reviewer from opus, inherit session model (#11)
+
+### Maintenance
+
+- **deps:** Bump umm-actually to v0.4.0 (#12)
+
+
 ## [1.1.0] — 2026-09-04
 
 ### Features
