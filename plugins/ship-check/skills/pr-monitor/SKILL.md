@@ -159,11 +159,29 @@ against the review/comment IDs recorded on prior passes and against your
 own footer-marked replies. **Record the IDs of items you handle** so
 follow-up passes don't re-litigate them.
 
+**New-ness is decided by timestamps and ids, never by body text.** After
+any re-review event, list comments from BOTH endpoints (inline review
+comments and issue comments) with `id` and `created_at`, and treat a
+comment as new only if its `created_at` postdates the run that supposedly
+produced it. An identical body with a familiar tracking marker is evidence
+you re-read the SAME comment — a "duplicate posting" verdict requires two
+distinct comment ids. The known failure this prevents: an
+issue-comments-only query re-read a round-1 comment as a "duplicate" on
+two consecutive re-reviews while the bot's actual new findings — posted as
+inline review comments — went unseen and unhandled.
+
 ### 2e. Merge readiness
 Summarize blockers: failing CI, missing approvals, unresolved threads,
 unanswered non-thread bot findings, conflicts.
 
 ## Step 3: Handle findings
+
+> **Every reply this step posts carries the pipeline attribution footer**
+> (`\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*`) — never the
+> generic direct-post "Claude Code" line. If you were posting outside a
+> pipeline earlier in the session, the footer switches the moment this
+> skill is running — re-read this line before the first reply of every
+> monitoring cycle.
 
 ### Bot threads (qodo, CodeRabbit, etc.)
 
@@ -307,8 +325,9 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
    ```
 
 3. On wake: **re-run Step 2** (all five checks). Compare the unresolved thread count
-   to what it was before pushing, and compare 2d's review/comment IDs against the
-   ones you've already handled.
+   to what it was before pushing, and compare 2d's review/comment IDs and
+   `created_at` timestamps against the ones you've already handled — new-ness
+   is decided by id and timestamp, never by body text (see 2d).
 
 4. **New unresolved threads or new non-thread bot findings exist** -- go to Step 3
    (reply, fix, resolve, push). If Step 3 pushes more code, return here and repeat
