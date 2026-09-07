@@ -30,7 +30,7 @@ Each agent also uses MCP tools loaded at runtime via `ToolSearch`:
 
 ## Usage
 
-The agents are dispatched by the `ship-check` skill (in `~/.claude/skills/ship-check/`):
+The agents are dispatched by the `ship-check` skill (bundled in this plugin at `skills/ship-check/`):
 
 ```
 Agent({ subagent_type: "ship-check:pr-reviewer", prompt: "Review PR #123..." })

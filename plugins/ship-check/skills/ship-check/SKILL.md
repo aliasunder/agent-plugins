@@ -259,7 +259,9 @@ the pipeline pushes nothing).
    the delta diff only, naming the commits under review: dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
-   when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
+   when mixed. Findings follow the normal fix/flag rules and inter-phase triage. The
+   `--model` override applies here as in phases 1-4: when it was passed, add
+   `model: "<name>"` to these dispatches too.
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
