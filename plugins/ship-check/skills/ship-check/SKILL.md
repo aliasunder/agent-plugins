@@ -271,6 +271,10 @@ the pipeline pushes nothing).
 
 ## Execution
 
+The dispatch templates below omit `model`. When the user passed `--model <name>`,
+add `model: "<name>"` to every phase dispatch; without the flag, leave it out so the
+agent inherits the session model.
+
 ### Phase 1: PR Review
 
 Dispatch the `pr-reviewer` agent type from the ship-check plugin:
@@ -278,7 +282,6 @@ Dispatch the `pr-reviewer` agent type from the ship-check plugin:
 ```
 Agent({
   subagent_type: "ship-check:pr-reviewer",
-  model: "<model>",  // include ONLY when --model is specified
   description: "PR review — correctness, security, conditional checks",
   prompt: "Review the PR on branch <branch> (PR #<number>) against main. This is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (TDQS, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push."
 })
@@ -296,7 +299,6 @@ Dispatch the `code-quality-reviewer` agent type:
 ```
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
-  model: "<model>",  // include ONLY when --model is specified
   description: "Code quality — conventions, readability",
   prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>."
 })
@@ -312,7 +314,6 @@ Dispatch the `test-auditor` agent type:
 ```
 Agent({
   subagent_type: "ship-check:test-auditor",
-  model: "<model>",  // include ONLY when --model is specified
   description: "Test audit — quality + coverage gaps",
   prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-2 fixed and any deferred findings>."
 })
@@ -328,7 +329,6 @@ Dispatch the `bug-checker` agent type:
 ```
 Agent({
   subagent_type: "ship-check:bug-checker",
-  model: "<model>",  // include ONLY when --model is specified
   description: "Bug check — 7-dimension systematic hunt",
   prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
 })
