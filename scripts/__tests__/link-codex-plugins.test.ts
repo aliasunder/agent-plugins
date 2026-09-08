@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { linkPlugins } from "../link-codex-plugins";
 
 const temporaryDirectories = new Set<string>();
@@ -108,17 +108,4 @@ test("refuses symlinked version directories and backup directories", async () =>
   await mkdir(cache);
   await symlink(options.repoRoot, join(options.codexHome, "plugin-link-backups"));
   await expect(linkPlugins(options)).rejects.toThrow("Expected a real directory:");
-});
-
-test("CLI check returns stale and current exit codes using explicit fixture roots", async () => {
-  const options = await fixture();
-  const command = [process.execPath, resolve(import.meta.dir, "../link-codex-plugins.ts"), "--check", "--repo-root", options.repoRoot, "--codex-home", options.codexHome];
-  const stale = Bun.spawnSync(command);
-  expect(stale.exitCode).toBe(1);
-  expect(stale.stdout.toString()).toBe("Codex plugin links stale; run without --check to link them.\n");
-  expect(await readdir(options.codexHome)).toEqual(["plugins"]);
-  await linkPlugins(options);
-  const current = Bun.spawnSync(command);
-  expect(current.exitCode).toBe(0);
-  expect(current.stdout.toString()).toBe("Codex plugin links current (0 changed).\n");
 });

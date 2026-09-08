@@ -142,6 +142,46 @@ test("a concurrent run rejects the existing lock without stealing it", async () 
   expect(await readdir(options.codexHome)).toEqual([".agent-plugins-sync.lock"]);
 });
 
+test("public CLI cache linking respects a live lock and preserves agents and installed caches", async () => {
+  const options = await fixture();
+  for (const plugin of ["ship-check", "plan-check"]) {
+    const source = join(options.repoRoot, "plugins", plugin);
+    await mkdir(join(source, ".claude-plugin"));
+    await writeFile(join(source, ".claude-plugin/plugin.json"), JSON.stringify({ name: plugin, version: "1.1.1" }));
+    await writeFile(join(source, "README.md"), `${plugin} source`);
+    const cache = join(options.codexHome, "plugins/cache/agent-plugins", plugin, "1.1.1");
+    await cp(source, cache, { recursive: true });
+    await writeFile(join(cache, "README.md"), `${plugin} installed`);
+  }
+  await syncCodex(options);
+  const agentPaths = roles.map(([plugin, role]) => join(options.codexHome, "agents", `${plugin}-${role}.toml`));
+  const agentsBefore = await Promise.all(agentPaths.map(path => readFile(path, "utf8")));
+  const lock = join(options.codexHome, ".agent-plugins-sync.lock");
+  const lockContent = JSON.stringify({ pid: process.pid, token: "active-other-run" });
+  await writeFile(lock, lockContent);
+  const result = Bun.spawnSync([process.execPath, resolve(import.meta.dir, "../sync-codex.ts"), "--link-plugins", "--repo-root", options.repoRoot, "--codex-home", options.codexHome, "--skill-root", options.skillRoot]);
+  expect(result.exitCode).toBe(1);
+  expect(result.stderr.toString()).toBe(`Sync lock exists: ${lock}. Read its PID, verify that process has stopped, then remove the stale lock manually; active runs must finish first.\n`);
+  expect(await readFile(lock, "utf8")).toBe(lockContent);
+  expect(await Promise.all(agentPaths.map(path => readFile(path, "utf8")))).toEqual(agentsBefore);
+  for (const plugin of ["ship-check", "plan-check"]) {
+    const cache = join(options.codexHome, "plugins/cache/agent-plugins", plugin, "1.1.1");
+    expect(await readFile(join(cache, "README.md"), "utf8")).toBe(`${plugin} installed`);
+    for (const child of ["skills", "agents", ".claude-plugin", "README.md"]) expect((await lstat(join(cache, child))).isSymbolicLink()).toBe(false);
+  }
+  expect((await readdir(options.codexHome)).toSorted()).toEqual([".agent-plugins-sync.lock", "agents", "plugins"]);
+});
+
+test.each(["added", "removed"])("a source role being %s fails inventory validation before writes", async change => {
+  const options = await fixture();
+  const directory = join(options.repoRoot, "plugins/plan-check/agents");
+  if (change === "added") await cp(join(directory, "plan-reviewer.md"), join(directory, "extra-reviewer.md"));
+  else await rm(join(directory, "plan-reviewer.md"));
+  await expect(syncCodex(options)).rejects.toThrow(`Unsupported agent inventory in ${directory}.`);
+  await expect(syncCodex({ ...options, check: true })).rejects.toThrow(`Unsupported agent inventory in ${directory}.`);
+  expect(await readdir(options.codexHome)).toEqual([]);
+});
+
 test("rerunning an interrupted owned output set restores missing roles without rewriting completed ones", async () => {
   const options = await fixture();
   await syncCodex(options);

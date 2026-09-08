@@ -1,8 +1,5 @@
-#!/usr/bin/env bun
 import { lstat, mkdir, mkdtemp, readFile, realpath, rename, symlink } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { parseArgs } from "node:util";
 
 const pluginNames = ["ship-check", "plan-check"] as const;
 const children = ["skills", "agents", ".claude-plugin", "README.md"] as const;
@@ -40,7 +37,7 @@ const contains = (parent: string, child: string) => {
   return !path || (path !== ".." && !path.startsWith("../") && !isAbsolute(path));
 };
 
-/** Keep Codex's version directories real; only their shared-source children link out. */
+/** Mutating callers must hold the sync lock. Codex's version directories stay real. */
 export const linkPlugins = async (options: LinkOptions): Promise<LinkResult> => {
   const repoRoot = await realpath(resolve(options.repoRoot));
   const codexHome = await realpath(resolve(options.codexHome));
@@ -120,26 +117,3 @@ export const linkPlugins = async (options: LinkOptions): Promise<LinkResult> => 
   }
   return { current: true, changed: pending.length, backupDirectory };
 };
-
-if (import.meta.main) {
-  try {
-    const { values } = parseArgs({
-      options: {
-        check: { type: "boolean", default: false },
-        "repo-root": { type: "string" },
-        "codex-home": { type: "string" },
-      },
-    });
-    const result = await linkPlugins({
-      repoRoot: values["repo-root"] ?? resolve(import.meta.dir, ".."),
-      codexHome: values["codex-home"] ?? process.env.CODEX_HOME ?? join(homedir(), ".codex"),
-      check: values.check,
-    });
-    console.log(result.current ? `Codex plugin links current (${result.changed} changed).` : "Codex plugin links stale; run without --check to link them.");
-    if (result.backupDirectory) console.log(`Original cache content: ${result.backupDirectory}`);
-    process.exitCode = result.current ? 0 : 1;
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  }
-}

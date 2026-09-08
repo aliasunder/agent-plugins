@@ -68,6 +68,14 @@ const buildPlan = async (options: SyncOptions) => {
   const agentDirectory = join(options.codexHome, "agents");
   await validateDirectory(agentDirectory);
   await validateDirectory(join(options.codexHome, "agent-sync-backups"));
+  for (const plugin of new Set(roles.map(([plugin]) => plugin))) {
+    const directory = join(options.repoRoot, "plugins", plugin, "agents");
+    const expected = roles.filter(([owner]) => owner === plugin).map(([, role]) => `${role}.md`).toSorted();
+    const actual = (await readdir(directory)).filter(name => name.endsWith(".md")).toSorted();
+    if (actual.join("\n") !== expected.join("\n")) {
+      throw new Error(`Unsupported agent inventory in ${directory}. Expected: ${expected.join(", ")}; found: ${actual.join(", ")}. Update the supported roles before syncing.`);
+    }
+  }
   const sources: Source[] = [];
   const outputs: Output[] = [];
   const load = async (path: string) => {
