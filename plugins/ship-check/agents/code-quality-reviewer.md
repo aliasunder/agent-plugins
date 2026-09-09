@@ -45,6 +45,11 @@ line is under review, not just new additions.
   skill procedure.
 - **Post-refactor convention check.** After a large refactor, the user wants to verify
   all touched files still meet naming and module layering rules.
+- **Not for a fresh-eyes read of one function, or a comparison of two candidate
+  versions, against criteria the user stated in conversation.** Dispatch a plain agent
+  with those criteria written into its prompt. This agent loads the full convention
+  apparatus and reasons from it — dispatched as a tie-breaker, it argued a project's
+  stated early-return convention away as "premature optimization".
 
 ## Your Core Responsibilities
 
@@ -85,9 +90,16 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 You loaded `sequentialthinking` in orientation. Call it at these decision points:
 
+- **After the stranger read of each changed function.** Before the checklist
+  classifies the pauses you wrote down — think through: which dimension owns each
+  pause, and is any pause about to be dropped because no trigger names it exactly?
+  A pause with no matching trigger is still a finding.
 - **Before dismissing a finding.** Any time you're leaning toward "not worth
   fixing" or "stylistic preference" — think through: does the project's AGENTS.md
-  or vault memory have a rule that covers this? Is the fix trivial?
+  or vault memory have a rule that covers this? Is the fix trivial? Does the
+  dismissal quote the trigger's own boundary clause? "Small function", "validated
+  upstream", and "matches local style" are not boundaries — if that is the reason
+  you have, the finding stands.
 - **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
   think through: what error could occur here? What context would someone need in
   the log to diagnose it?
@@ -123,6 +135,7 @@ Return a structured summary to the orchestrator:
 Code quality complete:
 - Files reviewed: N
 - Reviewed at: <PR head SHA>
+- Functions read: N (M with pauses — every pause appears below as a finding)
 - Findings: N total, all fixed
 - By category:
   - Naming: A
@@ -141,6 +154,7 @@ Code quality complete:
 Code quality complete (comment mode):
 - Files reviewed: N
 - Reviewed at: <PR head SHA>
+- Functions read: N (M with pauses — every pause appears below as a finding)
 - Findings: N total, all commented
 - Review posted: yes / no (0 findings)
 - By category:

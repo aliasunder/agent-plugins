@@ -31,6 +31,15 @@ Approach this review as a skeptical outsider seeing the code for the first time:
 - **Report everything.** Flag every finding, even marginal ones. Mark uncertain findings
   with "Uncertain:" so the user can decide. Missing a genuine issue is worse than
   flagging a borderline one.
+- **A trigger is dismissed only on its own boundary.** Every trigger below names when
+  it does not apply; that clause is the only valid reason to drop a match. "The
+  function is small", "the input is validated upstream", "it matches the local style",
+  and "no real readability gain" are not boundaries — they are the reasons the manual
+  version was written in the first place, and they are exactly what the trigger exists
+  to override. If the dismissal you are drafting does not quote the trigger's boundary,
+  the finding stands. (Observed: manual `lastIndexOf`/`slice` on a file path was
+  dismissed as "clear, validated upstream"; it carried an off-by-one that
+  `path.parse()` had no room for, and was replaced by it on the next read.)
 - **Follow fable-mode discipline.** Write a stage map before starting. Verify each
   stage with a check that can fail. Self-critique before delivering findings.
 
@@ -78,7 +87,32 @@ Load these sources fresh — do not rely on what is already in context:
 
 ## What to check
 
-Work through the changed files. For each, check these dimensions in order:
+Work through the changed files. For each, do the stranger read first, then check the
+dimensions in order.
+
+### 0. Stranger read (before any checklist)
+
+The dimension checklist classifies findings; it does not discover them. Findings a
+reader spots in one look at the code — a loop with no stated reason, a misnamed
+variable, a hand-rolled parse with an off-by-one — have been missed by a checklist pass
+that reported zero comment findings on the same function. So read first, classify
+second.
+
+For every changed function, read it top to bottom once, without the checklist, and
+write down every place you paused:
+
+- A control structure whose reason is not stated where it sits — why is this loop
+  here, what does the bound (`<= 100`) mean, what happens when it runs out
+- A name whose value you had to trace to know what it holds
+- A manual computation where you wondered whether a built-in already does it
+- A comparison or branch you had to reason about to trust (`> 0` vs `>= 0`)
+- A term in a comment you were never given ("free name", "collision")
+
+Every pause is a finding in one of the dimensions below; the checklist then names the
+category and the fix. A function with zero pauses is recorded as examined — that is
+the proof-of-dismissal line for it. Boundary: none. The bar is one look at the code
+by someone who has never seen it — a readability problem visible in that look is a
+miss no matter what the checklist said.
 
 ### 1. Naming
 - Variables describe what the value IS, not shorthand (`availableHeadings` not
@@ -92,9 +126,21 @@ Work through the changed files. For each, check these dimensions in order:
   `check*`, `init*`, or `setup*` misstates the point — name the return
   (`getPdfEngine`, `resolveConfig`, `loadIndex`). Boundary: keep the side-effect name
   when every call site ignores the return — a true ensure-invariant function
+- **Borrowed terms mean what their source means.** A name that borrows an established
+  stdlib or domain term (`stem`, `basename`, `dir`, `ext`, `origin`, `host`,
+  `pathname`) must hold exactly that value. Flag it when it holds a neighbour or a
+  superset — `stem` holding `Projects/deep` (the whole path minus its extension) when
+  `path.parse().name` would be `deep`. The fix is usually the stdlib parser that
+  produces the real thing, not a longer name. Boundary: none — a borrowed term with a
+  different referent always misleads
 
 ### 2. Structure
-- Early returns over nested if/else
+- **Early returns over nested if/else** — and over a "unified" loop that absorbs the
+  simple case as a special first iteration (`suffix === 0 ? base : suffixed`). When
+  the simple case can return before the general search starts, keep that shape even
+  though the value is then built in two places; unify the construction with a small
+  helper, never by deleting the early return. Boundary: unification wins only when the
+  early-return branch duplicates real logic (several lines), not a value construction
 - Immutable by default — no unjustified `let`
 - No disguised-mutation folds (reduce that mutates its accumulator)
 - Named records over positional tuples where it aids readability
@@ -160,6 +206,24 @@ Work through the changed files. For each, check these dimensions in order:
 - Comments earn their place by clarifying non-obvious domain context
 - Never restate self-documenting names
 - If a long comment is needed, consider simplifying the code instead
+- **Unexplained control structure trigger — this dimension adds comments, not only
+  trims them.** A loop, bounded retry, fallback chain, or special-case branch whose
+  reason for existing is not stated where it sits is a finding. The comment must let a
+  stranger answer "why is this here?" from the comment alone, in plain words, covering
+  three things: the scenario that reaches it (a note with this name was already
+  trashed), the mechanism (try `note 1.md`, `note 2.md`, … until a name is unused),
+  and what breaks without it (`rename` silently overwrites the earlier copy). A
+  comment that names only the mechanism ("find a free name") or leans on a term the
+  reader was never given ("free", "collision-free") fails the test. Boundary: a
+  structure whose purpose is evident from names and types
+  (`for (const entry of entries)`) gets nothing — do not add narration there
+- **Detail at the line, purpose in the JSDoc.** A function whose body needed an
+  explanatory inline comment keeps a one-line JSDoc stating its purpose; the
+  scenario/mechanism/consequence explanation sits directly above the loop or branch
+  it explains, and both sides of a fork are labeled where they fork ("name is free —
+  use it as-is" / "name is taken — try suffixes"). Pulling the detail up into the
+  JSDoc, or deleting the JSDoc because the inline comment now carries the detail, are
+  both findings
 - Regex constants get doc comments explaining what they match
 - **State the why once, tersely.** Keep the context that makes a non-obvious helper
   or constraint make sense; flag restated justification chains, padding with
@@ -234,9 +298,14 @@ Work through the changed files. For each, check these dimensions in order:
   (fragments, encoding, empty segments).
   Wrong: `req.originalUrl.split("?")[0] ?? req.originalUrl`
   Right: `URL.parse(req.originalUrl, "http://localhost")?.pathname ?? req.originalUrl`
+  Wrong: `relativePath.lastIndexOf(".")` + two `slice` calls to split a file path
+  into stem and extension
+  Right: `const { dir, name, ext } = parse(relativePath)`
   Boundary: don't flag genuinely lexical operations (a delimiter the format defines
   as flat, e.g. splitting a CSV cell) or formats with no stdlib parser — there a
-  documented regex is the floor.
+  documented regex is the floor. "The input is validated upstream so the edge cases
+  cannot occur" is not a boundary: it is the assumption the manual version silently
+  encodes, and the stdlib call makes it true by construction at no cost.
 - **Fallbacks that exist only to satisfy the type checker are a smell.** When a
   `?? fallback` or guard protects a state the runtime cannot produce (e.g.
   `split(...)[0] ?? x` under `noUncheckedIndexedAccess` — `split` never returns an
