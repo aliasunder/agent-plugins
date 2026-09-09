@@ -93,6 +93,11 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 You loaded `sequentialthinking` in orientation. Call it at these decision points —
 not as a vague habit, but as a mandatory step BEFORE the action:
 
+- **Before fixing a description-vs-implementation mismatch.** Input: the quoted
+  description sentence and the code path it disagrees with. Output: which side is
+  wrong and why. Editing the description is the cheaper fix and the one you will
+  drift toward; if the description states what the project wants, the code is the
+  bug. See dimension 1 step 5 in the bug-check skill.
 - **Before fix vs flag.** Every finding where you're choosing disposition. Input:
   the finding, the confidence level, the fix complexity. Output: which cell of the
   dual-axis matrix this falls in, and why.
@@ -103,8 +108,10 @@ not as a vague habit, but as a mandatory step BEFORE the action:
   refactor," or "would change every call site." Think through: how many call sites
   are there actually? (Then grep to verify.)
 - **Before environment-specific reasoning.** Any time you're about to dismiss a
-  concern based on one deployment's specs. Think through: what's the worst
-  reasonable use case?
+  concern based on one deployment's specs, today's deployment shape ("one vault
+  per process"), or upstream validation ("the input is always `.md` here"). Think
+  through: is the code wrong on its own terms? What's the worst reasonable use
+  case?
 
 If you're not calling sequentialthinking at least once during the bug check, you're
 skipping decision points.

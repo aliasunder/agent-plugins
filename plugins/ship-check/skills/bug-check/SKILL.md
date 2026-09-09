@@ -84,6 +84,21 @@ The #1 source of missed bugs. The description says one thing; the code does anot
 3. **Trace each claim to the implementation.** Read the actual code path.
 4. **Flag any mismatch**: claim not implemented, implemented differently,
    references the wrong function/tool/concept, or is truncated/garbled text.
+5. **Decide which side is wrong before fixing.** A mismatch has two possible
+   fixes, and rewriting the description to match the code is the cheaper one — so
+   it is the one this check drifts toward, and it hides the bug instead of fixing
+   it. The description states the intent. If the intent is what the project wants,
+   the code is the bug and the fix goes in the code. The code is the wrong side
+   when: the description matches a user-facing promise (a setting is honored, a
+   copy is preserved), the code's actual behavior is the destructive or less
+   capable branch, or the mismatch comes from an implementation shortcut such as
+   an env var standing in for a state the code should detect directly. Every D1
+   finding names which side changed and why. Examples of the trap: a description
+   says the tool honors a vault setting and the code skips the setting whenever
+   one env var is present — qualifying the description leaves every deployment
+   that sets the state another way behaving wrong; a doc comment says a fallback
+   value is not cached and the code caches it — matching the comment to the code
+   means a later config change is never seen. In both, the code was the bug.
 
 **Cross-references are a known hot spot.** When a description mentions another tool
 or function by name:
@@ -203,7 +218,8 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 
 ### 4. Boundary and off-by-one
 
-**For each function with numeric parameters (limit, offset, index, count):**
+**For each function with numeric parameters (limit, offset, index, count), and for
+each comparison against a sentinel or a bound:**
 
 1. **Empty input**: What happens with an empty array, string, or result set?
 2. **Truncation indicators**: If showing "N+" for overflow, does the code fetch
@@ -213,6 +229,13 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    Off-by-one in slice, substring, and SQL LIMIT/OFFSET.
 4. **Zero and one**: These values expose special-case bugs. Does the function
    handle `limit: 0` or `offset: 0` correctly?
+5. **Sentinel-returning searches**: `indexOf`, `lastIndexOf`, `findIndex`, and
+   `search` return -1 for absent and 0 for found-at-start. A `> 0` guard treats
+   found-at-start as absent; the check is `>= 0` or `!== -1`. Boundary: "the
+   input can never start with the delimiter because it is validated upstream" is
+   not a boundary — the guard is wrong on its own terms, and when the string has a
+   formal structure the fix is the stdlib parser (`path.parse`, `URL`) that removes
+   the guard entirely.
 
 ### 5. Behavioral consistency
 
@@ -287,12 +310,12 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    internal state, or implementation details that shouldn't reach clients?
 4. **Guard correctness**: Is a guard condition (`if (value !== "")`) the right
    check? Could it be unconditional, or does it need a different condition?
-6. **Silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors with
+5. **Silent catches**: `.catch(() => {})` and `catch (e) {}` swallow errors with
    no trace. Every catch must either log or re-throw. Catching without logging is
    worse than not catching — it actively hides failures that affect debuggability.
    When fixing a silent catch, always add a log call with the error and enough
    context (file path, operation name) to diagnose the failure from the log alone.
-5. **Widened eligibility**: When a filter or eligibility check is broadened
+6. **Widened eligibility**: When a filter or eligibility check is broadened
    (new condition added via `||`, new file type accepted, new input source
    supported), trace what guarantees the old filter implicitly provided.
    The new branch must provide equivalent guarantees — or add explicit
@@ -300,6 +323,23 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    isSymbolicLink()` without adding `realpath()` containment, `stat().isFile()`,
    or broken-symlink handling. Also: widening a query scope, accepting a new
    auth method, or supporting a new content type without corresponding validation.
+7. **Fallback direction on failure**: When a read, parse, or lookup fails and
+   the code falls back to a default, check which branch that default selects. If
+   the default is the destructive or irreversible branch (permanent delete,
+   overwrite, skip a validation, grant access), a transient failure silently does
+   the worst thing. Separate "not configured" (ENOENT, key absent) from "could
+   not read" (EACCES, EISDIR, EIO, a parse error): the first may take the
+   default; the second must fail or take the conservative branch. A catch that
+   logs at debug level and returns the destructive default is a finding even
+   though it is not a silent catch.
+8. **I/O error paths**: For each filesystem or network call in changed code
+   (`rename`, `mkdir`, `unlink`, `link`, `fetch`), list the errors it raises in
+   the intended scenario — `EEXIST`, `ENOTDIR`, `EISDIR`, `EACCES`, `EXDEV` — and
+   trace what the caller reports for each. A raw errno message that names an
+   absolute path, an operation left half-done (the source still present after a
+   "delete"), or an operation that previously always succeeded turned into a hard
+   failure by the new path are each findings. Existing call sites in the same
+   module show what the error contract is; the new call must meet it.
 
 ### 7. Platform and encoding
 
@@ -368,6 +408,14 @@ valid dismissal for an OSS project where users may have 10x the data on half the
 RAM. Evaluate concerns against the worst reasonable use case for the project's
 audience — not the maintainer's current setup.
 
+The same rule covers deployment shape and upstream validation. "One vault per
+process", "the input is always `.md` because it was validated earlier", and "this
+can't happen in practice" describe today's callers, not the code. A guard that is
+wrong on its own terms, a module-level cache that is not keyed by the thing it
+caches for, or a fallback that picks the destructive branch is a finding whether
+or not the current deployment can reach it. Report it, categorize the reach as
+context, and let the orchestrator decide scope.
+
 And regardless of impact assessment: if the fix is trivial, fix it. A one-line
 null-out after data is consumed costs nothing and eliminates the concern entirely.
 
@@ -403,11 +451,13 @@ yours. Convention violations in your fixes ship unchecked.
    Dimensions 6-7 are quicker but still require reading the code.
 3. **One line per finding, then fix it:**
    ```
-   [D1] file.ts:612 — description refs vault_find_orphans, should be vault_get_backlinks → fixed
+   [D1] file.ts:612 — description refs vault_find_orphans, should be vault_get_backlinks → description fixed (code matches intent)
+   [D1] file.ts:940 — description says setting is honored, code skips it when an env var is set → code fixed (env var was a proxy for state)
    [D4] file.ts:88 — off-by-one in LIMIT, fetches N not N+1 for truncation → fixed (low confidence, trivial fix)
    [D5] file.ts:200 — async init race if called concurrently → flagged (complex fix — needs mutex or queue)
    ```
-   Don't describe the planned fix — the diff speaks for itself.
+   Don't describe the planned fix — the diff speaks for itself. A D1 line always
+   says which side changed, description or code, and why that side was wrong.
    **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
    **Call `sequentialthinking` before each disposition decision** — input the finding,
    confidence level, and fix complexity; output which matrix cell it falls in and why:
