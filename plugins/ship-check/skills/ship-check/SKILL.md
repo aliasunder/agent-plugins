@@ -274,8 +274,9 @@ the pipeline pushes nothing).
 ## Execution
 
 The dispatch templates below omit `model`. When the user passed `--model <name>`,
-add `model: "<name>"` to every phase dispatch; without the flag, leave it out so the
-agent inherits the session model.
+add `model: "<name>"` to every phase dispatch; without the flag, leave it out so
+each agent definition's `model:` frontmatter applies (`opus` for the ship-check
+agents).
 
 ### Phase 1: PR Review
 
@@ -431,9 +432,9 @@ The user can customize the pipeline:
   isn't responsible for. Composable with --skip, --only, --inline, --fork.
 - `/ship-check --model <name>` — override the model for all phase agents. Valid values:
   `sonnet`, `opus`, `haiku`, `fable`. Overrides the agent definition's `model:` frontmatter
-  for this run only. Useful for forcing a specific tier (`--model opus` for thoroughness)
-  when the session is on a different model. Ignored with `--inline` (inline phases use
-  the session's model). Default: `inherit` (agents use the session's model).
+  for this run only. Ignored with `--inline` (inline phases use the session's model).
+  Default: the agent definition's `model:` frontmatter — `opus` for every ship-check
+  agent.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
   eyes — useful when context from prior work is actually helpful)
 - `/ship-check --fork` — use forks instead of agents (legacy behavior — spawns forks

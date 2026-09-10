@@ -8,7 +8,7 @@ description: >
   "compare these two versions for readability", and a standalone stranger read of
   the files a code-quality pass reviewed, to see what the conventions missed. See
   "When to invoke" in the agent body for worked scenarios.
-model: inherit
+model: opus
 color: purple
 tools:
   - Read
