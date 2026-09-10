@@ -26,6 +26,7 @@ plugins/
       code-quality-reviewer.md
       test-auditor.md
       bug-checker.md
+      fresh-eyes.md           # On demand — stranger read, report only
     skills/                   # Skills (SKILL.md in subdirectories)
       ship-check/             # Pipeline orchestrator
       pr-review/              # Phase 1 — correctness, security, conditional checks
@@ -33,6 +34,7 @@ plugins/
       test-audit/             # Phase 3 — test quality + coverage gaps
       bug-check/              # Phase 4 — systematic bug hunt
       pr-monitor/             # Phase 5 — CI, bot comments, merge readiness
+      fresh-eyes/             # On demand — readability pauses a newcomer hits
     README.md
   plan-check/                 # Pre-implementation plan review plugin
     .claude-plugin/
