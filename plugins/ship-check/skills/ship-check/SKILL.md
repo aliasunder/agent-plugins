@@ -259,9 +259,9 @@ the pipeline pushes nothing).
    the delta diff only, naming the commits under review: dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
-   when mixed. Findings follow the normal fix/flag rules and inter-phase triage. The
-   `--model` override applies here as in phases 1-4: when it was passed, add
-   `model: "<name>"` to these dispatches too.
+   when mixed. Findings follow the normal fix/flag rules and inter-phase triage. Model
+   selection follows phases 1-4: default `model: "opus"`, with the user's
+   `--model` replacing it (`inherit` = omit the param).
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
@@ -273,9 +273,14 @@ the pipeline pushes nothing).
 
 ## Execution
 
-The dispatch templates below omit `model`. When the user passed `--model <name>`,
-add `model: "<name>"` to every phase dispatch; without the flag, leave it out so the
-agent inherits the session model.
+The dispatch templates below omit `model`. Agent-mode phase dispatches default
+to Opus: add `model: "opus"` to every phase dispatch unless the user passed
+`--model`. When they did, `--model <name>` means add `model: "<name>"` instead,
+and `--model inherit` means omit the param entirely so the agents follow the
+session's model (the agent definitions carry `model: inherit`). The default
+covers agent dispatches only — `--inline` phases run in the session, and
+`--fork` phases always run on the session's model because forks ignore model
+overrides.
 
 ### Phase 1: PR Review
 
@@ -429,11 +434,11 @@ The user can customize the pipeline:
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
   Implies --no-fix. Phase 5 (pr-monitor) is skipped — the pipeline is reviewing a PR it
   isn't responsible for. Composable with --skip, --only, --inline, --fork.
-- `/ship-check --model <name>` — override the model for all phase agents. Valid values:
-  `sonnet`, `opus`, `haiku`, `fable`. Overrides the agent definition's `model:` frontmatter
-  for this run only. Useful for forcing a specific tier (`--model opus` for thoroughness)
-  when the session is on a different model. Ignored with `--inline` (inline phases use
-  the session's model). Default: `inherit` (agents use the session's model).
+- `/ship-check --model <name>` — override the model for all phase agents for this run.
+  Valid values: `sonnet`, `opus`, `haiku`, `fable`, `inherit` (`inherit` = follow the
+  session's model). Ignored with `--inline` and `--fork` — both run phases on the
+  session's model (forks ignore model overrides). Default without the flag, agent mode
+  only: `opus` — the orchestrator adds `model: "opus"` to each phase dispatch.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
   eyes — useful when context from prior work is actually helpful)
 - `/ship-check --fork` — use forks instead of agents (legacy behavior — spawns forks
