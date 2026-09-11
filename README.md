@@ -17,7 +17,7 @@ Personal plugin marketplace for Claude Code and Claude Cowork — review agents,
 | Plugin | Description |
 |--------|-------------|
 | [ship-check](plugins/ship-check/) | Post-implementation review pipeline: five dedicated review agents (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes) plus seven skills covering PR review, code quality, test audit, bug hunting, stranger reads, and PR monitoring |
-| [plan-check](plugins/plan-check/) | Pre-implementation plan review: a fresh-eyes agent (plan-reviewer) plus the plan-review skill — premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, and verification-plan safety before any code exists |
+| [plan-check](plugins/plan-check/) | Pre-implementation plan review: a fresh-eyes agent (plan-reviewer) plus the plan-review skill — premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, mechanism-cost proportionality, and verification-plan safety before any code exists |
 
 ## Structure
 
