@@ -3,9 +3,10 @@ name: plan-review
 description: >
   Adversarial critique of an implementation plan BEFORE any code exists — premise
   audit, alternatives comparison, guard/control arithmetic, concurrent-writer
-  analysis, and verification-plan quality. Derived from analysis of real planning
-  failures that survived a full post-implementation review pipeline because review
-  verifies mechanisms, not premises.
+  analysis, mechanism-cost proportionality, and verification-plan quality.
+  Derived from analysis of real planning failures that survived a full
+  post-implementation review pipeline because review verifies mechanisms, not
+  premises.
   Use when asked to "review this plan", "critique the plan", "plan check", "is this
   plan ready", "review the task note before I start", or before implementing any
   card that adds behavior, a guard, or spans sessions.
@@ -71,8 +72,8 @@ of them is wasted work.
 
 Verb-to-severity mapping: **Block** always produces a blocker. A **Flag** lands
 as must-answer or recommendation via the guess test defined under Output format
-— unless the dimension assigns the severity itself (dimension 4's who-pays rule
-and dimension 5's silent-writers rule do).
+— unless the dimension assigns the severity itself (dimension 4's who-pays rule,
+dimension 5's silent-writers rule, and dimension 6b's cost-inversion rule do).
 
 ### 1. Problem framing
 
@@ -175,6 +176,27 @@ it, then classify it: *verified in the plan* (evidence cited), *checkable now*
   prevent AND through normal operations. Post-incident plans systematically
   over-produce guards; the ones worth keeping survive both walks. Measures that
   defend against the last incident by obstructing routine work get flagged.
+- **(6b) Price the winner, not just the losers** *(conditional: the plan
+  compares alternatives)*: dimension 3 checks that rejections have reasons;
+  this check prices what the accepted mechanism costs. Enumerate its permanent
+  surface — new toolchains or build steps, CI axes, process boundaries, failure
+  modes that don't exist today, docs — and state the marginal risk it closes
+  **over the next-cheapest rejected alternative**, not over doing nothing. Then
+  calibrate the asset: name exactly what is lost when the guarded failure
+  fires, and whether it is live data or something derived and recoverable (a
+  backup copy, a cache entry, an index rebuildable from source). When the
+  purchased margin is a lower-order residual — a race strictly narrower than
+  the bug being fixed, a defense-in-depth sliver — and the asset is
+  recoverable, that lands as **must-answer**: the plan must carry the priced
+  comparison and the owner's explicit acceptance of the bill, not just the
+  losers' rejection reasons. Real case: a plan accepted a native build
+  toolchain (a compiler in every test run, two-arch CI jobs, a spawned-process
+  boundary with a new unknown-outcome failure mode, a multi-file docs sweep) to
+  close a second-order race whose worst case was overwriting an
+  already-recoverable trash copy — while the ~15-line reservation alternative
+  closing every first-order path was rejected over exactly that residual. The
+  review passed it with 0 findings because every dimension audited the
+  premises and none priced the winner.
 - **Scope creep:** every deliverable traces back to the stated problem. Items
   that don't are proposals to surface separately, not scope.
 - **Delivery mechanics** *(when the plan spans multiple PRs)*: PR boundaries,

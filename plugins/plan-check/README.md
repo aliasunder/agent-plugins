@@ -34,8 +34,9 @@ have to be examined before implementation; that is this plugin's entire job.
    path computed with the plan's own numbers; who pays when it fires
 5. **Concurrent writers and async state** — every other writer of touched state;
    proxy-for-truth conflations; what survives the reset
-6. **Scope and proportionality** — post-incident overcompensation, scope creep,
-   multi-PR delivery mechanics
+6. **Scope and proportionality** — post-incident overcompensation, the accepted
+   mechanism's cost priced against the margin it buys over the next-cheapest
+   alternative, scope creep, multi-PR delivery mechanics
 7. **Verification plan quality** — runnable checks that can fail; destructive test
    steps get their own blast-radius analysis
 8. **Structure and open-question hygiene** — task-note conventions; go/no-go

@@ -3,9 +3,10 @@ name: plan-reviewer
 description: >
   Use this agent to critique an agent implementation plan BEFORE implementation
   starts — premise audit, alternatives comparison, guard/control arithmetic,
-  concurrent-writer analysis, and verification-plan safety. Typical triggers
-  include a user asking to "review this plan", "critique the task note", or "is
-  this ready to implement", a fable-mode planning session wanting adversarial
+  concurrent-writer analysis, mechanism-cost proportionality, and
+  verification-plan safety. Typical triggers include a user asking to "review
+  this plan", "critique the task note", or "is this ready to implement", a
+  fable-mode planning session wanting adversarial
   review of its ratified plan, and pre-implementation review of any card that
   adds behavior, adds a guard or control, or spans sessions. See "When to invoke"
   in the agent body for worked scenarios.
