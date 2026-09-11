@@ -273,11 +273,14 @@ the pipeline pushes nothing).
 
 ## Execution
 
-The dispatch templates below omit `model`. Phase dispatches default to Opus:
-add `model: "opus"` to every phase dispatch unless the user passed `--model`.
-When they did, `--model <name>` means add `model: "<name>"` instead, and
-`--model inherit` means omit the param entirely so the agents follow the
-session's model (the agent definitions carry `model: inherit`).
+The dispatch templates below omit `model`. Agent-mode phase dispatches default
+to Opus: add `model: "opus"` to every phase dispatch unless the user passed
+`--model`. When they did, `--model <name>` means add `model: "<name>"` instead,
+and `--model inherit` means omit the param entirely so the agents follow the
+session's model (the agent definitions carry `model: inherit`). The default
+covers agent dispatches only — `--inline` phases run in the session, and
+`--fork` phases always run on the session's model because forks ignore model
+overrides.
 
 ### Phase 1: PR Review
 
@@ -433,9 +436,9 @@ The user can customize the pipeline:
   isn't responsible for. Composable with --skip, --only, --inline, --fork.
 - `/ship-check --model <name>` — override the model for all phase agents for this run.
   Valid values: `sonnet`, `opus`, `haiku`, `fable`, `inherit` (`inherit` = follow the
-  session's model). Ignored with `--inline` (inline phases always use the session's
-  model). Default without the flag: `opus` — the orchestrator adds `model: "opus"` to
-  each phase dispatch.
+  session's model). Ignored with `--inline` and `--fork` — both run phases on the
+  session's model (forks ignore model overrides). Default without the flag, agent mode
+  only: `opus` — the orchestrator adds `model: "opus"` to each phase dispatch.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
   eyes — useful when context from prior work is actually helpful)
 - `/ship-check --fork` — use forks instead of agents (legacy behavior — spawns forks
