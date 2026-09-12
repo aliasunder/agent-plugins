@@ -23,7 +23,7 @@ Personal plugin marketplace for Claude Code and Claude Cowork — review agents,
 
 - **`.claude-plugin/marketplace.json`** — marketplace manifest listing all plugins
 - **`plugins/`** — the plugins themselves (agents, skills, manifests)
-- **`.github/workflows/`** — release automation (version validation, artifact builds, GitHub releases)
+- **`.github/workflows/`** — release automation and PR review (`umm_review.yml`)
 
 ## Installation
 
