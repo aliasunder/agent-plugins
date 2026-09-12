@@ -16,6 +16,7 @@ that bundle agents, skills, commands, and hooks as distributable packages.
   workflows/
     auto_release.yml          # v* tag push → validate versions, build artifacts, GitHub release
     manual_release.yml        # workflow_dispatch → bump version, tag, build, release
+    umm_review.yml            # PR review via umm-actually (configurable via repo variables)
   scripts/                    # Shared release-note and changelog helpers
 plugins/
   ship-check/                 # Ship-check pipeline plugin
