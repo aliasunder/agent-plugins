@@ -41,7 +41,7 @@ bodies, PR-level comments, thread replies — MUST include the attribution foote
 This applies in ALL modes (default and comment), to ALL participants (phase agents,
 orchestrator triage, pr-monitor replies).
 
-**Footer format**: `\n\n---\n*🔍 ship-check · <component> · <model-id>*`
+**Comment footer format**: `\n\n---\n*🔍 ship-check · <component> · <model-id>*`
 
 - `<component>` is the phase or role: `pr-review`, `code-quality`, `test-audit`,
   `bug-check`, `pr-monitor`, or `triage` (for orchestrator inter-phase triage posts).
@@ -56,12 +56,42 @@ A comment posted without a footer is indistinguishable from the repo owner's man
 comments and misattributes automated output to a human. Every `gh api` and
 `gh pr comment` call in the pipeline includes the footer — no exceptions.
 
+**Commit trailer format**: every commit a phase agent makes includes a `Ship-Check`
+git trailer identifying the phase and the agent's model:
+
+```
+Ship-Check: <component> · <model-id>
+```
+
+Add this instruction to each phase dispatch prompt (phases 1, 3-5 — Phase 2 does not
+commit):
+
+```
+When committing, add this trailer to every commit message (after the body, before
+any trailers the harness adds):
+Ship-Check: PHASE_NAME · YOUR_MODEL_ID
+Read YOUR_MODEL_ID from your system prompt ("You are powered by the model named...").
+```
+
+The harness appends its own `Co-Authored-By` trailer automatically; the `Ship-Check`
+trailer supplements it with the phase and the agent's actual model, not the
+dispatching session's.
+
 ## Before starting
 
-1. Confirm a PR exists for the current branch (or that changes are committed and pushed).
-   If not, ask the user whether to commit/push first.
-2. Identify the base branch (usually `main`).
-3. Get the PR number and branch name — agents need this context in their briefing.
+1. **Check for a PR.** Run `gh pr view` on the current branch.
+   - **PR exists**: record the PR number, branch name, and base branch. Proceed normally.
+   - **No PR, and `--local` or `--report` was passed**: proceed in local review mode
+     (see Local review mode below).
+   - **No PR, no flag**: offer two options — create a PR first, or proceed in local
+     review mode.
+2. **Identify the review range.** In PR mode: the PR diff against the base branch. In
+   local mode: `--diff <base>` if supplied, otherwise `HEAD~N..HEAD` where N is the
+   number of commits since the last merge or tag (use `git log --oneline --first-parent
+   main..HEAD | wc -l`; if on main, use the count of commits since the last tag or a
+   user-supplied base).
+3. Get the branch name (or "main" in local mode) — agents need this context in their
+   briefing.
 
 ## Comment mode (`--comment`)
 
@@ -142,6 +172,36 @@ gh repo view --json nameWithOwner -q .nameWithOwner
 Pass it as `Repo: owner/repo` in the dispatch prompt. In comment mode, agents
 include their own model ID in the footer (they know it from their system prompt) —
 the orchestrator does not need to look it up or pass it.
+
+## Local review mode (`--local`)
+
+When no PR exists — direct pushes to main, pre-PR work, or reviewing a commit
+range — the pipeline runs in local review mode. Activated automatically when no PR
+is found and `--local` or `--report` is passed, or when offered at startup and
+accepted.
+
+### Behavior changes from PR mode
+
+| Aspect | PR mode | Local mode |
+|--------|---------|------------|
+| Review range | PR diff vs base branch | `--diff <base>` if supplied, otherwise commits since last merge/tag |
+| Dispatch prompts | Reference PR number and branch | Reference commit range and branch |
+| Phase 6 (pr-monitor) | Runs | Skipped — no PR to monitor |
+| Comment mode | Posts inline PR review comments | Not available (no PR) |
+| Findings | Edit/commit/push (default) or PR comments | On main: report only (implies `--report`). On a branch: edit/commit/push unless `--report` is set. |
+| Delta review | Tracks PR head | Not applicable |
+
+### Dispatch prompt changes
+
+Replace PR references in each phase dispatch:
+
+- `PR #<number>` → `commits <short-sha>..<short-sha>`
+- `branch <branch>` → `branch <branch>` (unchanged if on a branch) or `main` (if reviewing main directly)
+- Add: `LOCAL MODE: Report all findings to the orchestrator. Do not post PR comments.`
+
+When `--report` is NOT set and the changes are on a feature branch, agents still fix
+and commit normally — local mode only implies `--report` when reviewing main directly
+(fixes on main require explicit intent).
 
 ## Phase discipline
 
@@ -291,6 +351,15 @@ dispatch according to this table:
 | `--model inherit` | omitted — the agent definition's `model: inherit` takes effect, so the agent runs on the session's model |
 | `--inline` | N/A — phases run in the session, not as agents |
 | `--fork` | N/A — forks always run on the session's model (they ignore model overrides) |
+
+The dispatch templates below also omit the `Ship-Check` commit trailer instruction.
+Append it to every phase that commits (phases 1, 3-5):
+
+```
+When committing, add this trailer to every commit message:
+Ship-Check: PHASE_NAME · YOUR_MODEL_ID
+Read YOUR_MODEL_ID from your system prompt ("You are powered by the model named...").
+```
 
 ### Phase 1: PR Review
 
@@ -454,7 +523,7 @@ Ship check complete (comment mode):
 - Triage:       N flagged findings triaged across all phases — M commented, K deferred
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
-- Dismissed:    N across phases (roll up the phases' proof-of-dismissal lines — or "none")
+- Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 - Reviews posted: N (one per phase with findings)
 ```
@@ -470,7 +539,12 @@ The user can customize the pipeline:
 - `/ship-check --skip fresh-eyes` — code-quality runs on its own dimension 0 only
 - `/ship-check --only pr-review,test-audit` — run specific phases
 - `/ship-check --only fresh-eyes` — standalone stranger read, report to user
-- `/ship-check --no-fix` — report only, don't apply fixes (findings in agent output only)
+- `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
+  reported to the orchestrator). Alias: `--no-fix`.
+- `/ship-check --local` — run without a PR. Reviews the commit range on the current
+  branch (see Local review mode). Implies `--report` when on main.
+- `/ship-check --diff <base>` — set the review range explicitly (e.g. `--diff HEAD~3`,
+  `--diff abc1234`). Implies `--local`.
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
   Implies --no-fix. Phase 6 (pr-monitor) is skipped — the pipeline is reviewing a PR it
   isn't responsible for. Composable with --skip, --only, --inline, --fork.

@@ -362,6 +362,15 @@ to doc comments in code. Two classes of finding: **correctness** (prose that is 
 cover code-level prose, this dimension covers docs) and **concision** (prose that is
 correct but padded — verbosity that ships gets trimmed manually at real cost).
 
+**Audience-aware review.** Check who reads each artifact before applying triggers.
+A tool description consumed by an agent needs exact parameter semantics, precise
+scope of side effects, and unambiguous conditionals — narrative flow and scannability
+matter less. A README consumed by a human developer needs the opposite: quick
+orientation, progressive disclosure, scannable structure. Flag prose that serves the
+wrong audience: a tool description that narrates instead of specifying, or a README
+that reads like a spec. Boundary: skip when a single artifact genuinely serves both
+audiences (e.g. a CLI help string read by humans and parsed by agents).
+
 **Trim-safety boundary — applies to every trigger in this dimension: compression
 must never merge two distinct claims into one.** Verify each compressed sentence
 against the code before proposing it — a trim that collapses "A self-heals; B does
