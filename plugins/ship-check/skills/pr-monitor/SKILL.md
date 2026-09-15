@@ -402,7 +402,7 @@ user doesn't respond, keep the monitoring loop running.
 ## Continuous monitoring
 
 Continue monitoring after Step 5 — whether invoked via `/loop` or not:
-- Call `ScheduleWakeup` with `delaySeconds: 240` (stays in prompt cache).
+- Call `ScheduleWakeup` with `delaySeconds: 240`.
 - On each wake, run Step 2. If new findings, handle via Steps 3-4.
 - **Stop the loop only when:**
   - The user explicitly says stop (or said "check once" / "one-shot" at invocation)

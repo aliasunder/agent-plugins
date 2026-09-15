@@ -268,9 +268,8 @@ the pipeline pushes nothing).
    the delta diff only, naming the commits under review: dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
-   when mixed. Findings follow the normal fix/flag rules and inter-phase triage. Model
-   selection follows phases 1-5: default `model: "opus"`, with the user's
-   `--model` replacing it (`inherit` = omit the param).
+   when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
+   Model selection follows the same table as phases 1-5 (see Execution above).
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
@@ -282,14 +281,16 @@ the pipeline pushes nothing).
 
 ## Execution
 
-The dispatch templates below omit `model`. Agent-mode phase dispatches default
-to Opus: add `model: "opus"` to every phase dispatch unless the user passed
-`--model`. When they did, `--model <name>` means add `model: "<name>"` instead,
-and `--model inherit` means omit the param entirely so the agents follow the
-session's model (the agent definitions carry `model: inherit`). The default
-covers agent dispatches only — `--inline` phases run in the session, and
-`--fork` phases always run on the session's model because forks ignore model
-overrides.
+The dispatch templates below omit `model`. Add it to each agent-mode phase
+dispatch according to this table:
+
+| User flag | `model:` in the Agent() call |
+|-----------|----------------------------|
+| (none) | `"opus"` — the pipeline default |
+| `--model sonnet` (or `haiku`, `fable`, `opus`) | the named model |
+| `--model inherit` | omitted — the agent definition's `model: inherit` takes effect, so the agent runs on the session's model |
+| `--inline` | N/A — phases run in the session, not as agents |
+| `--fork` | N/A — forks always run on the session's model (they ignore model overrides) |
 
 ### Phase 1: PR Review
 
@@ -421,14 +422,14 @@ pipeline conclusion. Update it on each monitoring pass as PR status evolves.
 Ship check complete:
 - Reviewed at:  <last phase-reviewed SHA; delta since then checked in Phase 6>
 - PR Review:    N findings, M fixed (correctness, security, conditional)
-- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed (dismissed pauses listed under Deferred)
+- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
 - Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
-- Dismissed:    N across phases (roll up the phases' proof-of-dismissal lines — or "none")
+- Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
 

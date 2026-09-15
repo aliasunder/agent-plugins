@@ -9,7 +9,7 @@ deliberately loads none.
 
 | Agent | Phase | Color | Role |
 |-------|-------|-------|------|
-| `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (TDQS, feature surface, stale paths) |
+| `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (Tool Description Quality Score, feature surface, stale paths) |
 | `fresh-eyes` | 2 | purple | Stranger read: every place a newcomer pauses, per function. Report only — no conventions, no edits, no history. Pauses feed into Phase 3. |
 | `code-quality-reviewer` | 3 | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. |
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
