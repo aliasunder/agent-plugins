@@ -326,11 +326,16 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
      prompt: "/pr-monitor")
    ```
 
-3. On wake: **re-run Step 2** (all five checks). Compare the unresolved thread count
-   to what it was before pushing, and compare 2d's review/comment IDs and
-   per-surface timestamps (`submitted_at` for review bodies, `created_at`
-   for issue and inline comments) against the ones you've already handled —
-   new-ness is decided by id and timestamp, never by body text (see 2d).
+3. On wake: **re-run Step 2 in full** — all five checks (2a through 2e), including
+   **all three endpoints in 2d** (`pulls/NUMBER/reviews`, `issues/NUMBER/comments`,
+   `pulls/NUMBER/comments`). Do not narrow to threads and inline comments only.
+   The issue-comments endpoint (`issues/NUMBER/comments`) is where bots like
+   umm-actually post PR-level findings; dropping it in steady state misses them
+   entirely. Compare the unresolved thread count to what it was before pushing,
+   and compare 2d's review/comment IDs and per-surface timestamps
+   (`submitted_at` for review bodies, `created_at` for issue and inline comments)
+   against the ones you've already handled — new-ness is decided by id and
+   timestamp, never by body text (see 2d).
 
 4. **New unresolved threads or new non-thread bot findings exist** -- go to Step 3
    (reply, fix, resolve, push). If Step 3 pushes more code, return here and repeat
@@ -369,7 +374,7 @@ If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 - If code was pushed during this run: at least one follow-up check (Step 4) completed
   after the most recent push with no new unresolved threads
 - No new unresolved threads in the most recent status pass
-- **Pipeline context only (ship-check Phase 5)**: the pre-merge delta review has run
+- **Pipeline context only (ship-check Phase 6)**: the pre-merge delta review has run
   against the current head — the diff from the last phase-reviewed SHA was checked,
   and if substantive, a delta review was dispatched and completed (see the ship-check
   skill's "Pre-merge delta review" section). Fixes this monitoring loop wrote are part
@@ -408,8 +413,8 @@ Continue monitoring after Step 5 — whether invoked via `/loop` or not:
 
 ### Pipeline context
 
-When invoked as part of a pipeline (e.g., ship-check Phase 5), the pipeline's other
-phases being complete does NOT mean monitoring is done. Phase 5 outlives the pipeline.
+When invoked as part of a pipeline (e.g., ship-check Phase 6), the pipeline's other
+phases being complete does NOT mean monitoring is done. Phase 6 outlives the pipeline.
 Continue monitoring until the user explicitly says stop or the PR is merged/closed.
 
 If you feel pressure to "wrap up" because a reporting template exists — that template
