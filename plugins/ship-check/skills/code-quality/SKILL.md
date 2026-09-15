@@ -51,7 +51,12 @@ Load these sources fresh — do not rely on what is already in context:
    Focus on the code style section — naming, immutability, early returns, comment
    philosophy, module layering, export style.
 
-2. **Code standards + preference recall**: Discover the standards notes first — the
+2. **Response style**: On surfaces with skills, invoke the `response-style` skill;
+   otherwise `vault_read_note({ path: "Reference/response-style.md" })`. These rules
+   apply to doc comments, tool descriptions, and any prose in changed code — not only
+   to chat output.
+
+3. **Code standards + preference recall**: Discover the standards notes first — the
    set grows and hardcoded lists go stale:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` the pass-relevant results (currently typescript and
@@ -113,6 +118,12 @@ category and the fix. A function with zero pauses is recorded as examined — th
 the proof-of-dismissal line for it. Boundary: none. The bar is one look at the code
 by someone who has never seen it — a readability problem visible in that look is a
 miss no matter what the checklist said.
+
+**When the dispatch prompt carries a fresh-eyes pause list** (from the pipeline's
+Phase 2), each listed pause is one of your own pauses: classify it under the matching
+dimension, then fix it or dismiss it on that trigger's boundary. The report lists
+every pause with its disposition. A dismissed pause must quote the trigger's boundary
+— "matches local style" and "the function is small" are not boundaries.
 
 ### 1. Naming
 - Variables describe what the value IS, not shorthand (`availableHeadings` not
@@ -382,6 +393,8 @@ clause is load-bearing, keep it and flag the uncertainty instead of trimming.
 2. **Fix** every finding directly — this is a "pass", not just a review.
 3. **Run tests** after all fixes to confirm no behavior change.
 4. **Summarize**: files touched, count by category, test status.
+   When fresh-eyes pauses were supplied, add:
+   `- Fresh-eyes pauses: N received — K fixed, J dismissed (dispositions follow)`
 
 **Output honesty (both modes):**
 
@@ -389,7 +402,7 @@ clause is load-bearing, keep it and flag the uncertainty instead of trimming.
   reviewed — a review that doesn't say what it checked is indistinguishable
   from one that checked nothing. It also lets the orchestrator cross-check
   what this phase actually saw against the delta-review baseline it records
-  itself at Phase 4 close.
+  itself at Phase 5 close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could
@@ -415,7 +428,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 2: Code Quality\n\nN findings across M files. Reviewed at <HEAD_SHA>.\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*",
+  "body": "## Phase 3: Code Quality\n\nN findings across M files. Reviewed at <HEAD_SHA>.\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · code-quality · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",

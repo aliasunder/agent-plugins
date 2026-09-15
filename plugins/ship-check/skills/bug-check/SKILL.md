@@ -495,7 +495,7 @@ Bug check complete:
   reviewed — a review that doesn't say what it checked is indistinguishable
   from one that checked nothing. It also lets the orchestrator cross-check
   what this phase actually saw against the delta-review baseline it records
-  itself at Phase 4 close.
+  itself at Phase 5 close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". This
   extends "No silent skipping" to the negative space: findings you confirmed
@@ -525,7 +525,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 4: Bug Check\n\nN bugs found across M files. Reviewed at <HEAD_SHA>.\nConfidence: A high, B medium, C low\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
+  "body": "## Phase 5: Bug Check\n\nN bugs found across M files. Reviewed at <HEAD_SHA>.\nConfidence: A high, B medium, C low\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.ts",

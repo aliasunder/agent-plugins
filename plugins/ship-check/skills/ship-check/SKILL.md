@@ -1,10 +1,11 @@
 ---
 name: ship-check
 description: >
-  Run the full post-implementation review pipeline: pr-review -> code-quality ->
-  test-audit -> bug-check -> pr-monitor. Phases 1-4 run as dedicated agent types
-  (ship-check plugin) with skills preloaded — genuine fresh eyes with no inherited
-  context. Phase 5 (pr-monitor) runs inline for user interaction.
+  Run the full post-implementation review pipeline: pr-review -> fresh-eyes ->
+  code-quality -> test-audit -> bug-check -> pr-monitor. Phases 1-5 run as
+  dedicated agent types (ship-check plugin) with skills preloaded — genuine fresh
+  eyes with no inherited context. Phase 6 (pr-monitor) runs inline for user
+  interaction.
   Use when asked to "ship check", "review pipeline", "full review", "run all
   reviews", or after implementation is complete and ready for review.
   NOT for: single-dimension review (use the individual skill), quick CI check
@@ -13,20 +14,24 @@ description: >
 
 # Ship Check
 
-Orchestrate the full review pipeline. Phases 1-4 dispatch **dedicated agent types**
+Orchestrate the full review pipeline. Phases 1-5 dispatch **dedicated agent types**
 from the ship-check plugin (not forks) so each reviewer approaches the code as a
 genuine stranger — no inherited context, no authorship bias. Each agent has its review
 skill and fable-mode preloaded via the `skills:` frontmatter, and loads project
 conventions (CLAUDE.md, AGENTS.md, CLAUDE.local.md) and vault memory independently.
+Phase 2 (fresh-eyes) is the exception: it deliberately loads no conventions, no
+memory, and no shell — only Read/Grep/Glob — so its pauses reflect what a newcomer
+experiences, not what the project allows.
 
 ## Pipeline
 
 ```
 Phase 1: ship-check:pr-reviewer          -> correctness, security, conditional checks
-Phase 2: ship-check:code-quality-reviewer -> convention compliance, readability
-Phase 3: ship-check:test-auditor          -> test design, assertion quality, coverage gaps
-Phase 4: ship-check:bug-checker           -> description-vs-code, SQL, type coercion, boundary
-Phase 5: pr-monitor (inline)              -> CI status, bot comment resolution, loop until ready
+Phase 2: ship-check:fresh-eyes            -> stranger pauses (report only, no conventions)
+Phase 3: ship-check:code-quality-reviewer -> convention compliance, readability (resolves Phase 2 pauses)
+Phase 4: ship-check:test-auditor          -> test design, assertion quality, coverage gaps
+Phase 5: ship-check:bug-checker           -> description-vs-code, SQL, type coercion, boundary
+Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until ready
 ```
 
 ## Attribution
@@ -62,7 +67,7 @@ comments and misattributes automated output to a human. Every `gh api` and
 
 When `--comment` is active, the entire pipeline switches from fix-and-push to
 review-and-comment. Each phase posts findings as inline PR review comments via `gh api`
-instead of editing files. Phase 5 (pr-monitor) is skipped entirely — the pipeline is
+instead of editing files. Phase 6 (pr-monitor) is skipped entirely — the pipeline is
 reviewing a PR it isn't responsible for.
 
 ### Behavior changes
@@ -70,7 +75,8 @@ reviewing a PR it isn't responsible for.
 | Aspect | Default mode | Comment mode |
 |--------|-------------|--------------|
 | Findings | Edit files, commit, push | Post as inline PR review comments |
-| Phase 5 | Runs (monitoring loop) | Skipped |
+| Fresh-eyes (Phase 2) | Pauses flow into code-quality | Pauses flow into code-quality (no change — fresh-eyes never posts) |
+| Phase 6 | Runs (monitoring loop) | Skipped |
 | Phase sequencing | Sequential (each sees prior fixes) | Sequential (each sees prior findings to avoid duplicates) |
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
 | Inter-phase triage | Evaluates flagged findings, may fix | Evaluates flagged findings, may post additional comments |
@@ -118,8 +124,8 @@ repo-level issues, and orchestrator triage deferrals. These must still be visibl
 the PR itself, not only in the chat transcript. Sub-agents include what they can in
 their review body (e.g. a "Findings beyond the diff" section), but **ensuring
 coverage is the primary agent's responsibility, not the sub-agents'**: in default
-mode, verify and post as part of Phase 5 (pr-monitoring); in comment mode (Phase 5
-skipped), verify after Phase 4 triage and post anything missing before the final
+mode, verify and post as part of Phase 6 (pr-monitoring); in comment mode (Phase 6
+skipped), verify after Phase 5 triage and post anything missing before the final
 summary. Post via `gh pr comment` /
 `POST /repos/{owner}/{repo}/issues/{n}/comments` — include the attribution footer
 (see Attribution section above). A finding that exists only in agent output is
@@ -139,7 +145,7 @@ the orchestrator does not need to look it up or pass it.
 
 ## Phase discipline
 
-1. **All 5 phases run by default.** The orchestrator NEVER skips, refuses, or
+1. **All 6 phases run by default.** The orchestrator NEVER skips, refuses, or
    short-circuits phases based on its own assessment of the PR's content. This
    includes PRs that only change CI/CD workflows (`.yml`), IaC, Dockerfiles,
    configuration, or documentation — **CI/CD and IaC are reviewable code**, not
@@ -153,7 +159,9 @@ the orchestrator does not need to look it up or pass it.
    it is never a reason to have skipped the dispatch.
 
 3. **Phases run sequentially.** Each phase reviews the code *after* the previous phase's
-   fixes are committed and pushed. Never parallelize review phases.
+   fixes are committed and pushed. Never parallelize review phases. Phase 2 (fresh-eyes)
+   writes nothing, but it runs before Phase 3 (code-quality) so the pause list exists
+   when code-quality starts.
 
 4. **The orchestrator never parrots sub-agent labels.** When a phase returns flagged
    findings, evaluate each one independently using inter-phase triage (below). A
@@ -162,9 +170,10 @@ the orchestrator does not need to look it up or pass it.
 
 ## Inter-phase triage
 
-After each of Phases 1-4 completes, triage any flagged findings BEFORE launching the
+After each of Phases 1, 3-5 completes, triage any flagged findings BEFORE launching the
 next phase. This is mandatory when flagged findings exist — skip only when a phase
-reports all findings fixed.
+reports all findings fixed. Phase 2 (fresh-eyes) produces pauses, not findings — no
+triage needed.
 
 ### Procedure
 
@@ -239,17 +248,17 @@ setup. And if the fix is trivial, fix it regardless of the impact assessment.
 
 ## Pre-merge delta review
 
-Phases 1-4 review a snapshot, but the PR keeps moving after they finish — bot-response
+Phases 1-5 review a snapshot, but the PR keeps moving after they finish — bot-response
 fixes, scope growth, manual cleanups. On real PRs the majority of commits can land
-after Phase 4 (observed: 11 of 19 commits over the 22 hours after the phases ran,
+after Phase 5 (observed: 11 of 19 commits over the 22 hours after the phases ran,
 including a monitoring-cycle fix that introduced a real bug only an external bot
 caught). Post-phase commits that no phase ever sees are the largest source of shipped
-misses. This section closes that hole. Comment mode skips it (Phase 5 doesn't run and
+misses. This section closes that hole. Comment mode skips it (Phase 6 doesn't run and
 the pipeline pushes nothing).
 
-1. **Record the reviewed SHA.** When Phase 4 completes (including its triage fixes),
+1. **Record the reviewed SHA.** When Phase 5 completes (including its triage fixes),
    note the branch head SHA — the high-water mark of what the phases have seen.
-2. **Check the delta before every merge-ready verdict.** In Phase 5, before declaring
+2. **Check the delta before every merge-ready verdict.** In Phase 6, before declaring
    merge-ready (and again before re-declaring it on later passes), run
    `git diff <reviewed-sha>..HEAD --stat`. An empty or trivial delta (typo-level docs
    edits, lockfile churn) needs no action — state that the delta was checked and its
@@ -260,7 +269,7 @@ the pipeline pushes nothing).
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
    when mixed. Findings follow the normal fix/flag rules and inter-phase triage. Model
-   selection follows phases 1-4: default `model: "opus"`, with the user's
+   selection follows phases 1-5: default `model: "opus"`, with the user's
    `--model` replacing it (`inherit` = omit the param).
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
@@ -299,22 +308,48 @@ flagged findings (see procedure above) before launching Phase 2. Then compose th
 Phase 2 dispatch prompt — append a one-line prior-phase context summarizing what
 Phase 1 fixed (or commented on, in comment mode) and what remains deferred.
 
-### Phase 2: Code Quality
+### Phase 2: Fresh Eyes (report only)
 
-Dispatch the `code-quality-reviewer` agent type:
+Dispatch the `fresh-eyes` agent type. Fresh-eyes receives the changed non-test file
+list and reads each file whole — it does not see the diff. It reports pauses per
+function but edits nothing. No inter-phase triage is needed because there are no fixes
+or flags; the output feeds directly into Phase 3.
+
+Build the file list from the diff, excluding test files:
+
+```bash
+git diff --name-only main...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
+```
+
+```
+Agent({
+  subagent_type: "ship-check:fresh-eyes",
+  description: "Fresh eyes — stranger read, report only",
+  prompt: "Read the following files at HEAD on branch <branch> (PR #<number>) as a newcomer who has never seen this codebase. Report every place you pause — a name you had to trace, a loop with no stated reason, a comparison you had to reason about, a term never introduced. Report only; do not edit anything.\n\nFiles:\n<file list, one per line>"
+})
+```
+
+Wait for the agent to complete. Read its pause report. No triage — pauses are not
+fixes. Extract the per-function pause list and carry it into the Phase 3 dispatch.
+
+### Phase 3: Code Quality
+
+Dispatch the `code-quality-reviewer` agent type. When Phase 2 produced pauses, append
+them to the dispatch prompt so code-quality resolves each one as a fix or a named
+dismissal.
 
 ```
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
   description: "Code quality — conventions, readability",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>."
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2). Resolve every pause as a fix or a named dismissal on the trigger's boundary; list each disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
-flagged findings. Then compose the Phase 3 dispatch prompt with prior-phase context.
+flagged findings. Then compose the Phase 4 dispatch prompt with prior-phase context.
 
-### Phase 3: Test Audit
+### Phase 4: Test Audit
 
 Dispatch the `test-auditor` agent type:
 
@@ -322,14 +357,14 @@ Dispatch the `test-auditor` agent type:
 Agent({
   subagent_type: "ship-check:test-auditor",
   description: "Test audit — quality + coverage gaps",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-2 fixed and any deferred findings>."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
 })
 ```
 
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
-flagged findings. Then compose the Phase 4 dispatch prompt with prior-phase context.
+flagged findings. Then compose the Phase 5 dispatch prompt with prior-phase context.
 
-### Phase 4: Bug Check
+### Phase 5: Bug Check
 
 Dispatch the `bug-checker` agent type:
 
@@ -337,25 +372,25 @@ Dispatch the `bug-checker` agent type:
 Agent({
   subagent_type: "ship-check:bug-checker",
   description: "Bug check — 7-dimension systematic hunt",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
 flagged findings.
 
-### Phase 5: PR Monitor (inline — does not end)
+### Phase 6: PR Monitor (inline — does not end)
 
 **Skip this phase entirely in comment mode.** The pipeline is reviewing a PR it isn't
 responsible for — there are no pushed fixes to monitor, no bot comments to resolve, and
-no CI to watch. After Phase 4 completes, output the summary report and stop.
+no CI to watch. After Phase 5 completes, output the summary report and stop.
 
 Run /pr-monitor inline (not as an agent). This phase stays inline because it needs
 ScheduleWakeup, user interaction for human comments, and continuous monitoring.
 
-**Phase 5 does not end.** Phases 1-4 are "complete and move on" steps. Phase 5 is a
+**Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when
-Phases 1-4 are done, but Phase 5 runs until the user says stop or the PR merges.
+Phases 1-5 are done, but Phase 6 runs until the user says stop or the PR merges.
 
 **Invoke the pr-monitor skill** (call the Skill tool with `skill: "pr-monitor"`) and
 follow ALL steps through Step 5, including:
@@ -371,7 +406,7 @@ findings: any deferred finding or beyond-diff issue not already visible on the P
 (inline comment or review body) gets a PR-level comment (`gh pr comment`) so the
 decision trail lives on the PR, not only in the chat transcript.
 
-Phase 5 also owns the **pre-merge delta review** (see the section above): before any
+Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the last phase-reviewed SHA and
 dispatch a delta review if the difference is substantive.
 
@@ -379,13 +414,14 @@ dispatch a delta review if the difference is substantive.
 
 ### Default mode
 
-Output the summary below as a **status snapshot** during Phase 5 monitoring — not as a
+Output the summary below as a **status snapshot** during Phase 6 monitoring — not as a
 pipeline conclusion. Update it on each monitoring pass as PR status evolves.
 
 ```
 Ship check complete:
-- Reviewed at:  <last phase-reviewed SHA; delta since then checked in Phase 5>
+- Reviewed at:  <last phase-reviewed SHA; delta since then checked in Phase 6>
 - PR Review:    N findings, M fixed (correctness, security, conditional)
+- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed (dismissed pauses listed under Deferred)
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
@@ -396,20 +432,21 @@ Ship check complete:
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
 
-If any findings remain deferred at the end of Phases 1-4, present them to the user with
+If any findings remain deferred at the end of Phases 1-5, present them to the user with
 their flag category and ask for a decision before declaring the verdict.
 
-After outputting this report, **continue the Phase 5 monitoring loop** — the report is a
+After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
 
 ### Comment mode
 
-Output the final summary after Phase 4 completes — this is the pipeline conclusion.
+Output the final summary after Phase 5 completes — this is the pipeline conclusion.
 
 ```
 Ship check complete (comment mode):
-- Reviewed at:  <PR head SHA at Phase 4 completion — or per-phase SHAs when the head moved mid-pipeline (each phase reports its own)>
+- Reviewed at:  <PR head SHA at Phase 5 completion — or per-phase SHAs when the head moved mid-pipeline (each phase reports its own)>
 - PR Review:    N findings commented (correctness, security, conditional)
+- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
@@ -422,17 +459,19 @@ Ship check complete (comment mode):
 ```
 
 Present deferred findings to the user with their flag category. The pipeline ends here
-— no Phase 5 monitoring loop.
+— no Phase 6 monitoring loop.
 
 ## Options
 
 The user can customize the pipeline:
 
 - `/ship-check --skip code-quality` — skip a phase
+- `/ship-check --skip fresh-eyes` — code-quality runs on its own dimension 0 only
 - `/ship-check --only pr-review,test-audit` — run specific phases
+- `/ship-check --only fresh-eyes` — standalone stranger read, report to user
 - `/ship-check --no-fix` — report only, don't apply fixes (findings in agent output only)
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
-  Implies --no-fix. Phase 5 (pr-monitor) is skipped — the pipeline is reviewing a PR it
+  Implies --no-fix. Phase 6 (pr-monitor) is skipped — the pipeline is reviewing a PR it
   isn't responsible for. Composable with --skip, --only, --inline, --fork.
 - `/ship-check --model <name>` — override the model for all phase agents for this run.
   Valid values: `sonnet`, `opus`, `haiku`, `fable`, `inherit` (`inherit` = follow the
@@ -440,8 +479,21 @@ The user can customize the pipeline:
   session's model (forks ignore model overrides). Default without the flag, agent mode
   only: `opus` — the orchestrator adds `model: "opus"` to each phase dispatch.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
-  eyes — useful when context from prior work is actually helpful)
+  eyes — useful when context from prior work is actually helpful). Fresh-eyes is skipped
+  because inherited context defeats the no-prior-knowledge persona.
 - `/ship-check --fork` — use forks instead of agents (legacy behavior — spawns forks
-  that call Skill to load each review skill)
+  that call Skill to load each review skill). Fresh-eyes is skipped because forks
+  inherit context.
 
-If the user doesn't specify options, run all five phases with agents (the default).
+Fresh-eyes option interactions:
+
+| Option | Fresh-eyes behavior |
+|--------|-------------------|
+| default, `--comment` | Runs before code-quality; pauses flow into code-quality |
+| `--skip fresh-eyes` | Skipped; code-quality uses its own dimension 0 only |
+| `--skip code-quality` | Still runs; pauses go to the user in the summary |
+| `--only fresh-eyes` | Standalone report to the user |
+| `--only` set excluding fresh-eyes | Not dispatched |
+| `--inline`, `--fork` | Skipped (inherited context defeats the persona); noted in the summary |
+
+If the user doesn't specify options, run all six phases with agents (the default).
