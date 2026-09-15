@@ -253,6 +253,23 @@ every pause with its disposition. A dismissed pause must quote the trigger's bou
   stay inline
 - Comments sit directly above the line they explain and lead with the claim about
   that line, mechanism second
+- **Self-contradictory claim trigger.** A doc comment, tool description, or inline
+  comment that asserts X in one clause and not-X in another — or asserts a property
+  the code demonstrably does not have. Check the claim against the code: "the
+  fallback is not cached" when the code caches it, "returns null on failure" when it
+  throws, "advisory only" when the function mutates state. Boundary: none — a
+  self-contradictory or code-contradicted claim always misleads
+- **Under-described scope trigger.** A tool description or function JSDoc that omits
+  a material behavior the caller would need to know about — the function writes to
+  disk but the description says "reads", the tool modifies state but the description
+  says "advisory". Check the description against the function's actual side effects
+  and return contract. Boundary: skip when the omitted behavior is obvious from the
+  signature (a `void` return, a parameter named `outPath`)
+- **Dangling modifier trigger.** A sentence whose grammatical subject does not match
+  the logical subject, changing the meaning: "When missing, the server returns null"
+  (the server is not missing — the value is). Rewrite so the grammatical subject is
+  the thing being described. Boundary: skip when the intended meaning is unambiguous
+  despite the dangle (colloquial "if missing" where only one thing can be missing)
 
 ### 5. Simplicity
 - Simple code over clever code — fewer moving parts, fewer lines when achievable
@@ -337,11 +354,13 @@ every pause with its disposition. A dismissed pause must quote the trigger's bou
 - Exports match the project's style (namespace objects vs named exports)
 - Utils/ admission bars met
 
-### 7. Docs & comment concision
+### 7. Docs & comment quality
 
 Applies to changed markdown docs (README, guides, ARCHITECTURE, env templates) and
-to doc comments in code. Correct-but-padded prose is a finding: verbosity that ships
-gets trimmed manually in follow-up commits, at real cost.
+to doc comments in code. Two classes of finding: **correctness** (prose that is wrong
+— self-contradictory, code-contradicted, or scope-misleading; triggers in dimension 4
+cover code-level prose, this dimension covers docs) and **concision** (prose that is
+correct but padded — verbosity that ships gets trimmed manually at real cost).
 
 **Trim-safety boundary — applies to every trigger in this dimension: compression
 must never merge two distinct claims into one.** Verify each compressed sentence
