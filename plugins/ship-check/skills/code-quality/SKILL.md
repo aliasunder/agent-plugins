@@ -125,6 +125,27 @@ dimension, then fix it or dismiss it on that trigger's boundary. The report list
 every pause with its disposition. A dismissed pause must quote the trigger's boundary
 — "matches local style" and "the function is small" are not boundaries.
 
+**Fresh-eyes pauses carry a presumption of validity.** The fresh-eyes agent reported
+what stopped a stranger reading cold — no conventions, no history, no attachment to
+the code. A high dismissal rate (more dismissals than fixes) means you are arguing
+with the reader's experience, not fixing it.
+
+Self-check: if dismissals outnumber fixes, call sequential thinking and re-examine
+every dismissal before finalizing the report. For each: "would a newcomer still
+pause here after reading my dismissal reasoning?" If yes, the pause stands.
+
+Anti-rationalization rules for fresh-eyes pauses:
+- **"Pre-existing" is not a dismissal.** A pause reports a readability problem at a
+  location in the code. The code's age is irrelevant — a newcomer pauses on what is
+  there now, not on when it was written. Fix it, or add the comment that would have
+  prevented the pause.
+- **"Matches local style" is not a boundary — it is the opposite.** Fresh-eyes
+  deliberately ignores local style. A convention-conformant line that stops a stranger
+  is a finding about the convention's cost, not a defense of the line.
+- **A pause with no matching trigger is still a finding.** It means the checklist has
+  a gap, not that the pause is invalid. Classify under the nearest dimension and fix.
+  If no dimension fits, report as uncategorized — never drop it.
+
 ### 1. Naming
 - Variables describe what the value IS, not shorthand (`availableHeadings` not
   `available`, `searchText` not `needle`)

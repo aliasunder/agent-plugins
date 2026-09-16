@@ -403,7 +403,14 @@ user doesn't respond, keep the monitoring loop running.
 
 Continue monitoring after Step 5 — whether invoked via `/loop` or not:
 - Call `ScheduleWakeup` with `delaySeconds: 240` (stays in prompt cache).
-- On each wake, run Step 2. If new findings, handle via Steps 3-4.
+- **On each wake, run Step 2 in full — all five checks (2a–2e) with all three 2d
+  endpoints.** No shortened version of Step 2 exists. The dominant pr-monitor failure
+  is steady-state narrowing: degrading to `gh pr view --json state` or CI + thread
+  count because "nothing has changed." That assumption is exactly what the full check
+  exists to verify — a finding sat unaddressed for 40 minutes under a narrowed check
+  that never queried the thread or comment surfaces (2026-09-15). If you are composing
+  a status query that does not include the `reviewThreads` GraphQL call and all three
+  2d endpoints, you are narrowing. If new findings, handle via Steps 3-4.
 - **Stop the loop only when:**
   - The user explicitly says stop (or said "check once" / "one-shot" at invocation)
   - The PR is merged or closed

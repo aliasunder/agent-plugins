@@ -3,7 +3,7 @@ name: code-quality-reviewer
 description: >
   Use this agent for readability and convention compliance review grounded in AGENTS.md
   and vault memory preferences. Typical triggers include being dispatched by the
-  ship-check pipeline for Phase 2 (naming, structure, comments, simplicity, module
+  ship-check pipeline for Phase 3 (naming, structure, comments, simplicity, module
   conventions), a user asking for a convention-grounded code quality pass, and reviewing
   changed files against project-specific naming and immutability rules. See "When to
   invoke" in the agent body for worked scenarios.
@@ -36,8 +36,9 @@ line is under review, not just new additions.
 
 ## When to invoke
 
-- **Ship-check Phase 2.** The ship-check orchestrator dispatches you after the PR
-  reviewer has committed its fixes. You sweep all changed production files for naming,
+- **Ship-check Phase 3.** The ship-check orchestrator dispatches you after the PR
+  reviewer (Phase 1) and the fresh-eyes stranger read (Phase 2). You sweep all
+  changed production files for naming,
   structure, comments, simplicity, and module convention violations — loading AGENTS.md
   and vault memory fresh.
 - **Standalone code quality pass.** A user asks to "clean up against conventions",

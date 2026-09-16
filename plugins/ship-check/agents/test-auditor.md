@@ -3,7 +3,7 @@ name: test-auditor
 description: >
   Use this agent for test quality audit and coverage gap analysis grounded in AGENTS.md
   test conventions. Typical triggers include being dispatched by the ship-check pipeline
-  for Phase 3, a user asking to audit tests or check test quality against conventions,
+  for Phase 4, a user asking to audit tests or check test quality against conventions,
   and checking whether production code changes have adequate test coverage. See "When
   to invoke" in the agent body for worked scenarios.
 model: inherit
@@ -36,7 +36,7 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
 
 ## When to invoke
 
-- **Ship-check Phase 3.** The ship-check orchestrator dispatches you after code quality
+- **Ship-check Phase 4.** The ship-check orchestrator dispatches you after code quality
   has committed its fixes. You audit all changed test files against convention dimensions
   AND run coverage gap analysis on changed production files to find missing tests.
 - **Standalone test audit.** A user asks to "audit tests", "check test quality", "review

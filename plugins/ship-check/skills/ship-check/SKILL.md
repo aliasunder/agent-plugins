@@ -412,7 +412,7 @@ dismissal.
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
   description: "Code quality — conventions, readability",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2). Resolve every pause as a fix or a named dismissal on the trigger's boundary; list each disposition in your report:\n<paste the per-function pause list>"
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2). Each pause is a readability problem a newcomer hit — fix it or dismiss it on the trigger's boundary only. 'Pre-existing' is not a dismissal; 'matches local style' is not a boundary. A pause with no matching trigger is still a finding. If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting. List every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 

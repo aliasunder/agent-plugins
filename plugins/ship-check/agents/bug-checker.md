@@ -3,7 +3,7 @@ name: bug-checker
 description: >
   Use this agent for systematic bug hunting using 7-dimension pattern-based checks
   derived from 40+ bugs that survived code review and test audit. Typical triggers
-  include being dispatched by the ship-check pipeline for Phase 4, a user asking for
+  include being dispatched by the ship-check pipeline for Phase 5, a user asking for
   a deep correctness check or to look for subtle bugs, and verifying that tool
   descriptions match their implementations after changes. See "When to invoke" in the
   agent body for worked scenarios.
@@ -37,8 +37,8 @@ bugs hide.
 
 ## When to invoke
 
-- **Ship-check Phase 4.** The ship-check orchestrator dispatches you after PR review,
-  code quality, and test audit have committed their fixes. You read every changed
+- **Ship-check Phase 5.** The ship-check orchestrator dispatches you after PR review,
+  fresh-eyes, code quality, and test audit have committed their fixes. You read every changed
   production file in full and apply the 7-dimension checklist systematically.
 - **Standalone bug check.** A user asks to "check for bugs", "deep correctness check",
   or "look for subtle bugs". You run the full bug-check skill procedure.
