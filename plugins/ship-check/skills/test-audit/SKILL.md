@@ -81,6 +81,15 @@ For each test file, check these in order:
 - A failing test name should identify which behavior regressed without reading the body
 - Test names match what they assert (a test asserting 1 result is not named
   "returns multiple results")
+- **Parameterized titles name the case, not the values.** An `it.each` /
+  `test.each` title built with printf placeholders (`%s`, `%j`, `%p`, `%#`) over
+  positional case arrays prints raw value dumps — a failure reads as
+  `rejects { outline: true, heading: 'Active' }` and the reader must map values
+  back to the scenario. Restructure the cases as objects with a `label` field and
+  interpolate it in the title:
+  `it.each([{ label: "outline + heading", modes: {...} }, ...])("rejects $label", ...)`.
+  Boundary: a placeholder is fine when the value IS the label — a primitive whose
+  printed form names the case on its own (`it.each([400, 404, 500])("maps status %i", ...)`)
 
 ### 2. Two-bar rule
 Every test must satisfy BOTH bars:
