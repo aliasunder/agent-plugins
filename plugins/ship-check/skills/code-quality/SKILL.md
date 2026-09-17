@@ -191,16 +191,16 @@ Anti-rationalization rules for fresh-eyes pauses:
   Boundary: skip expressions already self-describing at a glance (a single
   well-named call or property access) — extracting `user.name` into `userName`
   adds a hop without adding meaning
-- **Prefixed destructuring renames trigger**: destructuring that renames every key
-  to carry its source's name turns a one-liner into a block while adding
-  information the source expression already states.
-  Wrong: `const { on: modifiedOn, before: modifiedBefore, after: modifiedAfter } = filters.modified`
-  Right: `const { on, before, after } = filters.modified`
-  Boundary: keep the renames when the bare keys would genuinely collide — the same
-  keys destructured from two sources in one scope (`filters.modified` and
-  `filters.created` both providing `on`), or an existing binding of the same name —
-  or when a key is used far enough from the destructure that its origin is no
-  longer in view
+- **Generic destructured keys trigger**: destructuring a nested source into its
+  bare key names drops the source from every use site — `on` and `before` say
+  nothing about what is on or before once the destructure line is out of view, and
+  a sibling source with the same shape (`filters.created`) would produce identical
+  names. Rename the keys to carry their source so each use reads on its own.
+  Wrong: `const { on, before, after } = filters.modified`
+  Right: `const { on: modifiedOn, before: modifiedBefore, after: modifiedAfter } = filters.modified`
+  Boundary: bare keys are fine when they describe the value without the source
+  (`const { path, title } = note`), or when the scope is a few lines and the
+  destructure stays in view of every use
 - **Blank lines mark logical groups trigger**: a function body that runs distinct
   steps together with no blank line between them — guards flowing straight into the
   main computation, setup into transformation into result assembly, or unrelated
