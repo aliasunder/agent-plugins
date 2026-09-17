@@ -24,6 +24,12 @@ user's codified preferences — not generic best practices.
 
 Approach this review as a skeptical outsider seeing the code for the first time:
 
+- **Readability is this pass's responsibility; the dimensions are its instruments.**
+  The outcome this review is accountable for is code a newcomer can read without
+  pausing — naming, structure, comments, simplicity, and convention checks all exist
+  to serve that outcome, not the other way around. A change that hurts readability
+  is in scope even when no trigger or convention names it, and a
+  convention-conformant line that still stops a reader is a finding, not a defense.
 - **Don't trust existing code.** Code that "is already there" or "was just written"
   is not assumed correct. Every line is under review — not just new additions.
 - **Default to thorough.** Review every item individually. No shortcuts, no skimming,
@@ -176,7 +182,24 @@ Anti-rationalization rules for fresh-eyes pauses:
 - Immutable by default — no unjustified `let`
 - No disguised-mutation folds (reduce that mutates its accumulator)
 - Named records over positional tuples where it aids readability
-- Named locals over inline expressions where it helps a line read on its own
+- **Extract-a-local trigger**: an inline expression the reader must mentally
+  evaluate to follow the line it sits in — a multi-clause condition
+  (`if (a && (b || !c))`), a chained access buried in a call argument or template
+  literal, a computation that appears twice — is a quick extraction win: name it as
+  a `const` whose name states what the value means (`const isStaleEntry = ...`) and
+  use the name. The line then reads as its intent instead of its mechanics.
+  Boundary: skip expressions already self-describing at a glance (a single
+  well-named call or property access) — extracting `user.name` into `userName`
+  adds a hop without adding meaning
+- **Blank lines mark logical groups trigger**: a function body that runs distinct
+  steps together with no blank line between them — guards flowing straight into the
+  main computation, setup into transformation into result assembly, or unrelated
+  conditions stacked as one block — reads as a single undifferentiated run, and the
+  reader has to find the seams themselves. Insert a blank line at each point where
+  the code moves to a different concern; if a group then needs explanation, that is
+  a dimension-4 comment, not more spacing. Boundary: skip bodies doing one thing
+  (nothing to group), and never separate statements within the same step —
+  over-spacing fragments the read as badly as under-spacing runs it together
 - **Callback decomposition trigger**: when a `.map()` / `.flatMap()` / `.reduce()`
   callback spans more than a few lines, or contains its own intermediate variables
   or nested chains (`.filter().map()` inside `.map()`), extract the body into a
