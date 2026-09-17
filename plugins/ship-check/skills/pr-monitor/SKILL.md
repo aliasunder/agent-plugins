@@ -235,16 +235,14 @@ For each unresolved bot thread, do ALL of these in order:
 4. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
    Since `gh` posts as the user's account, every reply MUST include an attribution
-   footer. Use the exact runtime model ID, including its version and variant suffixes
-   (for example, `gpt-5.6-sol`). Never shorten it to a family label such as `gpt-5`,
-   translate it to a display name, or guess. Read it from runtime system context. In
-   Codex, when the visible system prose is generic, first obtain the current thread or
-   session ID from runtime-provided task metadata, then match it exactly to
-   `session_meta.payload.id` in the rollout metadata and read
-   `session_meta.payload.base_instructions.provenance.model`. Never select a rollout
-   by recency, cwd, or display name. If the runtime does not expose the current ID or
-   no exact model ID can be verified, stop before posting and report the attribution
-   blocker. The footer format is:
+   footer. Claude runs use the family ID from system context, such as
+   `claude-opus-4-6`; omit context-window, dated-build, and other transcript-only
+   suffixes. Codex GPT runs use the verified exact runtime model ID, including version
+   and variant suffixes such as `gpt-5.6-sol`. In Codex, match a runtime-provided
+   current thread or session ID to `session_meta.payload.id` exactly, then read
+   `session_meta.payload.base_instructions.provenance.model`; never select a rollout
+   by recency, cwd, or display name. If the Codex ID cannot be verified, stop before
+   posting and report the attribution blocker. The footer format is:
    `\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*`
 
    ```
