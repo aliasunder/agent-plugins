@@ -11,6 +11,7 @@ description: >
   generic simplification without convention grounding (use /simplify).
 skills:
   - fable-mode
+  - response-style
 allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
@@ -57,19 +58,22 @@ Load these sources fresh — do not rely on what is already in context:
    Focus on the code style section — naming, immutability, early returns, comment
    philosophy, module layering, export style.
 
-2. **Response style**: On surfaces with skills, invoke the `response-style` skill;
-   otherwise `vault_read_note({ path: "Reference/response-style.md" })`. These rules
-   apply to doc comments, tool descriptions, and any prose in changed code — not only
-   to chat output.
+2. **Response style**: preloaded via this skill's `skills:` list. If it didn't
+   preload, invoke the `response-style` skill; where skills are unavailable,
+   `vault_read_note({ path: "Reference/response-style.md" })`.
+   These rules guide the readability improvements themselves: they
+   apply to doc comments, tool descriptions, and any prose in changed code — and
+   they bind the prose this pass writes, so every comment added under dimension 4
+   and every doc rewrite under dimension 7 must comply.
 
 3. **Code standards + preference recall**: Discover the standards notes first — the
    set grows and hardcoded lists go stale:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
-   Then `vault_read_note` the pass-relevant results (currently typescript and
-   logging-observability), plus any newer note matching the repo's language/stack.
-   When the diff includes markdown docs or substantial comment changes, also read
-   the docs standards note (currently `Reference/code-standards-docs`) — it grounds
-   dimension 7.
+   Then `vault_read_note` the pass-relevant results — currently typescript,
+   logging-observability, and the docs standards note
+   (`Reference/code-standards-docs`, which grounds dimensions 4 and 7; doc
+   comments are always in scope, so read it even when no markdown file changed) —
+   plus any newer note matching the repo's language/stack.
    Then recall the dated evidence trail for the change's domain — it surfaces
    preferences newer than the notes: `vault_memory_recall({ query: "<change domain>" })`
 
