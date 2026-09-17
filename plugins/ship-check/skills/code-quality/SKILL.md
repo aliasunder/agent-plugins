@@ -191,6 +191,16 @@ Anti-rationalization rules for fresh-eyes pauses:
   Boundary: skip expressions already self-describing at a glance (a single
   well-named call or property access) — extracting `user.name` into `userName`
   adds a hop without adding meaning
+- **Prefixed destructuring renames trigger**: destructuring that renames every key
+  to carry its source's name turns a one-liner into a block while adding
+  information the source expression already states.
+  Wrong: `const { on: modifiedOn, before: modifiedBefore, after: modifiedAfter } = filters.modified`
+  Right: `const { on, before, after } = filters.modified`
+  Boundary: keep the renames when the bare keys would genuinely collide — the same
+  keys destructured from two sources in one scope (`filters.modified` and
+  `filters.created` both providing `on`), or an existing binding of the same name —
+  or when a key is used far enough from the destructure that its origin is no
+  longer in view
 - **Blank lines mark logical groups trigger**: a function body that runs distinct
   steps together with no blank line between them — guards flowing straight into the
   main computation, setup into transformation into result assembly, or unrelated
