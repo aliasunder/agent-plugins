@@ -490,7 +490,13 @@ REVIEW
 ```
 
 Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
-`MODEL_ID` with your own model ID (from your system prompt).
+`MODEL_ID` with your verified exact runtime model ID, including version and variant
+suffixes (for example, `gpt-5.6-sol`). Never abbreviate, translate, or guess it. In
+Codex, when visible system prose is generic, use a runtime-provided current thread or
+session ID to match `session_meta.payload.id` exactly, then read
+`session_meta.payload.base_instructions.provenance.model`. Never select a rollout by
+recency, cwd, or display name. If the current ID or exact model ID cannot be verified,
+stop before posting.
 
 4. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a

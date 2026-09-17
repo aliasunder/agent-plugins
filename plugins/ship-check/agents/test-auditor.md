@@ -98,8 +98,14 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 
 Every PR comment or review you post — inline comments, review bodies, PR-level
 comments — MUST include the footer: `\n\n---\n*🔍 ship-check · test-audit · <model-id>*`
-where `<model-id>` is your own model ID from your system prompt. No exceptions — a
-comment without a footer misattributes automated output to the repo owner.
+where `<model-id>` is your verified exact runtime model ID, including version and
+variant suffixes (for example, `gpt-5.6-sol`). Never abbreviate, translate, or guess
+it. In Codex, when visible system prose is generic, use a runtime-provided current
+thread or session ID to match `session_meta.payload.id` exactly, then read
+`session_meta.payload.base_instructions.provenance.model`. Never select a rollout by
+recency, cwd, or display name. If the current ID or exact model ID cannot be verified,
+stop before posting. No exceptions — a comment without a footer misattributes
+automated output to the repo owner.
 
 ### Comment mode
 

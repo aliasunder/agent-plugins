@@ -45,12 +45,20 @@ orchestrator triage, pr-monitor replies).
 
 - `<component>` is the phase or role: `pr-review`, `code-quality`, `test-audit`,
   `bug-check`, `pr-monitor`, or `triage` (for orchestrator inter-phase triage posts).
-- `<model-id>` is the poster's own model ID, read from the system prompt ("You are
-  powered by the model named..."). Agents self-identify — the orchestrator does not
-  look up or pass model IDs for them.
+- `<model-id>` is the poster's exact runtime model ID, including version and variant
+  suffixes (for example, `gpt-5.6-sol`). Never shorten it to a family label such as
+  `gpt-5`, translate it to a display name, or guess. Read it from runtime system
+  context. In Codex, when visible system prose is generic, first obtain the current
+  thread or session ID from runtime-provided task metadata, match it exactly to
+  `session_meta.payload.id` in the rollout metadata, then read
+  `session_meta.payload.base_instructions.provenance.model`. Never select a rollout by
+  recency, cwd, or display name. If the runtime does not expose the current ID or no
+  exact model ID can be verified, stop before posting and report the attribution
+  blocker. Agents self-identify — the orchestrator does not look up or pass model IDs
+  for them.
 - **The orchestrator's own PR-level comments** (non-inline findings, deferred items
-  posted via `gh pr comment`) use the orchestrator's own model ID with component
-  `triage` or `ship-check`.
+  posted via `gh pr comment`) use the orchestrator's own verified exact runtime model
+  ID with component `triage` or `ship-check`.
 
 A comment posted without a footer is indistinguishable from the repo owner's manual
 comments and misattributes automated output to a human. Every `gh api` and
@@ -70,7 +78,8 @@ commit):
 When committing, add this trailer to every commit message (after the body, before
 any trailers the harness adds):
 Ship-Check: PHASE_NAME · YOUR_MODEL_ID
-Read YOUR_MODEL_ID from your system prompt ("You are powered by the model named...").
+Use your verified exact runtime model ID for YOUR_MODEL_ID. Preserve version and
+variant suffixes; never abbreviate, translate, or guess it.
 ```
 
 The harness appends its own `Co-Authored-By` trailer automatically; the `Ship-Check`
@@ -122,7 +131,8 @@ mode" section in your preloaded skill for the gh api template. Only post a revie
 you have findings — skip the API call for 0 findings.
 Repo: OWNER_REPO
 Append a footer to the review body AND every inline comment body using your own
-model ID (from your system prompt):
+exact runtime model ID, including version and variant suffixes. Never abbreviate,
+translate, or guess it:
 \n\n---\n*🔍 ship-check · PHASE_NAME · YOUR_MODEL_ID*
 ```
 
@@ -170,7 +180,7 @@ gh repo view --json nameWithOwner -q .nameWithOwner
 ```
 
 Pass it as `Repo: owner/repo` in the dispatch prompt. In comment mode, agents
-include their own model ID in the footer (they know it from their system prompt) —
+include their own verified exact runtime model ID in the footer —
 the orchestrator does not need to look it up or pass it.
 
 ## Local review mode (`--local`)
@@ -358,7 +368,8 @@ Append it to every phase that commits (phases 1, 3-5):
 ```
 When committing, add this trailer to every commit message:
 Ship-Check: PHASE_NAME · YOUR_MODEL_ID
-Read YOUR_MODEL_ID from your system prompt ("You are powered by the model named...").
+Use your verified exact runtime model ID for YOUR_MODEL_ID. Preserve version and
+variant suffixes; never abbreviate, translate, or guess it.
 ```
 
 ### Phase 1: PR Review
