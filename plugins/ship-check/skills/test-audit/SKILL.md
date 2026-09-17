@@ -59,12 +59,16 @@ Load these sources fresh:
   for it — never fixed here. This phase's edits are confined to test files.
   (Mutation testing's temporary break-and-restore is a diagnostic, not an edit —
   the restore is part of the procedure.)
-- **Restructuring existing tests preserves every expected value verbatim.**
-  Collapsing tests into `it.each` (or splitting them out) must keep each case's
-  expected outcome byte-identical — cases with different expected outcomes are
-  not "identical assertion shapes" and stay as separate `it()` blocks. Changing
-  an expected value during restructuring is a behavioral edit wearing a
-  compression label; stop and report it as a finding instead.
+- **Restructuring existing tests preserves each case's expected behavior.**
+  Collapsing tests into `it.each` (or splitting them out) must keep what each
+  case expects the production code to produce unchanged — cases with different
+  expected outcomes are not "identical assertion shapes" and stay as separate
+  `it()` blocks. Changing what a case expects during restructuring is a
+  behavioral edit wearing a compression label; stop and report it as a finding
+  instead. Boundary: this constrains the expected behavior, not the assertion's
+  form — strengthening precision around the same behavior (`toContain` → `toBe`
+  with the full exact value, property picks → one `toEqual` on the whole shape,
+  per dimension 3) is this audit's job, not a violation.
 - **Same-pattern sweep**: when a D3 trigger fires on changed code, also scan the
   rest of the file for the same anti-pattern in unchanged tests. Pre-existing tests
   are often the source of the pattern (copy-paste inheritance) — fixing only the new
