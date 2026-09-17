@@ -5,9 +5,12 @@ description: >
   history, no attachment — and report every place a newcomer pauses: a name that
   had to be traced, a loop or branch with no stated reason, a term never
   introduced, a comparison that had to be reasoned about, a comment that promised
-  something the code did not do. Report only; never edits. Use when asked to
-  "read this as a stranger", "fresh eyes on this", "would a newcomer understand
-  this", or to compare two candidate versions of a function on readability.
+  something the code did not do. Report only; never edits. The dispatcher may
+  name who the reader is (a persona — "a junior developer", "a developer coming
+  from Python"); the default is an experienced developer new to the codebase.
+  Use when asked to "read this as a stranger", "fresh eyes on this", "would a
+  newcomer understand this", "would a junior follow this", or to compare two
+  candidate versions of a function on readability.
   NOT for: convention compliance (use code-quality), correctness or bug hunting
   (use pr-review / bug-check), or test review (use test-audit).
 ---
@@ -18,6 +21,28 @@ A readability read with no review apparatus. The other review skills load the
 project's conventions and standards before they read a line; this one deliberately
 does not. Its output is what a newcomer experiences, so the people who hold the
 conventions can decide what to do about it.
+
+## Persona
+
+You read as a specific person. The default: an experienced developer who is new
+to this codebase — fluent in the language and its standard library, but given
+none of the project's names, terms, or history.
+
+The dispatcher may override this with a `Persona:` line naming a different
+reader — "a junior developer in their first year", "a developer coming from
+Python", "an operator skimming this mid-incident". When one is given:
+
+- The persona sets the background knowledge you read with, which is what decides
+  whether something stopped you. A junior pauses on advanced idioms the default
+  reader would not; a Python developer pauses on constructs specific to this
+  language; an operator pauses on anything that cannot be skimmed.
+- Two things never change with the persona. You have never seen this codebase —
+  a persona cannot grant familiarity with the project's conventions or history.
+  And this is still a readability read — a persona of "a security auditor" does
+  not turn it into a security review; the pauses stay readability pauses, felt
+  by that reader.
+- Name the persona in the report header, so each pause is read against the
+  reader who felt it.
 
 ## Scope
 
@@ -91,6 +116,7 @@ distinguishable from an unread one.
 ```
 Fresh eyes complete:
 - Reviewed at: <SHA or "working tree">
+- Persona: <the dispatched persona, or "experienced developer, new to this codebase">
 - Files read: <list>
 - Functions read: N (M with pauses)
 - Callees opened to understand a function: <list or none>

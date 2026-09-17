@@ -391,6 +391,22 @@ list and reads each file whole — it does not see the diff. It reports pauses p
 function but edits nothing. No inter-phase triage is needed because there are no fixes
 or flags; the output feeds directly into Phase 3.
 
+**Choose the persona.** Fresh-eyes reads as a specific person (its skill's Persona
+section); the reader should be whoever the changed files will actually face.
+`--persona` wins when given. Otherwise choose from the diff's content:
+
+| Changed content | Persona |
+|---|---|
+| Code, contributor-facing docs (the usual case) | Omit the `Persona:` line from the dispatch — the skill's default (an experienced developer, new to this codebase) |
+| User-facing docs — README, setup or usage guides, user-visible error text | The doc's audience, named concretely: "a prospective user evaluating whether to install this", "a non-technical user following the setup guide" |
+| Public API surface — tool descriptions, CLI help, published types | "a developer integrating against this, reading only what ships" |
+
+When the diff mixes code with substantial user-facing docs, dispatch fresh-eyes twice
+— the default read over the code files, an audience-persona read over the docs —
+rather than averaging one persona over both. A persona varies the reader's background
+knowledge only: it cannot grant codebase familiarity or turn the read into another
+review type.
+
 Build the file list from the diff, excluding test files:
 
 ```bash
@@ -401,12 +417,14 @@ git diff --name-only main...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
 Agent({
   subagent_type: "ship-check:fresh-eyes",
   description: "Fresh eyes — stranger read, report only",
-  prompt: "Read the following files at HEAD on branch <branch> (PR #<number>) as a newcomer who has never seen this codebase. Report every place you pause — a name you had to trace, a loop with no stated reason, a comparison you had to reason about, a term never introduced. Report only; do not edit anything.\n\nFiles:\n<file list, one per line>"
+  prompt: "Read the following files at HEAD on branch <branch> (PR #<number>) as a reader who has never seen this codebase. Report every place you pause — a name you had to trace, a loop with no stated reason, a comparison you had to reason about, a term never introduced. Report only; do not edit anything.\n<if a persona was chosen, append:>\nPersona: <the chosen reader>\n\nFiles:\n<file list, one per line>"
 })
 ```
 
 Wait for the agent to complete. Read its pause report. No triage — pauses are not
-fixes. Extract the per-function pause list and carry it into the Phase 3 dispatch.
+fixes. Extract the per-function pause list and carry it into the Phase 3 dispatch,
+labeled with the persona when one was set, so code-quality reads each pause against
+the reader who felt it.
 
 ### Phase 3: Code Quality
 
@@ -418,7 +436,7 @@ dismissal.
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
   description: "Code quality — conventions, readability",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2). Each pause is a readability problem a newcomer hit — fix it or dismiss it on the trigger's boundary only. 'Pre-existing' is not a dismissal; 'matches local style' is not a boundary. A pause with no matching trigger is still a finding. If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting. List every disposition in your report:\n<paste the per-function pause list>"
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a readability problem that reader hit — fix it or dismiss it on the trigger's boundary only. 'Pre-existing' is not a dismissal; 'matches local style' is not a boundary. A pause with no matching trigger is still a finding. If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting. List every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 
@@ -497,7 +515,7 @@ pipeline conclusion. Update it on each monitoring pass as PR status evolves.
 Ship check complete:
 - Reviewed at:  <last phase-reviewed SHA; delta since then checked in Phase 6>
 - PR Review:    N findings, M fixed (correctness, security, conditional)
-- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed
+- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed <when a persona was set: (read as <persona>)>
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
@@ -522,7 +540,7 @@ Output the final summary after Phase 5 completes — this is the pipeline conclu
 Ship check complete (comment mode):
 - Reviewed at:  <PR head SHA at Phase 5 completion — or per-phase SHAs when the head moved mid-pipeline (each phase reports its own)>
 - PR Review:    N findings commented (correctness, security, conditional)
-- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed
+- Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed <when a persona was set: (read as <persona>)>
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
@@ -554,6 +572,10 @@ The user can customize the pipeline:
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
   Implies --no-fix. Phase 6 (pr-monitor) is skipped — the pipeline is reviewing a PR it
   isn't responsible for. Composable with --skip, --only, --inline, --fork.
+- `/ship-check --persona "<reader>"` — set who fresh-eyes reads as, overriding the
+  orchestrator's content-based choice (see Phase 2). Only affects fresh-eyes; a
+  persona cannot grant codebase familiarity or change the read into another review
+  type. No-op when fresh-eyes doesn't run.
 - `/ship-check --model <name>` — override the model for all phase agents for this run.
   Valid values: `sonnet`, `opus`, `haiku`, `fable`, `inherit` (`inherit` = follow the
   session's model). Ignored with `--inline` and `--fork` — both run phases on the
@@ -571,6 +593,7 @@ Fresh-eyes option interactions:
 | Option | Fresh-eyes behavior |
 |--------|-------------------|
 | default, `--comment` | Runs before code-quality; pauses flow into code-quality |
+| `--persona "<reader>"` | Reads as that persona instead of the orchestrator's content-based choice |
 | `--skip fresh-eyes` | Skipped; code-quality uses its own dimension 0 only |
 | `--skip code-quality` | Still runs; pauses go to the user in the summary |
 | `--only fresh-eyes` | Standalone report to the user |
