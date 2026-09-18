@@ -64,7 +64,6 @@ Load these sources fresh — do not rely on what is already in context:
    every comment added under dimension 4 and every doc rewrite under dimension 7
    must comply. Committed code comments' own rules live in
    `Reference/code-standards-typescript` → Comments, loaded in the next step.
-   (response-style is the session-dialogue layer and is NOT loaded here.)
 
 3. **Code standards + preference recall**: Discover the standards notes first — the
    set grows and hardcoded lists go stale:
