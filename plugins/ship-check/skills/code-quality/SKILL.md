@@ -11,7 +11,6 @@ description: >
   generic simplification without convention grounding (use /simplify).
 skills:
   - fable-mode
-  - response-style
 allowed-tools:
   - mcp__sequential-thinking__sequentialthinking
 ---
@@ -58,13 +57,14 @@ Load these sources fresh — do not rely on what is already in context:
    Focus on the code style section — naming, immutability, early returns, comment
    philosophy, module layering, export style.
 
-2. **Response style**: preloaded via this skill's `skills:` list. If it didn't
-   preload, invoke the `response-style` skill; where skills are unavailable,
-   `vault_read_note({ path: "Reference/response-style.md" })`.
-   These rules guide the readability improvements themselves: they
-   apply to doc comments, tool descriptions, and any prose in changed code — and
-   they bind the prose this pass writes, so every comment added under dimension 4
-   and every doc rewrite under dimension 7 must comply.
+2. **Style core**: `vault_read_note({ path: "Reference/style-core.md" })` — the
+   cross-audience invariants (referents, SVO, compression, mechanism over
+   adjective, fragments, format). They apply to doc comments, tool descriptions,
+   and any prose in changed code — and they bind the prose this pass writes, so
+   every comment added under dimension 4 and every doc rewrite under dimension 7
+   must comply. Committed code comments' own rules live in
+   `Reference/code-standards-typescript` → Comments, loaded in the next step.
+   (response-style is the session-dialogue layer and is NOT loaded here.)
 
 3. **Code standards + preference recall**: Discover the standards notes first — the
    set grows and hardcoded lists go stale:
