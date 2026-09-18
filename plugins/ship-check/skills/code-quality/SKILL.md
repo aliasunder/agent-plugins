@@ -466,12 +466,17 @@ clause is load-bearing, keep it and flag the uncertainty instead of trimming.
 ## How to report and fix
 
 **A pass fix is observationally equivalent — this contract bounds every fix in
-this skill.** Same outputs for all inputs, same accepted inputs, same exported
-surface, same error contract. If a fix requires changing any test's expected
+this skill.** Same outputs for all inputs, same accepted inputs, same error
+contract, and no change to surfaces consumed outside the repo (published
+package exports, wire formats, tool schemas, CLI flags). Renaming an
+identifier — including an in-repo export — is a pass fix when every consumer
+is updated in the same commit; readability is this pass's job, and names are
+readability. If a fix requires changing any test's expected
 value, the fix is behavioral: stop, revert it, and report it as a proposal
 instead — rewriting the test to match the "improved" code is how a regression
-ships wearing a style label. New exported functions, newly accepted inputs, and
-cross-function restructuring are never pass fixes. A revert must restore the
+ships wearing a style label. New exported functions (a rename's new name is not
+one), newly accepted inputs, and cross-function restructuring are never pass
+fixes. A revert must restore the
 prior content exactly — a "revert" that produces a third variant is an edit and
 carries this same contract. A trigger whose fix alters behavior only on inputs
 its boundary declares impossible (a stdlib parser replacing manual splitting)
