@@ -232,7 +232,17 @@ For each unresolved bot thread, do ALL of these in order:
    Fix anything that's reasonable effort; only escalate to the user when the fix is
    genuinely high lift.
 
-4. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
+4. **Sweep the class, not just the instance.** A bot flags instances; the next pass
+   flags the sibling you left, and the point-fix loop is how a PR ends up with 100+
+   comments. Generalize each valid finding to the pattern it represents — the same
+   claim on another doc surface, the same code shape in another function, the same
+   missing guard on another entry point — then grep the PR's changed files (and for
+   doc claims, every sibling surface) for the other instances and fix them all in
+   the same commit. State the count in the reply: *"Fixed here and at N sibling
+   sites."* A class-wide fix converges the review; a point fix buys another full
+   bot cycle for each sibling.
+
+5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
    Since `gh` posts as the user's account, every reply MUST include an attribution
    footer. Claude runs use the family ID from system context, such as
@@ -258,7 +268,7 @@ For each unresolved bot thread, do ALL of these in order:
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
-5. **Resolve the thread** (AFTER replying):
+6. **Resolve the thread** (AFTER replying):
    ```
    gh api graphql -f query='mutation {
      resolveReviewThread(input: {threadId: "THREAD_ID"}) {
@@ -308,6 +318,12 @@ Present each to the user. Do NOT auto-resolve human comments without explicit ap
 If the user provides a response, reply on their behalf and resolve.
 
 ### After handling all threads
+
+**Before pushing, re-scan the full diff once against every class the bot has
+flagged on this PR so far** — this cycle's and earlier cycles'. Each push
+triggers a complete re-review, so any instance the per-finding sweeps missed
+becomes next cycle's comments. The target is convergence in one or two
+cycles, not a comment-per-instance conversation.
 
 If you fixed any code: stage, commit, push. Then **go to Step 4** -- this is mandatory.
 
