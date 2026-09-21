@@ -261,8 +261,8 @@ For each unresolved bot thread, do ALL of these in order:
    **Wrong:** fix the README, commit, push. `.env.example` and `server.json` still
    carry the old value, so the next cycle flags them and the PR costs another full
    round.
-   **Right:** `rg -n "<old value>" .` returns 3 files; fix all 3 in one commit; the
-   reply reads "corrected in README; swept `.env.example`, `server.json` — clean."
+   **Right:** `rg -n "<old value>" .` returns 3 files; fix all 3 in one commit; the run
+   output reports "Sweep "<old value>": 3 hits repo-wide — fixed in README, .env.example, server.json".
 
    A class-wide fix converges the review; a point fix buys another full bot cycle for
    each sibling.
@@ -288,9 +288,8 @@ For each unresolved bot thread, do ALL of these in order:
      }) { comment { id } }
    }'
    ```
-   - **Valid finding** -- reply explaining what you fixed, and carry the
-     swept-surfaces receipt from item 4:
-     *"Fixed -- [brief description of the change and why]; corrected in [surface]; swept [surface, surface] -- clean.\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+   - **Valid finding** -- reply explaining what you fixed:
+     *"Fixed -- [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
@@ -313,7 +312,7 @@ For each unresolved bot thread, do ALL of these in order:
 Handle the same way as bot threads -- evaluate, reply, fix if valid, resolve. These are
 from another Claude instance and do not require user approval. Include in your reply
 that you're addressing feedback from another Claude session, e.g.:
-*"Addressed -- [description]; corrected in [surface]; swept [surface, surface] -- clean. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+*"Addressed -- [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
 ### Bot and Claude findings without a thread (review bodies, PR-level comments — from 2d)
 
@@ -417,10 +416,9 @@ If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 **Prerequisites -- ALL must be true before you may report:**
 - All CI checks passing (or only known-flaky / unrelated failures)
 - All bot threads resolved (each one replied to before resolving)
-- **Every "fixed" reply carries a swept-surfaces receipt.** A "Fixed" reply with no
-  receipt means the Step 3 item-4 sweep never ran — go back to Step 3, run the repo-wide
-  search, and repost the reply with the receipt. The `gh pr comment` covering
-  body-only findings carries the same receipt for the surfaces it swept.
+- **Every fix in this run reports its sweep receipt.** A fix with no
+  `Sweep "<term>": N hits repo-wide` line means the Step 3 item-4 sweep never ran —
+  go back to Step 3 and run the repo-wide search.
 - All non-thread findings (2d: review bodies, PR-level comments — bot, Claude, AND
   human) evaluated and replied to on the PR (human findings presented to user)
 - **Issue comment coverage check**: the number of issue comments evaluated plus
