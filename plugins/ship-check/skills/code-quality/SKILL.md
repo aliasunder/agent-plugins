@@ -552,6 +552,7 @@ Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Repla
 `MODEL_ID` with the exact runtime model:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+   Placeholder text is not an ID; treat it as a missing line.
 2. Without that line, a Claude agent may use its system-context family ID, and an
    OpenCode agent may use its runtime-exposed provider/model ID.
 3. An inline standalone run may use the current session's verified exact model source.

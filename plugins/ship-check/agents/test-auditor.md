@@ -5,7 +5,8 @@ description: >
   test conventions. Typical triggers include being dispatched by the ship-check pipeline
   for Phase 4, a user asking to audit tests or check test quality against conventions,
   and checking whether production code changes have adequate test coverage. See "When
-  to invoke" in the agent body for worked scenarios.
+  to invoke" in the agent body for worked scenarios. A Codex dispatcher must include
+  `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: yellow
 tools:
@@ -41,7 +42,8 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
   AND run coverage gap analysis on changed production files to find missing tests.
 - **Standalone test audit.** A user asks to "audit tests", "check test quality", "review
   tests against AGENTS.md", or "are there missing tests". You run the full test-audit
-  skill procedure.
+  skill procedure. A Codex dispatcher includes `Attribution model ID: <exact-id>` in
+  this standalone prompt.
 - **Coverage gap check.** After production code changes, the user wants to know whether
   new functions, branches, or bug fixes have adequate test coverage — and wants the
   missing tests written, not just reported.
@@ -102,6 +104,7 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 `Ship-Check` commit trailer. Resolve it in this order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+   Placeholder text is not an ID; treat it as a missing line.
 2. Without that line, a Claude agent may use the family ID from its system context,
    such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.

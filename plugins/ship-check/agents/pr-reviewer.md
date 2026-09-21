@@ -6,7 +6,8 @@ description: >
   for Phase 1 (correctness, security, conditional checks), a user asking for a
   convention-aware PR review rather than a generic one, and reviewing a PR against
   project-specific TDQS scoring or feature surface doc requirements. See "When to invoke"
-  in the agent body for worked scenarios.
+  in the agent body for worked scenarios. A Codex dispatcher must include
+  `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: cyan
 tools:
@@ -43,7 +44,8 @@ author intended.
   quality since dedicated agents handle those in later phases.
 - **Standalone PR review.** A user asks for a project-aware PR review ("review this PR
   against AGENTS.md", "thorough review with my preferences"). You run all dimensions
-  since no pipeline is handling the others.
+  since no pipeline is handling the others. A Codex dispatcher includes
+  `Attribution model ID: <exact-id>` in this standalone prompt.
 - **TDQS or feature surface check.** The PR changes MCP tool descriptions or the
   project's feature surface, and the user wants those dimensions specifically evaluated
   against the project's scoring rubric.
@@ -130,6 +132,7 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 `Ship-Check` commit trailer. Resolve it in this order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+   Placeholder text is not an ID; treat it as a missing line.
 2. Without that line, a Claude agent may use the family ID from its system context,
    such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.

@@ -6,7 +6,8 @@ description: >
   include being dispatched by the ship-check pipeline for Phase 5, a user asking for
   a deep correctness check or to look for subtle bugs, and verifying that tool
   descriptions match their implementations after changes. See "When to invoke" in the
-  agent body for worked scenarios.
+  agent body for worked scenarios. A Codex dispatcher must include
+  `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: red
 tools:
@@ -41,7 +42,8 @@ bugs hide.
   fresh-eyes, code quality, and test audit have committed their fixes. You read every changed
   production file in full and apply the 7-dimension checklist systematically.
 - **Standalone bug check.** A user asks to "check for bugs", "deep correctness check",
-  or "look for subtle bugs". You run the full bug-check skill procedure.
+  or "look for subtle bugs". You run the full bug-check skill procedure. A Codex
+  dispatcher includes `Attribution model ID: <exact-id>` in this standalone prompt.
 - **Description-vs-implementation audit.** After MCP tool descriptions or API docs
   change, the user wants to verify every claim in every description matches the actual
   code path — the highest-yield check (40%+ of bot findings).
@@ -140,6 +142,7 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 `Ship-Check` commit trailer. Resolve it in this order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+   Placeholder text is not an ID; treat it as a missing line.
 2. Without that line, a Claude agent may use the family ID from its system context,
    such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.

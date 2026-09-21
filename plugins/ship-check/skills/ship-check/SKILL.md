@@ -78,10 +78,11 @@ Ship-Check: <component> · <model-id>
 Add this instruction to each phase dispatch prompt (phases 1, 3-5 — Phase 2 does not
 commit):
 
-```
-For Codex agent mode, include this line with the exact model passed to spawn:
-Attribution model ID: EXACT_CODEX_MODEL_ID
+For Codex agent mode, prepend the literal prefix `Attribution model ID: ` followed by
+the exact model passed to spawn, for example `Attribution model ID: gpt-5.6-terra`.
+Never dispatch an unexpanded placeholder.
 
+```
 When committing, add this trailer to every commit message (after the body, before
 any trailers the harness adds):
 Ship-Check: PHASE_NAME · YOUR_MODEL_ID
@@ -379,10 +380,9 @@ ignores model overrides; a Codex fork prompt still carries the root's verified
 The dispatch templates below also omit the `Ship-Check` commit trailer instruction.
 Append it to every phase that commits (phases 1, 3-5):
 
-```
-For Codex agent mode, include:
-Attribution model ID: EXACT_CODEX_MODEL_ID
+For Codex agent mode, also prepend the populated attribution line described above.
 
+```
 When committing, add this trailer to every commit message:
 Ship-Check: PHASE_NAME · YOUR_MODEL_ID
 Use the runtime-specific model label from the Attribution section for YOUR_MODEL_ID.

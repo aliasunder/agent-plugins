@@ -6,7 +6,8 @@ description: >
   ship-check pipeline for Phase 3 (naming, structure, comments, simplicity, module
   conventions), a user asking for a convention-grounded code quality pass, and reviewing
   changed files against project-specific naming and immutability rules. See "When to
-  invoke" in the agent body for worked scenarios.
+  invoke" in the agent body for worked scenarios. A Codex dispatcher must include
+  `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: green
 tools:
@@ -43,7 +44,8 @@ line is under review, not just new additions.
   and vault memory fresh.
 - **Standalone code quality pass.** A user asks to "clean up against conventions",
   "do a readability pass", or "review against AGENTS.md". You run the full code-quality
-  skill procedure.
+  skill procedure. A Codex dispatcher includes `Attribution model ID: <exact-id>` in
+  this standalone prompt.
 - **Post-refactor convention check.** After a large refactor, the user wants to verify
   all touched files still meet naming and module layering rules.
 - **Not for a fresh-eyes read of one function, or a comparison of two candidate
@@ -126,6 +128,7 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 `Ship-Check` commit trailer. Resolve it in this order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+   Placeholder text is not an ID; treat it as a missing line.
 2. Without that line, a Claude agent may use the family ID from its system context,
    such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
