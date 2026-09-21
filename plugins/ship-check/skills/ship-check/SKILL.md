@@ -45,15 +45,21 @@ orchestrator triage, pr-monitor replies).
 
 - `<component>` is the phase or role: `pr-review`, `code-quality`, `test-audit`,
   `bug-check`, `pr-monitor`, or `triage` (for orchestrator inter-phase triage posts).
-- `<model-id>` identifies the poster's runtime model. Claude runs use the family ID
-  from system context, such as `claude-opus-4-6`; omit context-window, dated-build,
-  and other transcript-only suffixes. Codex GPT runs use the verified exact runtime
-  model ID, including version and variant suffixes such as `gpt-5.6-sol`. In Codex,
-  match a runtime-provided current thread or session ID to `session_meta.payload.id`
-  exactly, then read `session_meta.payload.base_instructions.provenance.model`; never
-  select a rollout by recency, cwd, or display name. If the Codex ID cannot be
-  verified, stop before posting and report the attribution blocker. Agents
-  self-identify — the orchestrator does not look up or pass model IDs for them.
+- `<model-id>` identifies the poster's exact runtime model. Resolve it by runtime:
+  - **Claude agent mode:** the phase agent uses the family ID from its system context,
+    such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+  - **Codex agent mode:** the orchestrator passes an exact model on every spawn and
+    adds `Attribution model ID: <exact-id>` to the phase prompt. The phase agent uses
+    that value verbatim. A Codex child never searches rollout files or infers a model
+    from memory, parent prose, recency, cwd, or display name.
+  - **OpenCode agent mode:** use the exact provider/model ID exposed by the child
+    runtime or supplied by its dispatcher.
+  - **Inline mode:** the poster uses the current session's exact runtime context. A
+    Codex inline poster matches its own `CODEX_THREAD_ID` to
+    `session_meta.payload.id` before reading
+    `session_meta.payload.base_instructions.provenance.model`.
+  If the required source is missing, stop before posting and report the attribution
+  blocker.
 - **The orchestrator's own PR-level comments** (non-inline findings, deferred items
   posted via `gh pr comment`) follow the same runtime-specific model-label rule with
   component `triage` or `ship-check`.
@@ -73,6 +79,9 @@ Add this instruction to each phase dispatch prompt (phases 1, 3-5 — Phase 2 do
 commit):
 
 ```
+For Codex agent mode, include this line with the exact model passed to spawn:
+Attribution model ID: EXACT_CODEX_MODEL_ID
+
 When committing, add this trailer to every commit message (after the body, before
 any trailers the harness adds):
 Ship-Check: PHASE_NAME · YOUR_MODEL_ID
@@ -347,21 +356,33 @@ the pipeline pushes nothing).
 
 ## Execution
 
-The dispatch templates below omit `model`. Add it to each agent-mode phase
-dispatch according to this table:
+The dispatch templates below omit model selection. Resolve it once, then reuse it for
+every agent-mode phase:
 
-| User flag | `model:` in the Agent() call |
-|-----------|----------------------------|
-| (none) | `"opus"` — the pipeline default |
-| `--model sonnet` (or `haiku`, `fable`, `opus`) | the named model |
-| `--model inherit` | omitted — the agent definition's `model: inherit` takes effect, so the agent runs on the session's model |
-| `--inline` | N/A — phases run in the session, not as agents |
-| `--fork` | N/A — forks always run on the session's model (they ignore model overrides) |
+| Runtime | No `--model` | Explicit `--model` | `--model inherit` |
+|---|---|---|---|
+| Claude | pass `opus` | pass the supported Claude selector | omit the override; the child inherits |
+| Codex | pass `gpt-5.6-terra` | pass the exact supported `gpt-*` ID | resolve the parent's exact model and reasoning effort, then pass both explicitly |
+| OpenCode | use its configured default | pass the runtime-supported selector or provider/model ID | use its inherited-model mechanism |
+
+For Codex `inherit`, match the root's `CODEX_THREAD_ID` to one rollout's
+`session_meta.payload.id`. Read the model from
+`session_meta.payload.base_instructions.provenance.model`, then read the reasoning
+effort from the latest `turn_context.payload.effort` in that same rollout at or before
+the phase dispatch. Never select a rollout by recency, cwd, or display name. Stop before
+dispatch if the matching rollout, model, or applicable effort is missing.
+
+`--inline` needs no child model selection. `--fork` inherits the session model and
+ignores model overrides; a Codex fork prompt still carries the root's verified
+`Attribution model ID`.
 
 The dispatch templates below also omit the `Ship-Check` commit trailer instruction.
 Append it to every phase that commits (phases 1, 3-5):
 
 ```
+For Codex agent mode, include:
+Attribution model ID: EXACT_CODEX_MODEL_ID
+
 When committing, add this trailer to every commit message:
 Ship-Check: PHASE_NAME · YOUR_MODEL_ID
 Use the runtime-specific model label from the Attribution section for YOUR_MODEL_ID.
@@ -482,6 +503,9 @@ no CI to watch. After Phase 5 completes, output the summary report and stop.
 Run /pr-monitor inline (not as an agent). This phase stays inline because it needs
 ScheduleWakeup, user interaction for human comments, and continuous monitoring.
 
+Carry the orchestrator's verified attribution model ID into pr-monitor. A standalone
+pr-monitor run resolves the current session's exact model under the Attribution rules.
+
 **Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when
 Phases 1-5 are done, but Phase 6 runs until the user says stop or the PR merges.
@@ -579,10 +603,11 @@ The user can customize the pipeline:
   persona cannot grant codebase familiarity or change the read into another review
   type. No-op when fresh-eyes doesn't run.
 - `/ship-check --model <name>` — override the model for all phase agents for this run.
-  Valid values: `sonnet`, `opus`, `haiku`, `fable`, `inherit` (`inherit` = follow the
-  session's model). Ignored with `--inline` and `--fork` — both run phases on the
-  session's model (forks ignore model overrides). Default without the flag, agent mode
-  only: `opus` — the orchestrator adds `model: "opus"` to each phase dispatch.
+  Use a selector the active runtime accepts: Claude aliases such as `opus`, exact Codex
+  IDs such as `gpt-5.6-luna`, or an OpenCode-supported selector/provider ID. `inherit`
+  follows the session model through the runtime-specific procedure in Execution.
+  Ignored with `--inline` and `--fork` — both run on the session model, though Codex
+  fork prompts still receive the root's verified attribution ID.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
   eyes — useful when context from prior work is actually helpful). Fresh-eyes is skipped
   because inherited context defeats the no-prior-knowledge persona.

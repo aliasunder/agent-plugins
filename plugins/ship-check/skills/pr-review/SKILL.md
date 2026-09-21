@@ -270,14 +270,16 @@ REVIEW
 ```
 
 Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
-`MODEL_ID` with the runtime model label. Claude runs use the family ID from system
-context, such as `claude-opus-4-6`; omit context-window, dated-build, and other
-transcript-only suffixes. Codex GPT runs use the verified exact runtime model ID,
-including version and variant suffixes such as `gpt-5.6-sol`. In Codex, match a
-runtime-provided current thread or session ID to `session_meta.payload.id` exactly,
-then read `session_meta.payload.base_instructions.provenance.model`; never select a
-rollout by recency, cwd, or display name. If the Codex ID cannot be verified, stop
-before posting.
+`MODEL_ID` with the exact runtime model:
+
+1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+2. Without that line, a Claude agent may use its system-context family ID, and an
+   OpenCode agent may use its runtime-exposed provider/model ID.
+3. An inline standalone run may use the current session's verified exact model source.
+
+A Codex child without the dispatch line stops before committing or posting and reports
+an attribution blocker. Never infer a model from memory, parent prose, rollout recency,
+cwd, or display name.
 
 5. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a

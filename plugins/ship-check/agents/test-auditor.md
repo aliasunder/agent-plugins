@@ -98,15 +98,18 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 
 Every PR comment or review you post — inline comments, review bodies, PR-level
 comments — MUST include the footer: `\n\n---\n*🔍 ship-check · test-audit · <model-id>*`
-where `<model-id>` identifies the runtime model. Claude runs use the family ID from
-system context, such as `claude-opus-4-6`; omit context-window, dated-build, and other
-transcript-only suffixes. Codex GPT runs use the verified exact runtime model ID,
-including version and variant suffixes such as `gpt-5.6-sol`. In Codex, match a
-runtime-provided current thread or session ID to `session_meta.payload.id` exactly,
-then read `session_meta.payload.base_instructions.provenance.model`; never select a
-rollout by recency, cwd, or display name. If the Codex ID cannot be verified, stop
-before posting. No exceptions — a comment without a footer misattributes automated
-output to the repo owner.
+where `<model-id>` identifies the exact runtime model used for the footer and any
+`Ship-Check` commit trailer. Resolve it in this order:
+
+1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
+2. Without that line, a Claude agent may use the family ID from its system context,
+   such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
+
+A Codex child without the dispatch line stops before committing or posting and reports
+an attribution blocker. Never infer a model from memory, parent prose,
+rollout recency, cwd, or display name. No exceptions — a comment without a footer
+misattributes automated output to the repo owner.
 
 ### Comment mode
 

@@ -271,14 +271,13 @@ For each unresolved bot thread, do ALL of these in order:
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
    Since `gh` posts as the user's account, every reply MUST include an attribution
-   footer. Claude runs use the family ID from system context, such as
-   `claude-opus-4-6`; omit context-window, dated-build, and other transcript-only
-   suffixes. Codex GPT runs use the verified exact runtime model ID, including version
-   and variant suffixes such as `gpt-5.6-sol`. In Codex, match a runtime-provided
-   current thread or session ID to `session_meta.payload.id` exactly, then read
-   `session_meta.payload.base_instructions.provenance.model`; never select a rollout
-   by recency, cwd, or display name. If the Codex ID cannot be verified, stop before
-   posting and report the attribution blocker. The footer format is:
+   footer. Use the pipeline's verified `Attribution model ID` when ship-check supplied
+   one. A standalone run uses the current session's exact runtime model: Claude reads
+   the family ID from system context; OpenCode uses its exact runtime identifier; Codex
+   matches its own `CODEX_THREAD_ID` to `session_meta.payload.id` before reading
+   `session_meta.payload.base_instructions.provenance.model`. Never select a rollout by
+   recency, cwd, or display name. If the exact ID cannot be verified, keep monitoring
+   but stop before posting and report the attribution blocker. The footer format is:
    `\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*`
 
    ```
