@@ -131,6 +131,9 @@ reviewing a PR it isn't responsible for.
 
 When `--comment` is active, prepend this to every phase's dispatch prompt:
 
+In Codex agent mode, prepend the populated `Attribution model ID` line from the
+Attribution section before this block.
+
 ```
 COMMENT MODE: Do NOT edit any files, commit, or push. Instead, collect all findings
 and post them as a single GitHub PR review with inline comments. Follow the "Comment
@@ -185,9 +188,9 @@ Before dispatching Phase 1, resolve the **repo identifier** for `gh api` calls:
 gh repo view --json nameWithOwner -q .nameWithOwner
 ```
 
-Pass it as `Repo: owner/repo` in the dispatch prompt. In comment mode, agents
-include their own runtime-specific model label in the footer —
-the orchestrator does not need to look it up or pass it.
+Pass it as `Repo: owner/repo` in the dispatch prompt. Claude and OpenCode agents use
+their runtime-specific model source for the footer. In Codex agent mode, the
+orchestrator also passes the exact attribution model ID resolved before Phase 1.
 
 ## Local review mode (`--local`)
 
