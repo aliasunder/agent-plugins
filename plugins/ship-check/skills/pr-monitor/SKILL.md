@@ -248,10 +248,11 @@ For each unresolved bot thread, do ALL of these in order:
 
    The search is repo-wide and unfiltered. Do NOT narrow it to the PR's changed files,
    to the file the bot flagged, or to a single directory — a sibling surface outside
-   the diff is exactly the one the next bot cycle flags. A doc fact (a path, a default,
-   an env var, a tool name) typically lives in the README, the example env file, the
-   server config, and inline comments at once, so enumerate every hit, then separate
-   the ones carrying the flagged claim from coincidental matches of the same string.
+   the diff is exactly the one the review bots flag on their next pass. A doc fact (a
+   path, a default, an env var, a tool name) typically lives in the README, the example
+   env file, the server config, and inline comments at once, so enumerate every hit,
+   then separate the ones carrying the flagged claim from coincidental matches of the
+   same string.
 
    Print the receipt before committing — this line is mandatory:
    ```
@@ -259,8 +260,8 @@ For each unresolved bot thread, do ALL of these in order:
    ```
 
    **Wrong:** fix the README, commit, push. `.env.example` and `server.json` still
-   carry the old value, so the next cycle flags them and the PR costs another full
-   round.
+   carry the old value, so the review bots flag them on their next pass and the PR
+   costs another full round.
    **Right:** `rg -n "<old value>" .` returns 3 files; fix all 3 in one commit; the run
    output reports "Sweep "<old value>": 3 hits repo-wide — fixed in README, .env.example, server.json".
 
@@ -348,9 +349,9 @@ If the user provides a response, reply on their behalf and resolve.
 flagged on this PR so far** — this cycle's and earlier cycles'. Item 4's sweep
 searches the whole repo for one corrected claim; this pass is the same kind of
 search across the union of classes, not a diff review. Each push triggers a
-complete re-review, so any instance the per-finding sweeps missed becomes next
-cycle's comments. The target is convergence in one or two cycles, not a
-comment-per-instance conversation.
+complete re-review, so any instance the per-finding sweeps missed comes back as a
+review bot comment on the next pass. The target is convergence in one or two
+cycles, not a comment-per-instance conversation.
 
 If you fixed any code: stage, commit, push. Then **go to Step 4** -- this is mandatory.
 
