@@ -232,15 +232,40 @@ For each unresolved bot thread, do ALL of these in order:
    Fix anything that's reasonable effort; only escalate to the user when the fix is
    genuinely high lift.
 
-4. **Sweep the class, not just the instance.** A bot flags instances; the next pass
-   flags the sibling you left, and the point-fix loop is how a PR ends up with 100+
-   comments. Generalize each valid finding to the pattern it represents — the same
-   claim on another doc surface, the same code shape in another function, the same
-   missing guard on another entry point — then grep the PR's changed files (and for
-   doc claims, every sibling surface) for the other instances and fix them all in
-   the same commit. State the count in the reply: *"Fixed here and at N sibling
-   sites."* A class-wide fix converges the review; a point fix buys another full
-   bot cycle for each sibling.
+4. **Sweep the class repo-wide, before you commit.** A bot flags instances; the next
+   pass flags the sibling you left, and the point-fix loop is how a PR ends up with
+   100+ comments. Generalize each valid finding to the pattern it represents — the
+   same claim on another doc surface, the same code shape in another function, the
+   same missing guard on another entry point — then fix every instance in the SAME
+   commit.
+
+   **Run the search, don't recall it.** Name the corrected text, then search the whole
+   repo for it:
+
+   ```
+   rg -n "<the exact corrected term, path, default, env var, or code shape>" .
+   ```
+
+   The search is repo-wide and unfiltered. Do NOT narrow it to the PR's changed files,
+   to the file the bot flagged, or to a single directory — a sibling surface outside
+   the diff is exactly the one the next bot cycle flags. A doc fact (a path, a default,
+   an env var, a tool name) typically lives in the README, the example env file, the
+   server config, and inline comments at once, so enumerate every hit, then separate
+   the ones carrying the flagged claim from coincidental matches of the same string.
+
+   Print the receipt before committing — this line is mandatory:
+   ```
+   Sweep "<corrected term>": N hits repo-wide — fixed in <surface, surface>; M hits already correct; K coincidental matches
+   ```
+
+   **Wrong:** fix the README, commit, push. `.env.example` and `server.json` still
+   carry the old value, so the next cycle flags them and the PR costs another full
+   round.
+   **Right:** `rg -n "<old value>" .` returns 3 files; fix all 3 in one commit; the
+   reply reads "corrected in README; swept `.env.example`, `server.json` — clean."
+
+   A class-wide fix converges the review; a point fix buys another full bot cycle for
+   each sibling.
 
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
@@ -263,8 +288,9 @@ For each unresolved bot thread, do ALL of these in order:
      }) { comment { id } }
    }'
    ```
-   - **Valid finding** -- reply explaining what you fixed:
-     *"Fixed -- [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+   - **Valid finding** -- reply explaining what you fixed, and carry the
+     swept-surfaces receipt from item 4:
+     *"Fixed -- [brief description of the change and why]; corrected in [surface]; swept [surface, surface] -- clean.\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
@@ -287,7 +313,7 @@ For each unresolved bot thread, do ALL of these in order:
 Handle the same way as bot threads -- evaluate, reply, fix if valid, resolve. These are
 from another Claude instance and do not require user approval. Include in your reply
 that you're addressing feedback from another Claude session, e.g.:
-*"Addressed -- [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+*"Addressed -- [description]; corrected in [surface]; swept [surface, surface] -- clean. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
 ### Bot and Claude findings without a thread (review bodies, PR-level comments — from 2d)
 
@@ -319,11 +345,13 @@ If the user provides a response, reply on their behalf and resolve.
 
 ### After handling all threads
 
-**Before pushing, re-scan the full diff once against every class the bot has
-flagged on this PR so far** — this cycle's and earlier cycles'. Each push
-triggers a complete re-review, so any instance the per-finding sweeps missed
-becomes next cycle's comments. The target is convergence in one or two
-cycles, not a comment-per-instance conversation.
+**Before pushing, run one final repo-wide pass over every class the bot has
+flagged on this PR so far** — this cycle's and earlier cycles'. Item 4's sweep
+searches the whole repo for one corrected claim; this pass is the same kind of
+search across the union of classes, not a diff review. Each push triggers a
+complete re-review, so any instance the per-finding sweeps missed becomes next
+cycle's comments. The target is convergence in one or two cycles, not a
+comment-per-instance conversation.
 
 If you fixed any code: stage, commit, push. Then **go to Step 4** -- this is mandatory.
 
@@ -389,6 +417,10 @@ If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
 **Prerequisites -- ALL must be true before you may report:**
 - All CI checks passing (or only known-flaky / unrelated failures)
 - All bot threads resolved (each one replied to before resolving)
+- **Every "fixed" reply carries a swept-surfaces receipt.** A "Fixed" reply with no
+  receipt means the Step 3 item-4 sweep never ran — go back to Step 3, run the repo-wide
+  search, and repost the reply with the receipt. The `gh pr comment` covering
+  body-only findings carries the same receipt for the surfaces it swept.
 - All non-thread findings (2d: review bodies, PR-level comments — bot, Claude, AND
   human) evaluated and replied to on the PR (human findings presented to user)
 - **Issue comment coverage check**: the number of issue comments evaluated plus

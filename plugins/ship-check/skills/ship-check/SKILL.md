@@ -488,7 +488,9 @@ Phases 1-5 are done, but Phase 6 runs until the user says stop or the PR merges.
 
 **Invoke the pr-monitor skill** (call the Skill tool with `skill: "pr-monitor"`) and
 follow ALL steps through Step 5, including:
-- **Step 3**: Reply to every bot comment BEFORE resolving the thread
+- **Step 3**: Reply to every bot comment BEFORE resolving the thread, and carry the
+  swept-surfaces receipt in every "Fixed" reply — a fix that wasn't swept repo-wide is
+  the next cycle's comment
 - **Step 4**: Follow-up check after pushing fixes — **ScheduleWakeup is mandatory**.
   Do NOT reason about why monitoring can be skipped. If fixes were pushed, schedule the
   wakeup: `ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after
