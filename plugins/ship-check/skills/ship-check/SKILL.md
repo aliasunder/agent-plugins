@@ -503,25 +503,28 @@ flagged findings.
 responsible for — there are no pushed fixes to monitor, no bot comments to resolve, and
 no CI to watch. After Phase 5 completes, output the summary report and stop.
 
-Run /pr-monitor inline (not as an agent). This phase stays inline because it needs
-ScheduleWakeup, user interaction for human comments, and continuous monitoring.
+Run /pr-monitor inline (not as an agent). This phase stays inline because timed
+follow-up and human comment decisions need the primary agent.
 
 Carry the orchestrator's verified attribution model ID into pr-monitor. A standalone
 pr-monitor run resolves the current session's exact model under the Attribution rules.
 
 **Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when
-Phases 1-5 are done, but Phase 6 runs until the user says stop or the PR merges.
+Phases 1-5 are done, but Phase 6 runs until the user says stop or the PR merges
+or closes.
 
 **Invoke the pr-monitor skill** (call the Skill tool with `skill: "pr-monitor"`) and
 follow ALL steps through Step 5, including:
 - **Step 3**: Reply to every bot comment BEFORE resolving the thread, and report each
   fix's sweep receipt in the run output — a fix that wasn't swept repo-wide comes back
   as a review bot comment on the next pass
-- **Step 4**: Follow-up check after pushing fixes — **ScheduleWakeup is mandatory**.
-  Do NOT reason about why monitoring can be skipped. If fixes were pushed, schedule the
-  wakeup: `ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after
-  push", prompt: "/pr-monitor")`
+- **Step 4**: Follow-up check after pushing fixes is mandatory. In Claude Code,
+  call `ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after
+  push", prompt: "/pr-monitor")`. In Codex, stay in the active turn and use
+  `clock.sleep({ duration_ms: 50000 })` in repeated intervals until at least
+  180 seconds have elapsed, then re-run the full status pass. Do NOT reason
+  about why monitoring can be skipped or end a Codex turn while it is active.
 - **Step 5**: Continue monitoring — never auto-terminate
 
 As part of this phase, the primary agent also ensures PR visibility for non-inline

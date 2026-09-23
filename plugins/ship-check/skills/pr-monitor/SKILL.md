@@ -369,12 +369,13 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
 
 1. Tell the user: *"Pushed fix(es). Waiting for bot reviews (~3 min)..."*
 
-2. **Schedule a follow-up check.** ScheduleWakeup is available in all Claude Code
-   sessions — `/loop` context is NOT a prerequisite. Call it:
+2. **Arrange the follow-up for the active runtime.** In Claude Code, call
+   ScheduleWakeup — `/loop` context is NOT a prerequisite:
    ```
    ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after push",
      prompt: "/pr-monitor")
    ```
+   In Codex, use the active-turn `clock.sleep` procedure below.
 
 3. On wake: **re-run Step 2 in full** — all five checks (2a through 2e), including
    **all three endpoints in 2d** (`pulls/NUMBER/reviews`, `issues/NUMBER/comments`,
@@ -395,16 +396,29 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
 
 ### If ScheduleWakeup is not available
 
-ScheduleWakeup is available in all Claude Code sessions. The fallback below applies
-**only when the ScheduleWakeup tool call itself returns an error** — not when you
-reason it "shouldn't be needed" or "the pipeline is finishing." If in doubt, call it —
-a rejected tool call is cheap, a missed bot comment is not.
+**Codex:** ScheduleWakeup is not a Codex tool. Stay in the active turn and use
+`clock.sleep({ duration_ms: 50000 })` in repeated intervals until at least 180
+seconds have elapsed since the last push. Send a concise commentary update
+between waits so the user is not left without an update for more than 60
+seconds. A sleep interrupted by new user input is steering, not a stop request;
+respond and resume monitoring unless the user says to stop. Count the elapsed
+time reported by each sleep, not its requested duration. Then re-run Step 2
+in full. **Do not end the turn with a final response while monitoring is active**
+— that stops the timed checks. If `clock.sleep` is also unavailable, run Step 2
+immediately and say that continuous monitoring cannot run in this session;
+never claim a background check was scheduled.
+
+**Claude Code:** ScheduleWakeup is available in normal sessions. Use the
+fallback below **only when the ScheduleWakeup tool call itself returns an
+error** — not when you reason it "shouldn't be needed" or "the pipeline is
+finishing." If in doubt, call it — a rejected tool call is cheap, a missed bot
+comment is not.
 
 Never substitute your own judgment for this step. "CI was already green before I pushed"
 and "bots already commented" are not reasons to skip — bots re-analyze the entire PR
 after every push.
 
-If `ScheduleWakeup` genuinely errors (tool not found, permission denied):
+If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission denied):
 - Run an **immediate re-check** (Step 2) right after pushing -- this catches fast bots.
 - If no new comments yet, tell the user: *"Bot reviews typically take 2-5 minutes. Run
   `/loop /pr-monitor` for continuous monitoring, or say 'check' when you want me to
@@ -451,11 +465,18 @@ PR #<number> status:
 After reporting, **continue monitoring** — do not stop. "Merge-ready" is a status
 report, not a termination signal. The user will say stop when they're done. If the
 user doesn't respond, keep the monitoring loop running.
+In Codex, report this snapshot in commentary and stay in the active turn; a
+final response ends the timed monitoring loop.
 
 ## Continuous monitoring
 
 Continue monitoring after Step 5 — whether invoked via `/loop` or not:
-- Call `ScheduleWakeup` with `delaySeconds: 240` (stays in prompt cache).
+- In Claude Code, call `ScheduleWakeup` with `delaySeconds: 240` (stays in prompt cache).
+- In Codex, remain in the active turn and use `clock.sleep({ duration_ms: 50000 })`
+  in repeated intervals until 240 seconds have elapsed. Send commentary updates
+  between waits, then run the full Step 2 pass. If new user input interrupts a
+  wait, count only its elapsed time, respond, and resume unless the user
+  explicitly stops monitoring.
 - **On each wake, run Step 2 in full — all five checks (2a–2e) with all three 2d
   endpoints.** No shortened version of Step 2 exists. The dominant pr-monitor failure
   is steady-state narrowing: degrading to `gh pr view --json state` or CI + thread
