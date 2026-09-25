@@ -160,7 +160,7 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   words like "add", "feat", "new", "support", "enable", or "hybrid" — it's likely a
   feature surface change.
 - **Step 1 — identify which docs track feature surface.** Check AGENTS.md for a
-  "Files that track feature surface" table. If one exists, use it. If not, check for
+  "Files that track feature surface" table or list. If one exists, use it. If not, check for
   these common doc files in the repo root: `README.md`, `ARCHITECTURE.md`, `DEPLOY.md`,
   `.env.example`, `AGENTS.md` (structure tree section), `.devin/wiki.json`,
   `CHANGELOG.md`, `docs/`. Also check for deploy-specific env files
