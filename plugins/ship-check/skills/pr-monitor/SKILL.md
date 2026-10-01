@@ -61,7 +61,7 @@ gh api graphql -f query='{
         nodes {
           id isResolved
           comments(first: 5) {
-            nodes { author { login } body path position createdAt }
+            nodes { databaseId author { login } body path position createdAt }
           }
         }
       }
@@ -293,6 +293,24 @@ For each unresolved bot thread, do ALL of these in order:
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
+   **Keep the reply call plain.** A sandboxed session (a Claude Code worktree
+   session, for one) refuses a command it cannot analyze, and each refusal costs
+   a retry:
+   - **Never build the body with `$(…)`** -- no `"$(cat file)"`, `$(printf …)`, or
+     `$(jq …)`. Write the body text directly in the query.
+   - **When the body mentions `git` (a git command, or the word itself), or the
+     sandbox refuses the call once, post from a file instead.** Write the reply,
+     footer included, to a file with the file-write tool, then post it as its own
+     command:
+     ```
+     gh api repos/OWNER/REPO/pulls/NUMBER/comments/COMMENT_ID/replies -F body=@/absolute/path/reply.md
+     ```
+     `COMMENT_ID` is the `databaseId` of the thread's first comment (from 2c).
+     Write the path out in full, not through a shell variable. Do NOT pair a body
+     file with the GraphQL mutation above -- the sandbox refuses that form.
+   - **Not a reason to switch:** backticks in the body, or a reply chained to its
+     resolve call with `&&`. Both run inline.
+
 6. **Resolve the thread** (AFTER replying):
    ```
    gh api graphql -f query='mutation {
@@ -328,6 +346,12 @@ you handled — name each finding by its review ID and description, state
 fixed/intentional with the reasoning, include the same attribution footer.
 A finding answered nowhere on the PR is indistinguishable from one that was
 never read.
+
+The plain-call rule from the bot-thread reply step (item 5 under "Bot threads")
+applies to this comment too: never build the
+body with `$(…)`, and when the body mentions `git` or the sandbox refuses the
+call once, write the comment to a file and post it with
+`gh pr comment NUMBER --body-file /absolute/path/comment.md`.
 
 ### Human findings without a thread (issue comments from 2d classified as Human)
 
