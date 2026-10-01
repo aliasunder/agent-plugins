@@ -180,6 +180,22 @@ summary. Post via `gh pr comment` /
 (see Attribution section above). A finding that exists only in agent output is
 invisible to anyone reading the PR.
 
+**Keep the posting command plain.** A sandboxed session (a Claude Code worktree
+session, for one) refuses a command it cannot analyze, and each refusal costs a
+retry:
+
+- **Never build the body with `$(…)`** — no `"$(cat file)"`, `$(printf …)`, or
+  `$(jq …)`. Write the body text directly in the command.
+- **When the body mentions `git` (a git command, or the word itself), or the
+  sandbox refuses the call once, post from a file instead.** Write the comment,
+  footer included, to a file with the file-write tool, then post it as its own
+  command:
+  ```
+  gh pr comment NUMBER --body-file /absolute/path/comment.md
+  ```
+  Write the path out in full, not through a shell variable.
+- **Not a reason to switch:** backticks in the body. They run inline.
+
 ### Orchestrator setup
 
 Before dispatching Phase 1, resolve the **repo identifier** for `gh api` calls:
@@ -530,7 +546,10 @@ follow ALL steps through Step 5, including:
 As part of this phase, the primary agent also ensures PR visibility for non-inline
 findings: any deferred finding or beyond-diff issue not already visible on the PR
 (inline comment or review body) gets a PR-level comment (`gh pr comment`) so the
-decision trail lives on the PR, not only in the chat transcript.
+decision trail lives on the PR, not only in the chat transcript. Post it under the
+plain-command rule in "Non-inline findings still land on the PR": no `$(…)` in the
+body, and `gh pr comment NUMBER --body-file /absolute/path/comment.md` when the
+body mentions `git` or the sandbox refuses the call once.
 
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the last phase-reviewed SHA and
