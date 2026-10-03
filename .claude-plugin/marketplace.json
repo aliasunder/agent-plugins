@@ -1,6 +1,6 @@
 {
   "name": "agent-plugins",
-  "description": "Personal plugins for Claude Code and Claude Cowork — review agents, workflow orchestrators, and specialized skills.",
+  "description": "Personal plugins for Claude Code and Claude Cowork: review agents, workflow orchestrators, and specialized skills.",
   "owner": {
     "name": "aliasunder"
   },

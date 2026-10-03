@@ -11,14 +11,14 @@ on demand and is not a pipeline phase.
 | Agent | Phase | Color | Role |
 |-------|-------|-------|------|
 | `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (Tool Definition Quality Score (TDQS), feature surface, stale paths) |
-| `fresh-eyes` | 2 | purple | Stranger read: every place a newcomer pauses, per function. Report only — no conventions, no edits, no history. Pauses feed into Phase 3. |
+| `fresh-eyes` | 2 | purple | Stranger read: every place a newcomer pauses, per function. Report only: no conventions, no edits, no history. Pauses feed into Phase 3. |
 | `code-quality-reviewer` | 3 | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. |
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
 | `tool-definition-reviewer` | on demand | orange | MCP tool definitions read as the client receives them: TDQS rubric marks, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
 
-Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
-and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
+Phase 6 (pr-monitor) runs inline in the orchestrator, because it needs user
+interaction and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
 standalone to see what a newcomer experiences without the pipeline.
 
 `tool-definition-reviewer` is not dispatched by the pipeline. Dispatch it yourself
@@ -40,8 +40,8 @@ reports the review as `failed`.
 The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:
 
-- `vault_get_memory` ([vault-cortex](https://github.com/aliasunder/vault-cortex) MCP) — user preferences
-- `sequentialthinking` ([sequential-thinking](https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking) MCP) — reasoning organization
+- `vault_get_memory` ([vault-cortex](https://github.com/aliasunder/vault-cortex) MCP): user preferences
+- `sequentialthinking` ([sequential-thinking](https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking) MCP): reasoning organization
 
 ## Usage
 
@@ -55,7 +55,7 @@ Agent({ subagent_type: "ship-check:bug-checker", prompt: "..." })
 ```
 
 They can also be dispatched standalone for single-dimension reviews. `fresh-eyes`
-runs as Phase 2 in the pipeline and can also be dispatched standalone — either way
+runs as Phase 2 in the pipeline and can also be dispatched standalone. Either way
 it needs the file list in its prompt:
 
 ```
