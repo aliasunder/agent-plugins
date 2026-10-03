@@ -14,6 +14,7 @@ import {
   listVariants,
   parameterTexts,
   parseSurface,
+  showTools,
 } from "../surface-diff.mts"
 
 const SCRIPT_PATH = fileURLToPath(new URL("../surface-diff.mts", import.meta.url))
@@ -21,6 +22,7 @@ const SCRIPT_PATH = fileURLToPath(new URL("../surface-diff.mts", import.meta.url
 const USAGE = [
   "Usage: surface-diff.mts --current <file> [--base <file>] [--names]",
   "       surface-diff.mts --current <file> --variants <file> [--variants <file> ...]",
+  "       surface-diff.mts --current <file> --show <tool> [--show <tool> ...]",
 ].join("\n")
 
 // '{"type":"object","properties":{}}' is 33 characters and "List notes." is 11.
@@ -402,6 +404,58 @@ describe("listVariants", () => {
   })
 })
 
+describe("showTools", () => {
+  it("prints the named tools as text, with the description's own line breaks", () => {
+    const surface = surfaceOf([
+      rawTool({ description: "List notes.\n\nReturns: paths.", title: "List", annotations: { readOnlyHint: true } }),
+      rawTool({ name: "read_note", description: "Read a note.", outputSchema: { type: "object" } }),
+      rawTool({ name: "not_asked_for" }),
+    ])
+
+    assert.strictEqual(
+      showTools(surface, ["list_notes", "read_note"], "test"),
+      [
+        "=== list_notes ===",
+        "title: List",
+        "description:",
+        "List notes.",
+        "",
+        "Returns: paths.",
+        "",
+        "inputSchema:",
+        "{",
+        '  "type": "object",',
+        '  "properties": {}',
+        "}",
+        "",
+        'annotations: {"readOnlyHint":true}',
+        "",
+        "=== read_note ===",
+        "description:",
+        "Read a note.",
+        "",
+        "inputSchema:",
+        "{",
+        '  "type": "object",',
+        '  "properties": {}',
+        "}",
+        "",
+        "outputSchema:",
+        "{",
+        '  "type": "object"',
+        "}",
+      ].join("\n"),
+    )
+  })
+
+  it("rejects a name the file does not hold", () => {
+    assert.throws(() => showTools(surfaceOf([rawTool()]), ["read_note"], "test"), {
+      constructor: InputError,
+      message: 'test: no tool named "read_note"',
+    })
+  })
+})
+
 describe("command line", () => {
   const directory = mkdtempSync(join(tmpdir(), "surface-diff-test-"))
   after(() => rmSync(directory, { recursive: true, force: true }))
@@ -499,6 +553,38 @@ describe("command line", () => {
       status: 2,
       stdout: "",
       stderr: `${page}: has "nextCursor", so it is one page of a longer list; capture every page\n`,
+    })
+  })
+
+  it("prints a tool as text with --show", () => {
+    const current = writeSurface("show-current.json", [rawTool({ description: "List notes.\nSecond line." })])
+
+    assert.deepStrictEqual(runScript(["--current", current, "--show", "list_notes"]), {
+      status: 0,
+      stdout: [
+        "=== list_notes ===",
+        "description:",
+        "List notes.",
+        "Second line.",
+        "",
+        "inputSchema:",
+        "{",
+        '  "type": "object",',
+        '  "properties": {}',
+        "}",
+        "",
+      ].join("\n"),
+      stderr: "",
+    })
+  })
+
+  it("exits 2 when --show is combined with --base", () => {
+    const current = writeSurface("show-combined.json", [rawTool()])
+
+    assert.deepStrictEqual(runScript(["--current", current, "--base", current, "--show", "list_notes"]), {
+      status: 2,
+      stdout: "",
+      stderr: "--show prints tools from --current; it cannot be combined with --base or --variants\n",
     })
   })
 

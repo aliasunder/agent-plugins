@@ -92,6 +92,7 @@ const WHITESPACE_RUN = /\s+/g
 const USAGE = [
   "Usage: surface-diff.mts --current <file> [--base <file>] [--names]",
   "       surface-diff.mts --current <file> --variants <file> [--variants <file> ...]",
+  "       surface-diff.mts --current <file> --show <tool> [--show <tool> ...]",
 ].join("\n")
 
 const isJsonObject = (value: unknown): value is JsonObject => {
@@ -447,6 +448,38 @@ export const listVariants = (current: Surface, variants: { file: string; surface
   return variants.map(({ file, surface }) => listVariant(current, file, surface))
 }
 
+const formatTool = (tool: Tool): string => {
+  const title = tool.title ? [`title: ${tool.title}`] : []
+  const outputSchema = tool.outputSchema ? ["", "outputSchema:", JSON.stringify(tool.outputSchema, null, 2)] : []
+  const annotations = tool.annotations ? ["", `annotations: ${JSON.stringify(tool.annotations)}`] : []
+
+  return [
+    `=== ${tool.name} ===`,
+    ...title,
+    "description:",
+    descriptionOf(tool),
+    "",
+    "inputSchema:",
+    JSON.stringify(tool.inputSchema, null, 2),
+    ...outputSchema,
+    ...annotations,
+  ].join("\n")
+}
+
+/** The named tools as readable text. A surface file keeps each description on one long JSON line, which file viewers cut off. */
+export const showTools = (surface: Surface, names: string[], label: string): string => {
+  const toolsByName = new Map(surface.tools.map((tool) => [tool.name, tool]))
+
+  const shown = names.map((name) => {
+    const tool = toolsByName.get(name)
+    if (!tool) throw new InputError(`${label}: no tool named "${name}"`)
+
+    return formatTool(tool)
+  })
+
+  return shown.join("\n\n")
+}
+
 const assertSupportedRuntime = () => {
   if (process.versions.bun) return
 
@@ -466,6 +499,7 @@ const readArguments = (argv: string[]) => {
         base: { type: "string" },
         names: { type: "boolean", default: false },
         variants: { type: "string", multiple: true },
+        show: { type: "string", multiple: true },
       },
     })
 
@@ -475,32 +509,42 @@ const readArguments = (argv: string[]) => {
   }
 }
 
-const run = (argv: string[]): unknown => {
+const toJson = (value: unknown): string => JSON.stringify(value, null, 2)
+
+const run = (argv: string[]): string => {
   assertSupportedRuntime()
 
-  const { current: currentPath, base: basePath, names, variants = [] } = readArguments(argv)
+  const { current: currentPath, base: basePath, names, variants = [], show = [] } = readArguments(argv)
   if (!currentPath) throw new InputError(USAGE)
 
   const current = loadSurface(currentPath)
+
+  if (show.length > 0) {
+    if (basePath || variants.length > 0) {
+      throw new InputError("--show prints tools from --current; it cannot be combined with --base or --variants")
+    }
+
+    return showTools(current, show, currentPath)
+  }
 
   if (variants.length > 0) {
     if (basePath) throw new InputError("--variants lists other configurations; it cannot be combined with --base")
 
     const loadedVariants = variants.map((file) => ({ file, surface: loadSurface(file) }))
-    return { current: currentPath, variants: listVariants(current, loadedVariants) }
+    return toJson({ current: currentPath, variants: listVariants(current, loadedVariants) })
   }
 
   const base = basePath ? loadSurface(basePath) : null
   const report = compareSurfaces(base, current, { base: basePath ?? null, current: currentPath })
-  if (!names) return report
+  if (!names) return toJson(report)
 
   const { changed, added, removed, unchanged, orderOnly, inScope } = report
-  return { changed, added, removed, unchanged, orderOnly, inScope }
+  return toJson({ changed, added, removed, unchanged, orderOnly, inScope })
 }
 
 const main = () => {
   try {
-    console.log(JSON.stringify(run(process.argv.slice(2)), null, 2))
+    console.log(run(process.argv.slice(2)))
   } catch (error) {
     if (!(error instanceof InputError)) throw error
 
