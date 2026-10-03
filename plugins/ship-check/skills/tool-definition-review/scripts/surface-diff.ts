@@ -90,6 +90,9 @@ const SCHEMA_BRANCH_KEYS = ["anyOf", "oneOf", "allOf"]
 // The whitespace after a sentence-ending mark; splitting on it keeps the mark with its sentence.
 const SENTENCE_BOUNDARY = /(?<=[.!?])\s+/
 
+// A reviewer passes tool names to `--show` in a shell command, so a name from an untrusted file must not be able to carry shell syntax.
+const COMMAND_LINE_SAFE_NAME = /^[A-Za-z0-9_.:/-]+$/
+
 // Any run of spaces, tabs, or newlines.
 const WHITESPACE_RUN = /\s+/g
 
@@ -125,6 +128,12 @@ const parseTool = (value: unknown, position: number, label: string): Tool => {
 
   if (typeof name !== "string" || !name) {
     throw new InputError(`${label}: tool ${position} has no string "name"`)
+  }
+
+  if (!COMMAND_LINE_SAFE_NAME.test(name)) {
+    throw new InputError(
+      `${label}: tool ${position} is named ${JSON.stringify(name)}; a name may hold only letters, digits, and _ . : / - because the reviewer puts names on a command line`,
+    )
   }
 
   const where = `${label}: tool "${name}"`

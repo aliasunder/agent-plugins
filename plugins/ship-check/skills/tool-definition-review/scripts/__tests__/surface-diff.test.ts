@@ -133,6 +133,12 @@ describe("parseSurface", () => {
       message: 'test: tool 1 has no string "name"',
     },
     {
+      label: "a tool name that carries shell syntax",
+      input: { tools: [rawTool({ name: "list_notes; touch /tmp/x" })] },
+      message:
+        'test: tool 1 is named "list_notes; touch /tmp/x"; a name may hold only letters, digits, and _ . : / - because the reviewer puts names on a command line',
+    },
+    {
       label: "a tool without an input schema",
       input: { tools: [{ name: "list_notes" }] },
       message: 'test: tool "list_notes": "inputSchema" must be an object',

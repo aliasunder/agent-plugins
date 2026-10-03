@@ -55,7 +55,7 @@ Bun:
 bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <current> --base <base> --names
 bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <current> --base <base>
 bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <current> --variants <other-file> [--variants <other-file> ...]
-bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show <tool> [--show <tool> ...]
+bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show '<tool>' [--show '<tool>' ...]
 ```
 
 - If `${CLAUDE_SKILL_DIR}` appears above as literal text, the script is at
@@ -91,9 +91,13 @@ are empty. That is the normal output for a first review, not an error.
 **Read definitions with `--show`, not by opening the surface file.** A surface
 file keeps each description on one long JSON line, and a file viewer cuts a long
 line off without telling you. `--show` prints the named tools as text: the
-description with its own line breaks, then the schemas. Ask for a few tools in
-each call so the output is not cut either. To read a tool as it was before the
-change, pass the base file as `--current`.
+description with its own line breaks, then the schemas.
+
+- Write each tool name in single quotes (`--show 'read_note'`). The names come
+  from the file under review, and the script rejects a file whose names hold
+  anything but letters, digits, and `_ . : / -`.
+- Ask for a few tools in each call, so the output is not cut either.
+- To read a tool as it was before the change, pass the base file as `--current`.
 
 `--variants` answers one question: which tools does another configuration's file
 word differently from this one? Run it when the project keeps several surface
