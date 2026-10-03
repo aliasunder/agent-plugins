@@ -314,6 +314,47 @@ describe("compareSurfaces", () => {
     ])
   })
 
+  it("groups a line removed from two tools into one shared edit", () => {
+    const sharedLine = "- Hidden paths are not editable, matching Obsidian"
+    const report = compare(
+      [
+        rawTool({ name: "read_note", description: `Read.\n${sharedLine}` }),
+        rawTool({ name: "write_note", description: `Write.\n${sharedLine}` }),
+      ],
+      [rawTool({ name: "read_note", description: "Read." }), rawTool({ name: "write_note", description: "Write." })],
+    )
+
+    assert.deepStrictEqual(report.sharedEdits, [
+      { text: sharedLine, where: "description", change: "removed", tools: ["read_note", "write_note"] },
+    ])
+  })
+
+  it("groups a sentence removed from two tools' schema descriptions into one shared edit", () => {
+    const report = compare(
+      [
+        rawTool({ name: "read_note", inputSchema: pathSchema("Path to read. Must end in md.") }),
+        rawTool({ name: "write_note", inputSchema: pathSchema("Path to write. Must end in md.") }),
+      ],
+      [
+        rawTool({ name: "read_note", inputSchema: pathSchema("Path to read.") }),
+        rawTool({ name: "write_note", inputSchema: pathSchema("Path to write.") }),
+      ],
+    )
+
+    assert.deepStrictEqual(report.sharedEdits, [
+      { text: "Must end in md.", where: "schema", change: "removed", tools: ["read_note", "write_note"] },
+    ])
+  })
+
+  it("marks a snapshot's sections as not compared when there is no base", () => {
+    const current = surfaceOf([rawTool()], { instructions: "Read first.", prompts: [] })
+
+    assert.deepStrictEqual(compareSurfaces(null, current, { base: null, current: "current.json" }).sections, [
+      { name: "instructions", changed: null },
+      { name: "prompts", changed: null },
+    ])
+  })
+
   it("reports which of a snapshot's sections changed", () => {
     const base = surfaceOf([rawTool()], { instructions: "Read first.", prompts: [] })
     const current = surfaceOf([rawTool()], { instructions: "Read this first.", prompts: [] })
@@ -341,6 +382,12 @@ describe("duplication candidates", () => {
     const longer = "b".repeat(50)
 
     assert.deepStrictEqual(commonSubstrings(`${shorter}|${longer}`, `${longer}#${shorter}`), [longer, shorter])
+  })
+
+  it("reports an overlap once when the text states it twice", () => {
+    const repeated = overlapOf(40)
+
+    assert.deepStrictEqual(commonSubstrings(`x${repeated}y${repeated}`, `${repeated}z`), [repeated])
   })
 
   it("finds described parameters in nested properties, items, and anyOf branches", () => {

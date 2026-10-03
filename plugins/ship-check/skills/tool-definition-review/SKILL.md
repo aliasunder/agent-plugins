@@ -75,7 +75,7 @@ bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show <tool>
 | `inScope` | The tools to review: changed and added ones, or every tool when there is no base |
 | `changes[]` | For each changed tool: which parts changed, its size before and after, and the lines and schema sentences added and removed |
 | `sharedEdits[]` | One line or schema sentence added to, or removed from, two or more tools, with the tools |
-| `sections[]` | Whether the file's server `instructions` or `prompts` changed. Empty when the file carries neither |
+| `sections[]` | Whether the file's server `instructions` or `prompts` changed. `changed` is `null` when there is no base: report that as "no base to compare", never as unchanged. Empty when the file carries neither |
 | `duplicationCandidates[]` | A stretch of 40 or more characters that a parameter's schema description shares with the tool description. `preExisting: true` means the base already had it |
 | `sizes[]` | For each in-scope tool, characters in its `description`, `inputSchema`, and `outputSchema` (each schema measured as JSON), and their `total` |
 | `totalSize` | The sum over every tool in the file, for `base` and `current` |

@@ -11,7 +11,7 @@
     {
       "name": "ship-check",
       "source": "./plugins/ship-check",
-      "description": "Dedicated review agents for the ship-check pipeline. Six agent types (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes, tool-definition-reviewer) plus the orchestrator skill.",
+      "description": "Dedicated review agents for the ship-check pipeline. Six agent types (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes, tool-definition-reviewer) plus eight skills, including the pipeline orchestrator.",
       "version": "1.1.1",
       "keywords": [
         "code-review",

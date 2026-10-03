@@ -43,7 +43,8 @@ type Candidate = { tool: string; parameter: string; text: string; length: number
 
 type ParameterText = { parameter: string; text: string }
 
-type SectionChange = { name: string; changed: boolean }
+// `changed` is null when there is no base, so "not compared" never reads as "unchanged".
+type SectionChange = { name: string; changed: boolean | null }
 
 export type Report = {
   current: string
@@ -363,8 +364,9 @@ export const commonSubstrings = (text: string, other: string): string[] => {
   const before = text.slice(0, start)
   const after = text.slice(start + longest.length)
 
-  const overlaps = [longest, ...commonSubstrings(before, other), ...commonSubstrings(after, other)]
-  return overlaps.toSorted((leftText, rightText) => rightText.length - leftText.length)
+  // A phrase the text states twice is one repetition of `other`, so it is reported once.
+  const overlaps = new Set([longest, ...commonSubstrings(before, other), ...commonSubstrings(after, other)])
+  return [...overlaps].toSorted((leftText, rightText) => rightText.length - leftText.length)
 }
 
 const findCandidates = (tool: Tool, base: Tool | undefined): Candidate[] => {
@@ -400,7 +402,7 @@ const compareSections = (base: Surface | null, current: Surface): SectionChange[
 
   return present.map((key) => ({
     name: key,
-    changed: base !== null && canonicalJson(base.sections[key]) !== canonicalJson(current.sections[key]),
+    changed: base ? canonicalJson(base.sections[key]) !== canonicalJson(current.sections[key]) : null,
   }))
 }
 
