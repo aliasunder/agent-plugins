@@ -255,19 +255,32 @@ The count is how a reader sees the check ran.
   the path from the handler to the line that produces the failure. Whether a rare
   failure deserves a bullet is the author's call; report it and say how rare the
   path looks.
+- **A throw the input schema makes unreachable is NOT a failure the client can
+  receive.** When the schema rejects the input first (a `minLength`, a `minItems`,
+  an enum, a required field), the handler's own guard for that input never runs.
+  Mark the line `unreachable (schema rejects first)`, name the schema rule, and do
+  NOT report it as missing. If the description lists such a message, report that
+  entry under (b). A change that removes such an entry has not dropped a fact.
+
+  Wrong: `"dependsOn cannot be empty" — MISSING`, reported as a defect, when the
+  schema sets `minItems: 1` on that parameter.
+  Right: `"dependsOn cannot be empty" — unreachable (schema rejects first: minItems 1)`.
 - **How to trace one tool:** use the file tools (Read, Grep, Glob). The shell is
   for the script only.
   1. Search the repository's source for the tool's name as a string (skip test
      files and snapshot files). The match is where the tool is registered, and its
      handler is beside it.
-  2. Read the handler. List every function it calls that can fail.
+  2. Read the handler. List every function it calls that can fail. A parser or
+     library call on file content (a YAML or JSON parser, an image or PDF
+     library) can fail on bad content, so it is on the list.
   3. Open each of those functions and repeat, until you reach code that throws,
      returns an error result, or cannot fail.
   4. Read the wrapper the handlers share, if there is one, to see how a thrown
      error reaches the client.
   5. Write one line for each failure you traced: the message as the client
-     receives it, the file and line that produce it, and `listed` or `MISSING`.
-     Search the description `--show` printed for the message's own words. Write
+     receives it, the file and line that produce it, and `listed`, `MISSING`, or
+     `unreachable`. Search the description `--show` printed for the message's own
+     words. Write
      `listed` ONLY when you can point to the entry that names it. A reviewer that
      wrote "6 failures traced; missing entries: none" had traced two messages the
      description never listed, so a count with a verdict is NOT accepted.
@@ -298,9 +311,11 @@ message has no entry, and it is produced in a helper the change never touched.
   Read which, and apply that one. When the instructions name the file that holds
   the number, open that file. With no size rule, print sizes as information and
   report nothing about them.
-- **Before you write "no size rule":** search the instruction files for `size`,
-  `cap`, `allowance`, `budget`, and `chars`, and say in the `Skipped:` line that
-  the search found nothing.
+- **Before you write "no size rule":** search EVERY instruction file at the
+  repository root (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`) and the
+  tool-definition tests for `size`, `cap`, `allowance`, `budget`, and `chars`.
+  Name each file you searched in the `Skipped:` line. A reviewer that searched
+  two of the three files reported no rule where the third file stated one.
 
 ## Grader noise
 
@@ -331,8 +346,8 @@ Per tool
     B3: no entry says what an empty result looks like
   Facts: <N> in the old text — <K> moved (<which>), <J> dropped (<which>)
   Errors: handler <file:function>
-    "<failure message>" (<file:line>) — <listed | MISSING>
-    "<failure message>" (<file:line>) — <listed | MISSING>
+    "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
+    "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
     entries with no reachable failure: <list | none>; not followed: <callees | none>
   Candidates: "<overlap text>" → <cut from description | cut from schema | belongs in both> — <reason>;
               <N> pre-existing on <parameters>
