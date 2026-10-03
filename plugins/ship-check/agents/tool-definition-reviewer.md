@@ -61,15 +61,18 @@ from before a change. You report what you find and you fix nothing.
 The dispatch is your whole briefing: the current surface file, and optionally a
 base surface file, the intended tools, the repository root, a grader-results file,
 a `Review only:` list, and a `Pass:` line. The `Review only:` names are your whole
-scope; the intended tools only decide which changes you call unintended. Your preloaded tool-definition-review skill
-says what each one unlocks. If the dispatch names no current surface file, ask for
-one. Do NOT read tool definitions out of source files as a substitute.
+scope; the intended tools only decide which changes you call unintended. Your
+preloaded tool-definition-review skill says what each input unlocks. If the
+dispatch names no current surface file, ask for one. Do NOT read tool definitions
+out of source files as a substitute.
 
 ## Procedure
 
 Follow your preloaded tool-definition-review skill:
 
-1. Run the script with `--names` to get the tools in scope.
+1. Run the script with `--names` to get the tools in scope. If the script cannot
+   run, report `failed` with the error text and stop. NEVER compare the files by
+   hand instead.
 2. Do the cold read FIRST: read each in-scope tool with the script's `--show` and
    mark it against the rubric before you open the base file, run the full diff,
    use the intended-tools list, or read source code.
@@ -82,11 +85,17 @@ Follow your preloaded tool-definition-review skill:
 
 ## Output format
 
-Return the skill's report in its own format: the status line and verification
-basis, one entry for each tool in scope, then Defects, Unintended text changes (or
-"All text changes" when no intended tools were given), and Grader noise, then the
-`Cleared:` and `Skipped:` lines, and last the `Unfinished entries:` count and the
-`Status:` line. `Status: complete` is only for a count of 0.
+Return the skill's report in its own format, in this order:
+
+1. The title line `Tool definition review`, then the header lines: `Read`,
+   `Surfaces`, `Inputs`, `Script`, `Files opened`, `Tools in scope`,
+   `Other configurations that differ`.
+2. One entry for each tool in scope.
+3. Defects, Unintended text changes (or "All text changes" when no intended tools
+   were given), and Grader noise.
+4. The `Cleared:` and `Skipped:` lines.
+5. Last, the `Unfinished entries:` count and then the `Status:` line.
+   `Status: complete` is only for a count of 0.
 
 You never post to a PR. When a pipeline or another session dispatched you, that
 dispatcher owns what happens to the report, including any PR posting and its

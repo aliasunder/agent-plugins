@@ -38,7 +38,7 @@ whose input is missing is **skipped and listed as skipped**, never guessed at.
 | Base surface | no | The same file before the change | Every tool is in scope; the checks that compare with the base are skipped |
 | Intended tools | no | Names of the tools the change means to alter | No claim about intent |
 | Repository root | no | Where the server's source lives | Error-entry check skipped |
-| Grader results | no | A file of scores and written reasons from an external grader | Noise section skipped |
+| Grader results | no | A file of scores and written reasons from an outside service that grades tool definitions, such as Glama's Tool Definition Quality Score | Noise section skipped |
 | `Review only:` list | no | Names that limit which tools you review in this dispatch. It is NOT the intended-tools list | Scope comes from the script |
 | `Pass:` line | no | `cold` or `diff` | Do both reads, cold first |
 
@@ -64,8 +64,13 @@ bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show <tool>
 - **Exit code 2** means the file is not a usable tool list, and the reason is on
   standard error. Report the review as `failed` with that reason. Do NOT review a
   file the script rejects.
-- If `bun` is not installed, say so in the report's `Script:` line and compare
-  the two files by reading them.
+- **If the shell refuses the command**, retry it once with every path written out
+  in full and no shell variable.
+- **If the script still cannot run** (Bun is not installed, or the shell refuses
+  the retry), do NOT compare the files by hand. A reviewer who compared two tool
+  lists by reading them left 20 of 33 tools uncompared and took the intended-tools
+  list for its scope. Write the error text on the report's `Script:` line, report
+  the review as `failed`, and stop.
 
 | Output field | Meaning |
 |---|---|
@@ -106,14 +111,19 @@ them for their own review.
    written `not reviewed`, and the report is `partial`. NEVER drop a tool silently
    and NEVER thin out the last tools to fit: stop, mark the rest `not reviewed`,
    and list them so the dispatcher can send them again.
-4. **One dispatch takes at most eight tools through the diff read.** The dropped-fact
-   and error-entry checks need the old text, the new text, and the handler source
-   for each tool, and a reviewer given 29 tools at once skipped the error check for
-   nearly all of them. With more than eight tools in scope and no `Review only:`
-   line: do the cold read for every tool, do the diff read for the first eight
-   names in `inScope`, write `not reviewed` on the diff lines of the rest, and
-   report `partial`. The dispatcher sends the rest as `Pass: diff` with a
-   `Review only:` line.
+4. **One dispatch takes at most eight tools through the diff read.** This holds for
+   a `Pass: diff` dispatch and for a dispatch that does both reads, with or without
+   a `Review only:` line. The dropped-fact and error-entry checks need the old
+   text, the new text, and the handler source for each tool, and a reviewer given
+   29 tools at once skipped the error check for nearly all of them. With more than
+   eight tools in scope:
+   - Do the diff read for the first eight names in scope, in the order `inScope`
+     lists them.
+   - Write `not reviewed` on the diff lines of the rest, and report `partial`.
+   - Do the cold read, when this dispatch includes it, for every tool in scope.
+
+   The dispatcher sends the rest as `Pass: diff` with a `Review only:` line of at
+   most eight names.
 
 ## Read 1: cold read
 
@@ -136,8 +146,8 @@ Mark each dimension 1 to 5. A 5 has nothing to fix.
 | Purpose | 25% | The first sentence is a full mental model; an agent can decide to use the tool from it alone | Purpose only clear from the examples; confusable with a sibling tool |
 | Usage | 20% | Examples from simple to complex, when-to-use criteria, "prefer X when Y" routing to related tools | One example; no routing; examples that skip the tool's main capability |
 | Behaviour | 20% | An error list with remedies, what an empty result looks like, and non-obvious behaviour (case sensitivity, ordering, truncation, what gets rewritten) | Errors named without a remedy; an edge case the agent would have to discover by calling |
-| Parameters | 15% | The description adds what the schema cannot say: how parameters interact, what a value causes | See the first correction below |
-| Conciseness | 10% | Every sentence carries a fact the agent needs, stated once | See the third correction below |
+| Parameters | 15% | The description adds what the schema cannot say: how parameters interact, what a value causes | Description text that only restates the schema (the Parameters correction below sets the marks) |
+| Conciseness | 10% | Every sentence carries a fact the agent needs, stated once | A fact stated twice, never length alone (the Conciseness correction below) |
 | Completeness | 10% | The return shape with field names and the conditions under which each appears, limits, related tools | Return shape missing or vague; a limit the agent would hit unannounced |
 
 Three corrections. Apply them over the table:
@@ -154,9 +164,9 @@ Three corrections. Apply them over the table:
 
 Self-score: `0.25·Purpose + 0.20·Usage + 0.20·Behaviour + 0.15·Parameters +
 0.10·Conciseness + 0.10·Completeness`. Label it **"self-score, not a forecast"**
-every time you print it. A grader that re-reads a changed tool has usually landed
-within about half a point of its earlier score, and once 0.7 below, with no change
-its written reason names.
+every time you print it. A grader that scored a changed tool again has usually
+landed within about half a point of its earlier score. Once it landed 0.7 below,
+and its written reason named nothing that had changed.
 
 Source: the dimensions and weights are Glama's Tool Definition Quality Score. The
 corrections come from that grader's written reasons for one server's scores, read
@@ -207,9 +217,11 @@ dropped`). The count is how a reader sees the check ran.
 
 ### Duplicated fact
 
-- **Action:** for each `duplicationCandidates` entry with `preExisting: false`,
-  and each fact you saw stated in both the description and a schema description,
-  decide: a repetition to cut, or a constraint that belongs in both places. For a
+- **Action:** judge two sets of repetitions. The first is every
+  `duplicationCandidates` entry with `preExisting: false`. The second is every
+  fact you yourself saw stated in both the description and a schema description,
+  which the script misses when the two wordings differ. For each one, decide: a
+  repetition to cut, or a constraint that belongs in both places. For a
   repetition, say which side keeps it.
 - **Condition:** always, for tools in scope.
 - **Which side keeps it:** plain meaning (what the parameter is, its format, its
@@ -236,7 +248,8 @@ dropped`). The count is how a reader sees the check ran.
   the path from the handler to the line that produces the failure. Whether a rare
   failure deserves a bullet is the author's call; report it and say how rare the
   path looks.
-- **How to trace one tool:**
+- **How to trace one tool:** use the file tools (Read, Grep, Glob). The shell is
+  for the script only.
   1. Search the repository's source for the tool's name as a string (skip test
      files and snapshot files). The match is where the tool is registered, and its
      handler is beside it.
@@ -248,9 +261,10 @@ dropped`). The count is how a reader sees the check ran.
 - **If you cannot find the handler or cannot follow a call:** write `not traced`
   with the reason in the tool's entry. That tool's error check is unfinished, and
   the report is `partial`.
-- **NEVER write `not traced` because tracing is long.** Tracing is the check. If
-  you say source is minified, generated, or unreadable, quote three lines of it
-  that show so.
+- **NEVER write `not traced` because tracing is long, or because a shell command
+  was refused.** Tracing is the check, and it needs only the file tools. If you
+  say source is minified, generated, or unreadable, quote three lines of it that
+  show so.
 
 Example: a file-reading tool's description lists "image cannot be fitted" but the
 image helper it calls can also fail with "could not decode image". The second
@@ -329,12 +343,17 @@ Status: <complete | partial | failed>
 - When both reads ran but a check was skipped, keep its per-tool line and write
   `skipped` on it. Under a section whose check did not run, write
   `not run — <the missing input>`.
-- **The last two lines are written last, by counting.** Count the entries that say
-  `not reviewed` or `not traced`, and the entries that list a callee under
-  `not followed` without saying why that callee cannot return a failure to the
-  client. Write that number and those tools on the `Unfinished entries:` line.
-  The `Status:` line is `complete` ONLY when the number is 0. Any other number is
-  `partial`. `failed` is for a surface the script rejected.
+- **The last two lines are written last, by counting.** Count every entry that:
+  - says `not reviewed` or `not traced`;
+  - writes `skipped` on its `Errors:` line although a repository root was supplied;
+  - lists a callee under `not followed` and gives no reason that callee cannot
+    return a failure to the client. A `not followed` callee with such a reason
+    does not count.
+
+  Write that number and those tools on the `Unfinished entries:` line. The
+  `Status:` line is `complete` ONLY when the number is 0. Any other number is
+  `partial`. `failed` is for a surface the script rejected and for a script that
+  could not run.
 
   Wrong: twenty entries say `not traced`, and the report ends `Status: complete`.
   Right: `Unfinished entries: 20 — <the twenty names>` then `Status: partial`.
