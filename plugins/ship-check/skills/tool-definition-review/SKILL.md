@@ -39,7 +39,7 @@ whose input is missing is **skipped and listed as skipped**, never guessed at.
 | Intended tools | no | Names of the tools the change means to alter | No claim about intent |
 | Repository root | no | Where the server's source lives | Error-entry check skipped |
 | Grader results | no | A file of scores and written reasons from an external grader | Noise section skipped |
-| `Tools:` list | no | Names that limit which tools you review | Scope comes from the script |
+| `Review only:` list | no | Names that limit which tools you review in this dispatch. It is NOT the intended-tools list | Scope comes from the script |
 | `Pass:` line | no | `cold` or `diff` | Do both reads, cold first |
 
 A surface file is an object with a `tools` array, a bare array of tools, or a
@@ -98,7 +98,10 @@ them for their own review.
 ## Scope
 
 1. Run the script with `--names`. `inScope` is your list.
-2. If the dispatch has a `Tools:` line, review only those names.
+2. If the dispatch has a `Review only:` line, those names are your whole scope.
+   Review each of them fully, whether or not it is in the intended-tools list, and
+   review no other tool. The intended-tools list never changes your scope; it only
+   decides which changes the report calls unintended.
 3. Every tool in scope gets an entry in the report. A tool you did not reach is
    written `not reviewed`, and the report is `partial`. NEVER drop a tool silently
    and NEVER thin out the last tools to fit: stop, mark the rest `not reviewed`,
@@ -106,10 +109,11 @@ them for their own review.
 4. **One dispatch takes at most eight tools through the diff read.** The dropped-fact
    and error-entry checks need the old text, the new text, and the handler source
    for each tool, and a reviewer given 29 tools at once skipped the error check for
-   nearly all of them. With more than eight tools in scope and no `Tools:` line:
-   do the cold read for every tool, do the diff read for the first eight names in
-   `inScope`, write `not reviewed` on the diff lines of the rest, and report
-   `partial`. The dispatcher sends the rest as `Pass: diff` with a `Tools:` line.
+   nearly all of them. With more than eight tools in scope and no `Review only:`
+   line: do the cold read for every tool, do the diff read for the first eight
+   names in `inScope`, write `not reviewed` on the diff lines of the rest, and
+   report `partial`. The dispatcher sends the rest as `Pass: diff` with a
+   `Review only:` line.
 
 ## Read 1: cold read
 
@@ -224,7 +228,9 @@ dropped`). The count is how a reader sees the check ran.
   results the handler returns directly as well as errors it throws. Then report
   (a) each failure with no entry in the tool's description, and (b) each entry in
   the description that names a failure the handler cannot produce.
-- **Condition:** a repository root was supplied.
+- **Condition:** a repository root was supplied. Trace EVERY tool in scope. A tool
+  the change did not mean to touch still had its definition changed, so "this
+  change was unintended" is never a reason to skip its trace.
 - **Boundary:** count only failures reached from THAT tool's handler. A message
   found by searching the whole repository is not evidence. For each finding, give
   the path from the handler to the line that produces the failure. Whether a rare
@@ -260,6 +266,9 @@ message has no entry, and it is produced in a helper the change never touched.
   Read which, and apply that one. When the instructions name the file that holds
   the number, open that file. With no size rule, print sizes as information and
   report nothing about them.
+- **Before you write "no size rule":** search the instruction files for `size`,
+  `cap`, `allowance`, `budget`, and `chars`, and say in the `Skipped:` line that
+  the search found nothing.
 
 ## Grader noise
 
@@ -274,13 +283,13 @@ message has no entry, and it is produced in a helper the change never touched.
 ## Report format
 
 ```
-Tool definition review: <complete | partial | failed>
+Tool definition review
 - Read: <cold | diff | cold then diff in one dispatch (cold read kept apart by instruction only)>
 - Surfaces: current <path> (<commit, tag, or "as given">); base <path or none>
-- Inputs: intended tools <names | not stated>; repository root <path | none>; grader results <path | none>; tools limit <names | none>
+- Inputs: intended tools <names | not stated>; repository root <path | none>; grader results <path | none>; review only <names | not given>
 - Script: <ran | could not run: reason>
 - Files opened: <every file you read besides the surfaces>
-- Tools in scope: N (M reviewed)
+- Tools in scope: N
 - Other configurations that differ: <file: tools | not checked | none>
 
 Per tool
@@ -309,7 +318,8 @@ Grader noise
 
 Cleared: <a suspicion you checked> — <why it is not a defect>
 Skipped: <check> — <the input that was missing>
-Not reviewed: <tool names>      (partial reports only)
+Unfinished entries: <N> — <the tools marked not reviewed or not traced, or "none">
+Status: <complete | partial | failed>
 ```
 
 - In the Marks line, P is Purpose, U is Usage, B is Behaviour, Pa is Parameters,
@@ -319,10 +329,15 @@ Not reviewed: <tool names>      (partial reports only)
 - When both reads ran but a check was skipped, keep its per-tool line and write
   `skipped` on it. Under a section whose check did not run, write
   `not run — <the missing input>`.
-- **Set the status last, by counting.** Count the entries that say `not reviewed`
-  or `not traced`. If the count is above zero, the status is `partial` and the
-  `Not reviewed:` line names those tools. `complete` means every in-scope tool went
-  through every check whose input was supplied.
+- **The last two lines are written last, by counting.** Count the entries that say
+  `not reviewed` or `not traced`, and the entries that list a callee under
+  `not followed` without saying why that callee cannot return a failure to the
+  client. Write that number and those tools on the `Unfinished entries:` line.
+  The `Status:` line is `complete` ONLY when the number is 0. Any other number is
+  `partial`. `failed` is for a surface the script rejected.
+
+  Wrong: twenty entries say `not traced`, and the report ends `Status: complete`.
+  Right: `Unfinished entries: 20 — <the twenty names>` then `Status: partial`.
 - Write one `Cleared:` line for each suspicion you checked and dropped, and one
   `Skipped:` line for each check you did not run. A report with neither says
   nothing was looked at.
