@@ -93,6 +93,7 @@ jobs:
 
       - name: Build artifacts
         run: |
+          # Each plugin.json sits at ./plugins/<name>/.claude-plugin/plugin.json; two dirnames reach the plugin root.
           while IFS= read -r PLUGIN_JSON; do
             PLUGIN_DIR=$(dirname "$(dirname "$PLUGIN_JSON")")
             PLUGIN_NAME=$(basename "$PLUGIN_DIR")

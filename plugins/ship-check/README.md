@@ -10,12 +10,12 @@ on demand and is not a pipeline phase.
 
 | Agent | Phase | Color | Role |
 |-------|-------|-------|------|
-| `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (Tool Description Quality Score (TDQS), feature surface, stale paths) |
+| `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (Tool Definition Quality Score (TDQS), feature surface, stale paths) |
 | `fresh-eyes` | 2 | purple | Stranger read: every place a newcomer pauses, per function. Report only — no conventions, no edits, no history. Pauses feed into Phase 3. |
 | `code-quality-reviewer` | 3 | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. |
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
-| `tool-definition-reviewer` | on demand | orange | MCP tool definitions read as the client receives them: rubric marks, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
+| `tool-definition-reviewer` | on demand | orange | MCP tool definitions read as the client receives them: TDQS rubric marks, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
 
 Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
 and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
@@ -34,7 +34,8 @@ installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` and
 `tool-definition-reviewer` each preload only their own skill and use no MCP tools.
 
 The `tool-definition-review` skill bundles one script, `scripts/surface-diff.ts`.
-It has no dependencies and runs with [Bun](https://bun.sh).
+It has no dependencies and runs with [Bun](https://bun.sh). Without Bun the agent
+reports the review as `failed`.
 
 The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:
@@ -61,9 +62,10 @@ it needs the file list in its prompt:
 Agent({ subagent_type: "ship-check:fresh-eyes", prompt: "Read src/a.ts and src/b.ts at <sha> as a stranger..." })
 ```
 
-`tool-definition-reviewer` needs the tool list as a file: the JSON a client gets
-from `tools/list`, or a snapshot of it the project commits. Give it the file from
-before the change as well, when there is one:
+`tool-definition-reviewer` needs the tool list as a file (called a "surface" in the
+prompt): the JSON a client gets from the MCP `tools/list` method, or a snapshot the
+project commits to its repository. Give it the file from before the change as well,
+when there is one:
 
 ```
 Agent({ subagent_type: "ship-check:tool-definition-reviewer", prompt: "Current surface: /tmp/tools-now.json\nBase surface: /tmp/tools-before.json\nIntended tools: search_notes, read_note\nRepository root: /path/to/server" })

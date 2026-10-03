@@ -96,6 +96,7 @@ jobs:
 
       - name: Build artifacts
         run: |
+          # Each plugin.json sits at ./plugins/<name>/.claude-plugin/plugin.json; two dirnames reach the plugin root.
           while IFS= read -r PLUGIN_JSON; do
             PLUGIN_DIR=$(dirname "$(dirname "$PLUGIN_JSON")")
             PLUGIN_NAME=$(basename "$PLUGIN_DIR")
@@ -127,6 +128,7 @@ jobs:
           VERSION: ${{ steps.tag.outputs.version }}
         run: bash .github/scripts/update-changelog.sh "$VERSION" /tmp/release-notes.md
 
+      # The tag push runs on a detached HEAD, so the changelog commit is moved onto main.
       - name: Commit changelog update
         run: |
           git config user.name "github-actions[bot]"

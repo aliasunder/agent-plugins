@@ -15,6 +15,7 @@ export type Tool = {
   annotations: JsonObject | undefined
 }
 
+// `sections` holds the server's `instructions` and `prompts` entries (see SECTION_KEYS).
 export type Surface = { tools: Tool[]; sections: JsonObject }
 
 type Part = "description" | "inputSchema" | "outputSchema" | "title" | "annotations"
@@ -39,6 +40,7 @@ type SharedEdit = {
   tools: string[]
 }
 
+// `preExisting` is true when the base surface already had the same overlap, so the change did not introduce it.
 type Candidate = { tool: string; parameter: string; text: string; length: number; preExisting: boolean }
 
 type ParameterText = { parameter: string; text: string }
@@ -53,6 +55,7 @@ export type Report = {
   added: string[]
   removed: string[]
   unchanged: string[]
+  // Tools whose schemas differ only in JSON key order — same meaning, different serialisation.
   orderOnly: string[]
   inScope: string[]
   changes: ToolChange[]
@@ -211,6 +214,7 @@ const canonicalJson = (value: JsonValue | undefined): string => {
   return value === undefined ? "" : JSON.stringify(canonicalize(value))
 }
 
+// Same as `canonicalJson` but without sorting keys, so two tools that differ only in key order produce different strings.
 const wireJson = (value: JsonValue | undefined): string => (value === undefined ? "" : JSON.stringify(value))
 
 export const changedParts = (base: Tool, current: Tool): Part[] => {
@@ -328,7 +332,7 @@ export const parameterTexts = (schema: JsonValue | undefined, path = ""): Parame
 }
 
 const longestCommonSubstring = (left: string, right: string): string => {
-  // Dynamic programming over two rows; the three counters are overwritten as the table is scanned.
+  // Dynamic programming over two rows; bestLength/bestEnd track the winner so far.
   let bestLength = 0
   let bestEnd = 0
   let previousRow = new Uint32Array(right.length + 1)
@@ -364,7 +368,7 @@ export const commonSubstrings = (text: string, other: string): string[] => {
   const before = text.slice(0, start)
   const after = text.slice(start + longest.length)
 
-  // A phrase the text states twice is one repetition of `other`, so it is reported once.
+  // When the same substring appears twice in `text`, both halves produce it, so the Set keeps one copy.
   const overlaps = new Set([longest, ...commonSubstrings(before, other), ...commonSubstrings(after, other)])
   return [...overlaps].toSorted((leftText, rightText) => rightText.length - leftText.length)
 }

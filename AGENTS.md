@@ -74,9 +74,10 @@ SECURITY.md                  # Vulnerability reporting policy
 - **Plugin manifests** use semver versioning
 - Agent `tools:` fields are allowlists — omit to give all tools, list explicitly to restrict
 - Agent `skills:` preloads skill content from any installed plugin or `~/.claude/skills/`
-- **Bundled scripts** live in a skill's `scripts/` directory as dependency-free TypeScript
-  (`.ts`), run with Bun. Their tests live in `scripts/__tests__/`; run them with
-  `bun test plugins`. The release archives leave `__tests__` out.
+- **Bundled scripts** live in a skill's `scripts/` directory as TypeScript (`.ts`)
+  with no npm dependencies, run with Bun. Their tests (`*.test.ts` files) live in
+  `scripts/__tests__/`; run them with `bun test plugins` (`plugins` is the directory
+  Bun searches). The release archives leave `__tests__` out.
 
 ## Skill authoring
 
