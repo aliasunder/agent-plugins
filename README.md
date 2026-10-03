@@ -1,6 +1,6 @@
 # agent-plugins
 
-Personal plugin marketplace for Claude Code and Claude Cowork: review agents, workflow orchestrators, and specialized skills.
+Personal plugin marketplace for Claude Code and Claude Cowork — review agents, workflow orchestrators, and specialized skills.
 
 > [!NOTE]
 > **This is a personal workflow repo.** The plugins here are built around my
@@ -17,13 +17,13 @@ Personal plugin marketplace for Claude Code and Claude Cowork: review agents, wo
 | Plugin | Description |
 |--------|-------------|
 | [ship-check](plugins/ship-check/) | Post-implementation review pipeline: six dedicated review agents (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes, tool-definition-reviewer) plus eight skills: the pipeline orchestrator and one each for PR review, code quality, test audit, bug hunting, stranger reads, MCP tool-definition review, and PR monitoring |
-| [plan-check](plugins/plan-check/) | Pre-implementation plan review: a fresh-eyes agent (plan-reviewer) plus the plan-review skill, which covers premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, mechanism-cost proportionality, and verification-plan safety before any code exists |
+| [plan-check](plugins/plan-check/) | Pre-implementation plan review: a fresh-eyes agent (plan-reviewer) plus the plan-review skill — premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, mechanism-cost proportionality, and verification-plan safety before any code exists |
 
 ## Structure
 
-- **`.claude-plugin/marketplace.json`**: marketplace manifest listing all plugins
-- **`plugins/`**: the plugins themselves (agents, skills, manifests)
-- **`.github/workflows/`**: release automation, script tests (`test.yml`), and PR review (`umm_review.yml`)
+- **`.claude-plugin/marketplace.json`** — marketplace manifest listing all plugins
+- **`plugins/`** — the plugins themselves (agents, skills, manifests)
+- **`.github/workflows/`** — release automation, script tests (`test.yml`), and PR review (`umm_review.yml`)
 
 ## Installation
 

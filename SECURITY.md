@@ -2,7 +2,7 @@
 
 ## Scope
 
-This repository contains Claude Code plugins: agent and skill markdown files,
+This repository contains Claude Code plugins — agent and skill markdown files,
 JSON manifests, and shell-based CI workflows. There is no runtime server or
 compiled application code.
 
