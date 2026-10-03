@@ -16,6 +16,12 @@ on:
 permissions:
   contents: write
 
+# Two dispatches started together would compute the same next version and race on the push,
+# so a second run waits for the first.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
