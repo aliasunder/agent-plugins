@@ -130,6 +130,21 @@ describe("parseSurface", () => {
       message: 'test: tool "list_notes": "outputSchema" must be an object',
     },
     {
+      label: "a tool entry that is not an object",
+      input: { tools: ["not a tool"] },
+      message: "test: tool 1 is not an object",
+    },
+    {
+      label: "a non-string title",
+      input: { tools: [rawTool({ title: true })] },
+      message: 'test: tool "list_notes": "title" must be a string',
+    },
+    {
+      label: "non-object annotations",
+      input: { tools: [rawTool({ annotations: [1] })] },
+      message: 'test: tool "list_notes": "annotations" must be an object',
+    },
+    {
       label: "two tools with one name",
       input: { tools: [rawTool(), rawTool()] },
       message: 'test: two tools are named "list_notes"',
@@ -364,6 +379,53 @@ describe("compareSurfaces", () => {
       { name: "prompts", changed: false },
     ])
   })
+
+  it("marks a section present only in the base as changed", () => {
+    const base = surfaceOf([rawTool()], { instructions: "Read first." })
+    const current = surfaceOf([rawTool()])
+
+    assert.deepStrictEqual(compareSurfaces(base, current, PATHS).sections, [
+      { name: "instructions", changed: true },
+    ])
+  })
+
+  it("marks a section present only in the current as changed", () => {
+    const base = surfaceOf([rawTool()])
+    const current = surfaceOf([rawTool()], { prompts: [{ name: "daily" }] })
+
+    assert.deepStrictEqual(compareSurfaces(base, current, PATHS).sections, [
+      { name: "prompts", changed: true },
+    ])
+  })
+
+  it("includes outputSchema in the size total", () => {
+    const outputSchema = { type: "object", properties: { count: { type: "number" } } }
+    const report = compare(null, [rawTool({ outputSchema })])
+    const outputSchemaChars = JSON.stringify(outputSchema).length
+
+    assert.deepStrictEqual(report.sizes, [
+      {
+        name: "list_notes",
+        description: 11,
+        inputSchema: EMPTY_SCHEMA_CHARS,
+        outputSchema: outputSchemaChars,
+        total: 11 + EMPTY_SCHEMA_CHARS + outputSchemaChars,
+      },
+    ])
+  })
+})
+
+describe("findSharedEdits", () => {
+  it("keeps edits that touched only one tool out of the result", () => {
+    const report = compare(
+      [rawTool({ name: "read_note", description: "Read." })],
+      [rawTool({ name: "read_note", description: "Read a note." })],
+    )
+
+    assert.deepStrictEqual(report.sharedEdits, [])
+    // Verify the change was detected (the edit existed but was single-tool).
+    assert.deepStrictEqual(report.changed, ["read_note"])
+  })
 })
 
 describe("duplication candidates", () => {
@@ -417,6 +479,27 @@ describe("duplication candidates", () => {
       { parameter: "filters.tags[]", text: "One tag." },
       { parameter: "position", text: "Top or bottom." },
     ])
+  })
+
+  it("follows oneOf and allOf branches the same way as anyOf", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        mode: { oneOf: [{ type: "string", description: "Named mode." }] },
+        spec: { allOf: [{ description: "Base constraints." }, { description: "Extended constraints." }] },
+      },
+    }
+
+    assert.deepStrictEqual(parameterTexts(schema), [
+      { parameter: "mode", text: "Named mode." },
+      { parameter: "spec", text: "Base constraints." },
+      { parameter: "spec", text: "Extended constraints." },
+    ])
+  })
+
+  it("returns nothing when the schema is not an object", () => {
+    assert.deepStrictEqual(parameterTexts("not a schema"), [])
+    assert.deepStrictEqual(parameterTexts(undefined), [])
   })
 
   it("labels an overlap the base already had and still reports a new one in the same parameter", () => {
@@ -668,6 +751,59 @@ describe("command line", () => {
       status: 2,
       stdout: "",
       stderr: "--variants lists other configurations; it cannot be combined with --base\n",
+    })
+  })
+
+  it("exits 2 when --show is combined with --variants", () => {
+    const current = writeSurface("show-variants.json", [rawTool()])
+
+    assert.deepStrictEqual(runScript(["--current", current, "--variants", current, "--show", "list_notes"]), {
+      status: 2,
+      stdout: "",
+      stderr: "--show prints tools from --current; it cannot be combined with --base or --variants\n",
+    })
+  })
+
+  it("exits 2 with usage when an unknown flag is passed", () => {
+    assert.deepStrictEqual(runScript(["--bogus"]), {
+      status: 2,
+      stdout: "",
+      stderr: `Unknown option '--bogus'\n${USAGE}\n`,
+    })
+  })
+
+  it("prints a full report with --current and --base", () => {
+    const base = writeSurface("full-base.json", [rawTool()])
+    const current = writeSurface("full-current.json", [rawTool({ description: "List every note." })])
+
+    const { status, stdout, stderr } = runScript(["--current", current, "--base", base])
+    const output = JSON.parse(stdout)
+
+    assert.deepStrictEqual(
+      { status, stderr, current: output.current, base: output.base, changed: output.changed },
+      { status: 0, stderr: "", current, base, changed: ["list_notes"] },
+    )
+  })
+
+  it("prints a full report with --current only", () => {
+    const current = writeSurface("solo-current.json", [rawTool()])
+
+    const { status, stdout, stderr } = runScript(["--current", current])
+    const output = JSON.parse(stdout)
+
+    assert.deepStrictEqual(
+      { status, stderr, current: output.current, base: output.base, inScope: output.inScope },
+      { status: 0, stderr: "", current, base: null, inScope: ["list_notes"] },
+    )
+  })
+
+  it("exits 2 when --show names a tool the file does not hold", () => {
+    const current = writeSurface("show-missing.json", [rawTool()])
+
+    assert.deepStrictEqual(runScript(["--current", current, "--show", "no_such_tool"]), {
+      status: 2,
+      stdout: "",
+      stderr: `${current}: no tool named "no_such_tool"\n`,
     })
   })
 })
