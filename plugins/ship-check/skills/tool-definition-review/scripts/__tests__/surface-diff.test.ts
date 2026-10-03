@@ -390,6 +390,14 @@ describe("duplication candidates", () => {
     assert.deepStrictEqual(commonSubstrings(`x${repeated}y${repeated}`, `${repeated}z`), [repeated])
   })
 
+  it("drops a candidate that reaches the threshold only by counting a neighbouring space", () => {
+    const report = compare(null, [
+      rawTool({ description: `3 ${overlapOf(39)}4`, inputSchema: pathSchema(`1 ${overlapOf(39)}2`) }),
+    ])
+
+    assert.deepStrictEqual(report.duplicationCandidates, [])
+  })
+
   it("finds described parameters in nested properties, items, and anyOf branches", () => {
     const schema = {
       type: "object",

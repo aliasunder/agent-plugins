@@ -382,18 +382,19 @@ const findCandidates = (tool: Tool, base: Tool | undefined): Candidate[] => {
   }
 
   return parameterTexts(tool.inputSchema).flatMap(({ parameter, text }) => {
-    return commonSubstrings(collapseWhitespace(text), description).map((overlap) => {
-      // An overlap that only gained a neighbouring space is the same repetition the base had.
-      const trimmedOverlap = overlap.trim()
+    // A trimmed overlap matches the base's repetition even when the change added a space beside it.
+    // The threshold is checked again because trimming can shorten an overlap below it.
+    const overlaps = commonSubstrings(collapseWhitespace(text), description)
+      .map((overlap) => overlap.trim())
+      .filter((overlap) => overlap.length >= MIN_OVERLAP_CHARS)
 
-      return {
-        tool: tool.name,
-        parameter,
-        text: trimmedOverlap,
-        length: trimmedOverlap.length,
-        preExisting: baseRepeated(parameter, trimmedOverlap),
-      }
-    })
+    return overlaps.map((overlap) => ({
+      tool: tool.name,
+      parameter,
+      text: overlap,
+      length: overlap.length,
+      preExisting: baseRepeated(parameter, overlap),
+    }))
   })
 }
 
