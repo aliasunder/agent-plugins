@@ -99,13 +99,14 @@ jobs:
 
             echo "Building $PLUGIN_NAME.zip..."
             (cd "$PLUGIN_DIR" && zip -r "$GITHUB_WORKSPACE/${PLUGIN_NAME}.zip" . \
-              -x "evals/*" "dist/*" ".gitignore")
+              -x "evals/*" "dist/*" ".gitignore" "*/__tests__/*")
 
             for SKILL_DIR in "$PLUGIN_DIR"/skills/*/; do
               [ -d "$SKILL_DIR" ] || continue
               SKILL_NAME=$(basename "$SKILL_DIR")
               echo "Building $SKILL_NAME.skill..."
-              (cd "$PLUGIN_DIR/skills" && zip -r "$GITHUB_WORKSPACE/${SKILL_NAME}.skill" "$SKILL_NAME/")
+              (cd "$PLUGIN_DIR/skills" && zip -r "$GITHUB_WORKSPACE/${SKILL_NAME}.skill" "$SKILL_NAME/" \
+                -x "*/__tests__/*")
             done
           done < <(find . -path '*/.claude-plugin/plugin.json' -not -path './.claude-plugin/*')
 
