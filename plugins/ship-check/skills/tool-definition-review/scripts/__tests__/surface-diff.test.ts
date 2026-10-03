@@ -244,6 +244,18 @@ describe("compareSurfaces", () => {
     })
   })
 
+  it("reports a removed line when a description loses one of two identical lines", () => {
+    const report = compare(
+      [rawTool({ description: "List notes.\n- repeated\n- repeated" })],
+      [rawTool({ description: "List notes.\n- repeated" })],
+    )
+
+    assert.deepStrictEqual(
+      report.changes.map((change) => change.descriptionLines),
+      [{ added: [], removed: ["- repeated"] }],
+    )
+  })
+
   it("keeps a key-order-only change out of scope and marks it order-only", () => {
     const base = rawTool({ inputSchema: { type: "object", properties: {} } })
     const reordered = rawTool({ inputSchema: { properties: {}, type: "object" } })
@@ -477,6 +489,17 @@ describe("duplication candidates", () => {
     ])
 
     assert.deepStrictEqual(report.duplicationCandidates, [])
+  })
+
+  it("leaves half of a two-unit character out of a candidate's text", () => {
+    // 😀 and 🨀 share their second code unit, and 😀 and 😁 share their first, so the raw overlap starts and ends mid-character.
+    const report = compare(null, [
+      rawTool({ description: `🨀${overlapOf(40)}😀`, inputSchema: pathSchema(`😀${overlapOf(40)}😁`) }),
+    ])
+
+    assert.deepStrictEqual(report.duplicationCandidates, [
+      { tool: "list_notes", parameter: "path", text: overlapOf(40), length: 40, preExisting: false },
+    ])
   })
 
   it("finds described parameters in nested properties, items, and anyOf branches", () => {

@@ -93,6 +93,9 @@ const SENTENCE_BOUNDARY = /(?<=[.!?])\s+/
 // Any run of spaces, tabs, or newlines.
 const WHITESPACE_RUN = /\s+/g
 
+// Overlaps are cut by UTF-16 code unit, so an edge can hold one half of a two-unit character such as an emoji.
+const HALF_CHARACTER_AT_EDGE = /^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/g
+
 const USAGE = [
   "Usage: surface-diff.ts --current <file> [--base <file>] [--names]",
   "       surface-diff.ts --current <file> --variants <file> [--variants <file> ...]",
@@ -261,13 +264,28 @@ const schemaSentences = (tool: Tool): string[] => {
   return descriptions.flatMap((description) => nonEmptyTrimmed(description.split(SENTENCE_BOUNDARY)))
 }
 
+const countCopies = (texts: string[]): Map<string, number> => {
+  const copies = new Map<string, number>()
+
+  for (const text of texts) {
+    copies.set(text, (copies.get(text) ?? 0) + 1)
+  }
+
+  return copies
+}
+
+const textsWithMoreCopies = (copies: Map<string, number>, thanIn: Map<string, number>): string[] => {
+  return [...copies.keys()].filter((text) => (copies.get(text) ?? 0) > (thanIn.get(text) ?? 0))
+}
+
+/** Compares how many copies of each text there are, so losing one of two identical lines is still a removal. Each text is listed once. */
 const textChange = (before: string[], after: string[]): TextChange => {
-  const beforeSet = new Set(before)
-  const afterSet = new Set(after)
+  const copiesBefore = countCopies(before)
+  const copiesAfter = countCopies(after)
 
   return {
-    added: [...afterSet].filter((text) => !beforeSet.has(text)),
-    removed: [...beforeSet].filter((text) => !afterSet.has(text)),
+    added: textsWithMoreCopies(copiesAfter, copiesBefore),
+    removed: textsWithMoreCopies(copiesBefore, copiesAfter),
   }
 }
 
@@ -386,10 +404,11 @@ const findCandidates = (tool: Tool, base: Tool | undefined): Candidate[] => {
   }
 
   return parameterTexts(tool.inputSchema).flatMap(({ parameter, text }) => {
-    // A trimmed overlap matches the base's repetition even when the change added a space beside it.
-    // The threshold is checked again because trimming can shorten an overlap below it.
+    // An overlap loses a half character and the spaces at its edges, so it matches the base's
+    // repetition even when the change added a space beside it. The threshold is checked again
+    // because that trimming can shorten an overlap below it.
     const overlaps = commonSubstrings(collapseWhitespace(text), description)
-      .map((overlap) => overlap.trim())
+      .map((overlap) => overlap.replace(HALF_CHARACTER_AT_EDGE, "").trim())
       .filter((overlap) => overlap.length >= MIN_OVERLAP_CHARS)
 
     return overlaps.map((overlap) => ({
