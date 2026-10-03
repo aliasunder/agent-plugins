@@ -70,3 +70,12 @@ when there is one:
 ```
 Agent({ subagent_type: "ship-check:tool-definition-reviewer", prompt: "Current surface: /tmp/tools-now.json\nBase surface: /tmp/tools-before.json\nIntended tools: search_notes, read_note\nRepository root: /path/to/server" })
 ```
+
+Only `Current surface` is required. Each other line unlocks checks:
+
+- `Base surface` is the same file from before the change. Without it the agent
+  reviews every tool and skips the checks that compare the two files.
+- `Intended tools` names the tools the change means to alter. The agent reports a
+  changed tool outside this list as an unintended change.
+- `Repository root` is where the server's source lives. The agent traces each
+  tool's handler there to find failures the description does not list.

@@ -77,7 +77,8 @@ SECURITY.md                  # Vulnerability reporting policy
 - **Bundled scripts** live in a skill's `scripts/` directory as TypeScript (`.ts`)
   with no npm dependencies, run with Bun. Their tests (`*.test.ts` files) live in
   `scripts/__tests__/`; run them with `bun test plugins` (`plugins` is the directory
-  Bun searches). The release archives leave `__tests__` out.
+  Bun searches). The release archives leave `__tests__` out, through the `-x`
+  patterns on the `zip` commands in both release workflows.
 
 ## Skill authoring
 
