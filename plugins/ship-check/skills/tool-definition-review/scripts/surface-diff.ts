@@ -536,7 +536,7 @@ export const showTools = (surface: Surface, names: string[], label: string): str
     const tool = toolsByName.get(name)
 
     if (!tool) {
-      throw new InputError(`${label}: no tool named "${name}"`)
+      throw new InputError(`${label}: no tool named ${JSON.stringify(name)}`)
     }
 
     return formatTool(tool)
