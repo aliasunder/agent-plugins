@@ -16,14 +16,14 @@ Personal plugin marketplace for Claude Code and Claude Cowork — review agents,
 
 | Plugin | Description |
 |--------|-------------|
-| [ship-check](plugins/ship-check/) | Post-implementation review pipeline: five dedicated review agents (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes) plus seven skills covering PR review, code quality, test audit, bug hunting, stranger reads, and PR monitoring |
+| [ship-check](plugins/ship-check/) | Post-implementation review pipeline: six dedicated review agents (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes, tool-definition-reviewer) plus eight skills covering PR review, code quality, test audit, bug hunting, stranger reads, MCP tool-definition review, and PR monitoring |
 | [plan-check](plugins/plan-check/) | Pre-implementation plan review: a fresh-eyes agent (plan-reviewer) plus the plan-review skill — premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, mechanism-cost proportionality, and verification-plan safety before any code exists |
 
 ## Structure
 
 - **`.claude-plugin/marketplace.json`** — marketplace manifest listing all plugins
 - **`plugins/`** — the plugins themselves (agents, skills, manifests)
-- **`.github/workflows/`** — release automation and PR review (`umm_review.yml`)
+- **`.github/workflows/`** — release automation, script tests (`test.yml`), and PR review (`umm_review.yml`)
 
 ## Installation
 

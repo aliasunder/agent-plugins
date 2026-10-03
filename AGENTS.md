@@ -16,6 +16,7 @@ that bundle agents, skills, commands, and hooks as distributable packages.
   workflows/
     auto_release.yml          # v* tag push → validate versions, build artifacts, GitHub release
     manual_release.yml        # workflow_dispatch → bump version, tag, build, release
+    test.yml                  # push to main and PRs → run the bundled scripts' tests
     umm_review.yml            # PR review via umm-actually (configurable via repo variables)
   scripts/                    # Shared release-note and changelog helpers
 plugins/
@@ -28,6 +29,7 @@ plugins/
       test-auditor.md
       bug-checker.md
       fresh-eyes.md           # Phase 2 — stranger read, report only
+      tool-definition-reviewer.md  # On demand — MCP tool definitions, report only
     skills/                   # Skills (SKILL.md in subdirectories)
       ship-check/             # Pipeline orchestrator
       pr-review/              # Phase 1 — correctness, security, conditional checks
@@ -36,6 +38,8 @@ plugins/
       test-audit/             # Phase 4 — test quality + coverage gaps
       bug-check/              # Phase 5 — systematic bug hunt
       pr-monitor/             # Phase 6 — CI, bot comments, merge readiness
+      tool-definition-review/ # On demand — MCP tool-definition review (report only)
+        scripts/              # surface-diff.mts and its __tests__/
     README.md
   plan-check/                 # Pre-implementation plan review plugin
     .claude-plugin/
@@ -70,6 +74,10 @@ SECURITY.md                  # Vulnerability reporting policy
 - **Plugin manifests** use semver versioning
 - Agent `tools:` fields are allowlists — omit to give all tools, list explicitly to restrict
 - Agent `skills:` preloads skill content from any installed plugin or `~/.claude/skills/`
+- **Bundled scripts** live in a skill's `scripts/` directory as dependency-free TypeScript
+  (`.mts`, erasable syntax only), runnable with Node 22.18+ or Bun. Their tests live in
+  `scripts/__tests__/` and use `node:test`; run them with
+  `node --test "plugins/**/__tests__/*.test.mts"`. The release archives leave `__tests__` out.
 
 ## Skill authoring
 

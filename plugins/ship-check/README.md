@@ -1,9 +1,10 @@
 # ship-check
 
 Dedicated review agents for the ship-check pipeline. Each agent approaches the
-codebase without prior context and returns structured findings. The five phase
+codebase without prior context and returns structured findings. The four phase
 agents that load conventions do so independently; `fresh-eyes` (Phase 2)
-deliberately loads none.
+deliberately loads none. A sixth agent, `tool-definition-reviewer`, is dispatched
+on demand and is not a pipeline phase.
 
 ## Agents
 
@@ -14,20 +15,28 @@ deliberately loads none.
 | `code-quality-reviewer` | 3 | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. |
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
+| `tool-definition-reviewer` | on demand | orange | MCP tool definitions read as the client receives them: rubric marks, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
 
 Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
 and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
 standalone to see what a newcomer experiences without the pipeline.
 
+`tool-definition-reviewer` is not dispatched by the pipeline. Dispatch it yourself
+when a change touches an MCP server's tool descriptions or input schemas.
+
 ## External Dependencies
 
 Each agent preloads skills via `skills:` frontmatter. The `pr-review`,
-`code-quality`, `test-audit`, `bug-check`, and `fresh-eyes` skills are bundled in
-this plugin; [fable-mode](https://github.com/mrtooher/fable-mode) is external and
-must be installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` preloads
-only its own skill and uses no MCP tools.
+`code-quality`, `test-audit`, `bug-check`, `fresh-eyes`, and
+`tool-definition-review` skills are bundled in this plugin;
+[fable-mode](https://github.com/mrtooher/fable-mode) is external and must be
+installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` and
+`tool-definition-reviewer` each preload only their own skill and use no MCP tools.
 
-The convention-loading phase agents (all except `fresh-eyes`) also use MCP tools
+The `tool-definition-review` skill bundles one script, `scripts/surface-diff.mts`.
+It has no dependencies and needs Node 22.18 or later, or Bun.
+
+The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:
 
 - `vault_get_memory` ([vault-cortex](https://github.com/aliasunder/vault-cortex) MCP) — user preferences
@@ -50,4 +59,12 @@ it needs the file list in its prompt:
 
 ```
 Agent({ subagent_type: "ship-check:fresh-eyes", prompt: "Read src/a.ts and src/b.ts at <sha> as a stranger..." })
+```
+
+`tool-definition-reviewer` needs the tool list as a file: the JSON a client gets
+from `tools/list`, or a snapshot of it the project commits. Give it the file from
+before the change as well, when there is one:
+
+```
+Agent({ subagent_type: "ship-check:tool-definition-reviewer", prompt: "Current surface: /tmp/tools-now.json\nBase surface: /tmp/tools-before.json\nIntended tools: search_notes, read_note\nRepository root: /path/to/server" })
 ```
