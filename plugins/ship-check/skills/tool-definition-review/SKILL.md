@@ -14,8 +14,7 @@ description: >
   the code beyond its error list (use bug-check), or README and docs prose (use
   code-quality).
 allowed-tools:
-  - Bash(node ${CLAUDE_SKILL_DIR}/scripts/surface-diff.mts *)
-  - Bash(bun ${CLAUDE_SKILL_DIR}/scripts/surface-diff.mts *)
+  - Bash(bun ${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts *)
 ---
 
 # Tool Definition Review
@@ -48,25 +47,25 @@ JSON-RPC response whose `result` holds `tools`. It must hold the whole list.
 
 ## The script
 
-`surface-diff.mts` does the comparisons that have one right answer. Its output is
-**candidates and facts, never findings**: you decide what is a defect.
+`surface-diff.ts` does the comparisons that have one right answer. Its output is
+**candidates and facts, never findings**: you decide what is a defect. Run it with
+Bun:
 
 ```
-node "${CLAUDE_SKILL_DIR}/scripts/surface-diff.mts" --current <current> --base <base> --names
-node "${CLAUDE_SKILL_DIR}/scripts/surface-diff.mts" --current <current> --base <base>
-node "${CLAUDE_SKILL_DIR}/scripts/surface-diff.mts" --current <current> --variants <other-file> [--variants <other-file> ...]
-node "${CLAUDE_SKILL_DIR}/scripts/surface-diff.mts" --current <file> --show <tool> [--show <tool> ...]
+bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <current> --base <base> --names
+bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <current> --base <base>
+bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <current> --variants <other-file> [--variants <other-file> ...]
+bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show <tool> [--show <tool> ...]
 ```
 
 - If `${CLAUDE_SKILL_DIR}` appears above as literal text, the script is at
-  `scripts/surface-diff.mts` beside this `SKILL.md`. Use that path.
-- It needs Node 22.18 or later, or Bun (`bun` in place of `node`).
+  `scripts/surface-diff.ts` beside this `SKILL.md`. Use that path.
 - Omit `--base` when you have no base file.
 - **Exit code 2** means the file is not a usable tool list, and the reason is on
   standard error. Report the review as `failed` with that reason. Do NOT review a
   file the script rejects.
-- If neither `node` nor `bun` exists, say so in the report's `Script:` line and
-  compare the two files by reading them.
+- If `bun` is not installed, say so in the report's `Script:` line and compare
+  the two files by reading them.
 
 | Output field | Meaning |
 |---|---|

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { readFileSync, realpathSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { parseArgs } from "node:util"
@@ -90,9 +90,9 @@ const SENTENCE_BOUNDARY = /(?<=[.!?])\s+/
 const WHITESPACE_RUN = /\s+/g
 
 const USAGE = [
-  "Usage: surface-diff.mts --current <file> [--base <file>] [--names]",
-  "       surface-diff.mts --current <file> --variants <file> [--variants <file> ...]",
-  "       surface-diff.mts --current <file> --show <tool> [--show <tool> ...]",
+  "Usage: surface-diff.ts --current <file> [--base <file>] [--names]",
+  "       surface-diff.ts --current <file> --variants <file> [--variants <file> ...]",
+  "       surface-diff.ts --current <file> --show <tool> [--show <tool> ...]",
 ].join("\n")
 
 const isJsonObject = (value: unknown): value is JsonObject => {
@@ -110,15 +110,21 @@ const optionalObject = (value: unknown, field: string, where: string): JsonObjec
 }
 
 const parseTool = (value: unknown, position: number, label: string): Tool => {
-  if (!isJsonObject(value)) throw new InputError(`${label}: tool ${position} is not an object`)
+  if (!isJsonObject(value)) {
+    throw new InputError(`${label}: tool ${position} is not an object`)
+  }
 
   const { name, inputSchema } = value
+
   if (typeof name !== "string" || !name) {
     throw new InputError(`${label}: tool ${position} has no string "name"`)
   }
 
   const where = `${label}: tool "${name}"`
-  if (!isJsonObject(inputSchema)) throw new InputError(`${where}: "inputSchema" must be an object`)
+
+  if (!isJsonObject(inputSchema)) {
+    throw new InputError(`${where}: "inputSchema" must be an object`)
+  }
 
   return {
     name,
@@ -153,8 +159,12 @@ export const parseSurface = (parsed: unknown, label: string): Surface => {
   const tools = rawTools.map((rawTool, index) => parseTool(rawTool, index + 1, label))
 
   const seenNames = new Set<string>()
+
   for (const { name } of tools) {
-    if (seenNames.has(name)) throw new InputError(`${label}: two tools are named "${name}"`)
+    if (seenNames.has(name)) {
+      throw new InputError(`${label}: two tools are named "${name}"`)
+    }
+
     seenNames.add(name)
   }
 
@@ -183,8 +193,13 @@ const loadSurface = (path: string): Surface => parseSurface(parseJson(readText(p
 
 /** Sorts object keys at every depth, so schemas that differ only in key order serialise alike. Array order is kept, because it is part of a schema's meaning. */
 const canonicalize = (value: JsonValue): JsonValue => {
-  if (Array.isArray(value)) return value.map(canonicalize)
-  if (!isJsonObject(value)) return value
+  if (Array.isArray(value)) {
+    return value.map(canonicalize)
+  }
+
+  if (!isJsonObject(value)) {
+    return value
+  }
 
   const sortedEntries = Object.entries(value).toSorted(([leftKey], [rightKey]) => (leftKey < rightKey ? -1 : 1))
   return Object.fromEntries(sortedEntries.map(([key, child]) => [key, canonicalize(child)]))
@@ -224,8 +239,13 @@ const nonEmptyTrimmed = (texts: string[]): string[] => texts.map((text) => text.
 const descriptionLines = (tool: Tool): string[] => nonEmptyTrimmed(descriptionOf(tool).split("\n"))
 
 const collectDescriptions = (schema: JsonValue | undefined): string[] => {
-  if (Array.isArray(schema)) return schema.flatMap(collectDescriptions)
-  if (!isJsonObject(schema)) return []
+  if (Array.isArray(schema)) {
+    return schema.flatMap(collectDescriptions)
+  }
+
+  if (!isJsonObject(schema)) {
+    return []
+  }
 
   const own = typeof schema.description === "string" ? [schema.description] : []
   return [...own, ...Object.values(schema).flatMap(collectDescriptions)]
@@ -336,6 +356,7 @@ const longestCommonSubstring = (left: string, right: string): string => {
 /** Every non-overlapping stretch of `text`, at least MIN_OVERLAP_CHARS long, that also appears in `other`. Longest first. */
 export const commonSubstrings = (text: string, other: string): string[] => {
   const longest = longestCommonSubstring(text, other)
+
   if (longest.length < MIN_OVERLAP_CHARS) return []
 
   const start = text.indexOf(longest)
@@ -429,6 +450,7 @@ const listVariant = (current: Surface, file: string, variant: Surface): VariantL
 
   const differing = current.tools.flatMap((tool) => {
     const variantTool = variantByName.get(tool.name)
+
     if (!variantTool) return []
 
     const parts = changedParts(tool, variantTool)
@@ -472,22 +494,15 @@ export const showTools = (surface: Surface, names: string[], label: string): str
 
   const shown = names.map((name) => {
     const tool = toolsByName.get(name)
-    if (!tool) throw new InputError(`${label}: no tool named "${name}"`)
+
+    if (!tool) {
+      throw new InputError(`${label}: no tool named "${name}"`)
+    }
 
     return formatTool(tool)
   })
 
   return shown.join("\n\n")
-}
-
-const assertSupportedRuntime = () => {
-  if (process.versions.bun) return
-
-  // Node strips TypeScript types without a flag from 22.18.
-  const [major = 0, minor = 0] = process.versions.node.split(".").map(Number)
-  if (major > 22 || (major === 22 && minor >= 18)) return
-
-  throw new InputError(`surface-diff needs Node 22.18 or later, or Bun; this is Node ${process.versions.node}`)
 }
 
 const readArguments = (argv: string[]) => {
@@ -512,10 +527,11 @@ const readArguments = (argv: string[]) => {
 const toJson = (value: unknown): string => JSON.stringify(value, null, 2)
 
 const run = (argv: string[]): string => {
-  assertSupportedRuntime()
-
   const { current: currentPath, base: basePath, names, variants = [], show = [] } = readArguments(argv)
-  if (!currentPath) throw new InputError(USAGE)
+
+  if (!currentPath) {
+    throw new InputError(USAGE)
+  }
 
   const current = loadSurface(currentPath)
 
@@ -528,7 +544,9 @@ const run = (argv: string[]): string => {
   }
 
   if (variants.length > 0) {
-    if (basePath) throw new InputError("--variants lists other configurations; it cannot be combined with --base")
+    if (basePath) {
+      throw new InputError("--variants lists other configurations; it cannot be combined with --base")
+    }
 
     const loadedVariants = variants.map((file) => ({ file, surface: loadSurface(file) }))
     return toJson({ current: currentPath, variants: listVariants(current, loadedVariants) })
@@ -536,7 +554,10 @@ const run = (argv: string[]): string => {
 
   const base = basePath ? loadSurface(basePath) : null
   const report = compareSurfaces(base, current, { base: basePath ?? null, current: currentPath })
-  if (!names) return toJson(report)
+
+  if (!names) {
+    return toJson(report)
+  }
 
   const { changed, added, removed, unchanged, orderOnly, inScope } = report
   return toJson({ changed, added, removed, unchanged, orderOnly, inScope })
@@ -555,4 +576,7 @@ const main = () => {
 
 // The plugin cache reaches this file through a symlink, so the two paths are compared after resolving links.
 const invokedPath = process.argv[1]
-if (invokedPath && realpathSync(invokedPath) === realpathSync(fileURLToPath(import.meta.url))) main()
+
+if (invokedPath && realpathSync(invokedPath) === realpathSync(fileURLToPath(import.meta.url))) {
+  main()
+}

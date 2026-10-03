@@ -15,14 +15,14 @@ import {
   parameterTexts,
   parseSurface,
   showTools,
-} from "../surface-diff.mts"
+} from "../surface-diff.ts"
 
-const SCRIPT_PATH = fileURLToPath(new URL("../surface-diff.mts", import.meta.url))
+const SCRIPT_PATH = fileURLToPath(new URL("../surface-diff.ts", import.meta.url))
 
 const USAGE = [
-  "Usage: surface-diff.mts --current <file> [--base <file>] [--names]",
-  "       surface-diff.mts --current <file> --variants <file> [--variants <file> ...]",
-  "       surface-diff.mts --current <file> --show <tool> [--show <tool> ...]",
+  "Usage: surface-diff.ts --current <file> [--base <file>] [--names]",
+  "       surface-diff.ts --current <file> --variants <file> [--variants <file> ...]",
+  "       surface-diff.ts --current <file> --show <tool> [--show <tool> ...]",
 ].join("\n")
 
 // '{"type":"object","properties":{}}' is 33 characters and "List notes." is 11.
@@ -51,7 +51,11 @@ const surfaceOf = (tools: unknown[], sections: Record<string, unknown> = {}) => 
 
 const parsedTool = (overrides: Record<string, unknown> = {}) => {
   const [tool] = surfaceOf([rawTool(overrides)]).tools
-  if (!tool) throw new Error("surfaceOf returned no tool")
+
+  if (!tool) {
+    throw new Error("surfaceOf returned no tool")
+  }
+
   return tool
 }
 

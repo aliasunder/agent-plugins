@@ -39,7 +39,7 @@ plugins/
       bug-check/              # Phase 5 — systematic bug hunt
       pr-monitor/             # Phase 6 — CI, bot comments, merge readiness
       tool-definition-review/ # On demand — MCP tool-definition review (report only)
-        scripts/              # surface-diff.mts and its __tests__/
+        scripts/              # surface-diff.ts and its __tests__/
     README.md
   plan-check/                 # Pre-implementation plan review plugin
     .claude-plugin/
@@ -75,9 +75,8 @@ SECURITY.md                  # Vulnerability reporting policy
 - Agent `tools:` fields are allowlists — omit to give all tools, list explicitly to restrict
 - Agent `skills:` preloads skill content from any installed plugin or `~/.claude/skills/`
 - **Bundled scripts** live in a skill's `scripts/` directory as dependency-free TypeScript
-  (`.mts`, erasable syntax only), runnable with Node 22.18+ or Bun. Their tests live in
-  `scripts/__tests__/` and use `node:test`; run them with
-  `node --test "plugins/**/__tests__/*.test.mts"`. The release archives leave `__tests__` out.
+  (`.ts`), run with Bun. Their tests live in `scripts/__tests__/`; run them with
+  `bun test plugins`. The release archives leave `__tests__` out.
 
 ## Skill authoring
 

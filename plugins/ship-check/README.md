@@ -33,8 +33,8 @@ Each agent preloads skills via `skills:` frontmatter. The `pr-review`,
 installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` and
 `tool-definition-reviewer` each preload only their own skill and use no MCP tools.
 
-The `tool-definition-review` skill bundles one script, `scripts/surface-diff.mts`.
-It has no dependencies and needs Node 22.18 or later, or Bun.
+The `tool-definition-review` skill bundles one script, `scripts/surface-diff.ts`.
+It has no dependencies and runs with [Bun](https://bun.sh).
 
 The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:
