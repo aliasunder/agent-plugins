@@ -55,7 +55,7 @@ export type Report = {
   added: string[]
   removed: string[]
   unchanged: string[]
-  // Tools whose schemas differ only in JSON key order — same meaning, different serialisation.
+  // Tools whose schemas or annotations differ only in JSON key order: same meaning, different serialisation.
   orderOnly: string[]
   inScope: string[]
   changes: ToolChange[]
@@ -548,16 +548,16 @@ const run = (argv: string[]): string => {
   const current = loadSurface(currentPath)
 
   if (show.length > 0) {
-    if (basePath || variants.length > 0) {
-      throw new InputError("--show prints tools from --current; it cannot be combined with --base or --variants")
+    if (basePath || names || variants.length > 0) {
+      throw new InputError("--show prints tools from --current; it cannot be combined with --base, --names, or --variants")
     }
 
     return showTools(current, show, currentPath)
   }
 
   if (variants.length > 0) {
-    if (basePath) {
-      throw new InputError("--variants lists other configurations; it cannot be combined with --base")
+    if (basePath || names) {
+      throw new InputError("--variants lists other configurations; it cannot be combined with --base or --names")
     }
 
     const loadedVariants = variants.map((file) => ({ file, surface: loadSurface(file) }))

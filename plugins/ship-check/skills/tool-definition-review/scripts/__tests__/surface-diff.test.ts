@@ -31,6 +31,24 @@ const LIST_NOTES_CHARS = 11 + EMPTY_SCHEMA_CHARS
 
 const PATHS = { base: "base.json", current: "current.json" }
 
+// Every field of the full report, in the order the script prints them. `--names` prints six of them.
+const REPORT_FIELDS = [
+  "current",
+  "base",
+  "changed",
+  "added",
+  "removed",
+  "unchanged",
+  "orderOnly",
+  "inScope",
+  "changes",
+  "sizes",
+  "totalSize",
+  "sharedEdits",
+  "sections",
+  "duplicationCandidates",
+]
+
 const emptySchema = () => ({ type: "object", properties: {} })
 
 const pathSchema = (description: string) => ({
@@ -422,9 +440,10 @@ describe("findSharedEdits", () => {
       [rawTool({ name: "read_note", description: "Read a note." })],
     )
 
-    assert.deepStrictEqual(report.sharedEdits, [])
-    // Verify the change was detected (the edit existed but was single-tool).
-    assert.deepStrictEqual(report.changed, ["read_note"])
+    assert.deepStrictEqual(
+      { changed: report.changed, sharedEdits: report.sharedEdits },
+      { changed: ["read_note"], sharedEdits: [] },
+    )
   })
 })
 
@@ -740,7 +759,7 @@ describe("command line", () => {
     assert.deepStrictEqual(runScript(["--current", current, "--base", current, "--show", "list_notes"]), {
       status: 2,
       stdout: "",
-      stderr: "--show prints tools from --current; it cannot be combined with --base or --variants\n",
+      stderr: "--show prints tools from --current; it cannot be combined with --base, --names, or --variants\n",
     })
   })
 
@@ -750,7 +769,7 @@ describe("command line", () => {
     assert.deepStrictEqual(runScript(["--current", current, "--base", current, "--variants", current]), {
       status: 2,
       stdout: "",
-      stderr: "--variants lists other configurations; it cannot be combined with --base\n",
+      stderr: "--variants lists other configurations; it cannot be combined with --base or --names\n",
     })
   })
 
@@ -760,7 +779,27 @@ describe("command line", () => {
     assert.deepStrictEqual(runScript(["--current", current, "--variants", current, "--show", "list_notes"]), {
       status: 2,
       stdout: "",
-      stderr: "--show prints tools from --current; it cannot be combined with --base or --variants\n",
+      stderr: "--show prints tools from --current; it cannot be combined with --base, --names, or --variants\n",
+    })
+  })
+
+  it("exits 2 when --names is combined with --show", () => {
+    const current = writeSurface("show-names.json", [rawTool()])
+
+    assert.deepStrictEqual(runScript(["--current", current, "--names", "--show", "list_notes"]), {
+      status: 2,
+      stdout: "",
+      stderr: "--show prints tools from --current; it cannot be combined with --base, --names, or --variants\n",
+    })
+  })
+
+  it("exits 2 when --names is combined with --variants", () => {
+    const current = writeSurface("variants-names.json", [rawTool()])
+
+    assert.deepStrictEqual(runScript(["--current", current, "--names", "--variants", current]), {
+      status: 2,
+      stdout: "",
+      stderr: "--variants lists other configurations; it cannot be combined with --base or --names\n",
     })
   })
 
@@ -780,8 +819,8 @@ describe("command line", () => {
     const output = JSON.parse(stdout)
 
     assert.deepStrictEqual(
-      { status, stderr, current: output.current, base: output.base, changed: output.changed },
-      { status: 0, stderr: "", current, base, changed: ["list_notes"] },
+      { status, stderr, current: output.current, base: output.base, changed: output.changed, fields: Object.keys(output) },
+      { status: 0, stderr: "", current, base, changed: ["list_notes"], fields: REPORT_FIELDS },
     )
   })
 
@@ -792,8 +831,8 @@ describe("command line", () => {
     const output = JSON.parse(stdout)
 
     assert.deepStrictEqual(
-      { status, stderr, current: output.current, base: output.base, inScope: output.inScope },
-      { status: 0, stderr: "", current, base: null, inScope: ["list_notes"] },
+      { status, stderr, current: output.current, base: output.base, inScope: output.inScope, fields: Object.keys(output) },
+      { status: 0, stderr: "", current, base: null, inScope: ["list_notes"], fields: REPORT_FIELDS },
     )
   })
 

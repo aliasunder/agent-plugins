@@ -76,7 +76,7 @@ bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show <tool>
 |---|---|
 | `current`, `base` | The paths you passed. `base` is `null` when you passed none |
 | `changed`, `added`, `removed`, `unchanged` | Tool names. `changed` means the description, a schema, the title, or the annotations differ |
-| `orderOnly` | Tools whose schema differs only in key order. Not a text change |
+| `orderOnly` | Tools whose schemas or annotations differ only in key order. Not a text change |
 | `inScope` | The tools to review: changed and added ones, or every tool when there is no base |
 | `changes[]` | For each changed tool: which parts changed, its size before and after, and the lines and schema sentences added and removed |
 | `sharedEdits[]` | One line or schema sentence added to, or removed from, two or more tools, with the tools |
@@ -192,9 +192,10 @@ of the report still says both reads ran, and each check you could not run gets a
   one reworded bullet across twelve tools is one item with twelve names. Report a
   `sections` entry with `changed: true` the same way.
 - **Condition:** a base surface and an intended-tools list were supplied.
-- **Boundary:** with no intended-tools list, title the section "All text changes",
-  list the same facts, and make NO claim about what was intended. Tools in
-  `orderOnly` are not text changes; do not list them.
+- **Boundary:** NEVER list a tool from the intended-tools list in this section,
+  however large its change. With no intended-tools list, title the section "All
+  text changes", list the same facts, and make NO claim about what was intended.
+  Tools in `orderOnly` are not text changes; do not list them.
 
 Example: a change meant to rewrite eight tools also added the sentence "Use the
 exact letter case." to fourteen parameter descriptions in other tools. Each of
@@ -258,6 +259,17 @@ dropped`). The count is how a reader sees the check ran.
      returns an error result, or cannot fail.
   4. Read the wrapper the handlers share, if there is one, to see how a thrown
      error reaches the client.
+  5. Write one line for each failure you traced: the message as the client
+     receives it, the file and line that produce it, and `listed` or `MISSING`.
+     Search the description `--show` printed for the message's own words. Write
+     `listed` ONLY when you can point to the entry that names it. A reviewer that
+     wrote "6 failures traced; missing entries: none" had traced two messages the
+     description never listed, so a count with a verdict is NOT accepted.
+- **A message a library produces** (an image library, a parser) whose text you
+  cannot read in the repository: write `text unverified` where the message goes,
+  name the library call, and still mark the line `listed` or `MISSING` from what
+  the description says about that failure. You trace by reading and cannot call
+  the tool.
 - **If you cannot find the handler or cannot follow a call:** write `not traced`
   with the reason in the tool's entry. That tool's error check is unfinished, and
   the report is `partial`.
@@ -312,8 +324,10 @@ Per tool
     U4: "<quoted text>" — <what is missing or wrong>
     B3: no entry says what an empty result looks like
   Facts: <N> in the old text — <K> moved (<which>), <J> dropped (<which>)
-  Errors: handler <file:function>; <N> failures traced; missing entries: <list | none>;
-          entries with no reachable failure: <list | none>; not followed: <callees | none>
+  Errors: handler <file:function>
+    "<failure message>" (<file:line>) — <listed | MISSING>
+    "<failure message>" (<file:line>) — <listed | MISSING>
+    entries with no reachable failure: <list | none>; not followed: <callees | none>
   Candidates: "<overlap text>" → <cut from description | cut from schema | belongs in both> — <reason>;
               <N> pre-existing on <parameters>
 <name> — not reviewed
@@ -339,7 +353,9 @@ Status: <complete | partial | failed>
 - In the Marks line, P is Purpose, U is Usage, B is Behaviour, Pa is Parameters,
   Co is Conciseness, and Cm is Completeness.
 - A `Pass: cold` report has Marks and no Facts, Errors, or Candidates lines. A
-  `Pass: diff` report has those lines and no Marks.
+  `Pass: diff` report has Facts, Errors, and Candidates lines and no Marks.
+- The `Errors:` block has one line for each failure traced. Every `MISSING` line
+  is also a numbered item under Defects.
 - When both reads ran but a check was skipped, keep its per-tool line and write
   `skipped` on it. Under a section whose check did not run, write
   `not run — <the missing input>`.
