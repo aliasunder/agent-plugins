@@ -380,13 +380,18 @@ const findCandidates = (tool: Tool, base: Tool | undefined): Candidate[] => {
   }
 
   return parameterTexts(tool.inputSchema).flatMap(({ parameter, text }) => {
-    return commonSubstrings(collapseWhitespace(text), description).map((overlap) => ({
-      tool: tool.name,
-      parameter,
-      text: overlap,
-      length: overlap.length,
-      preExisting: baseRepeated(parameter, overlap),
-    }))
+    return commonSubstrings(collapseWhitespace(text), description).map((overlap) => {
+      // An overlap that only gained a neighbouring space is the same repetition the base had.
+      const trimmedOverlap = overlap.trim()
+
+      return {
+        tool: tool.name,
+        parameter,
+        text: trimmedOverlap,
+        length: trimmedOverlap.length,
+        preExisting: baseRepeated(parameter, trimmedOverlap),
+      }
+    })
   })
 }
 

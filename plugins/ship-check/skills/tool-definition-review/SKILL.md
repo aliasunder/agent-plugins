@@ -103,6 +103,13 @@ them for their own review.
    written `not reviewed`, and the report is `partial`. NEVER drop a tool silently
    and NEVER thin out the last tools to fit: stop, mark the rest `not reviewed`,
    and list them so the dispatcher can send them again.
+4. **One dispatch takes at most eight tools through the diff read.** The dropped-fact
+   and error-entry checks need the old text, the new text, and the handler source
+   for each tool, and a reviewer given 29 tools at once skipped the error check for
+   nearly all of them. With more than eight tools in scope and no `Tools:` line:
+   do the cold read for every tool, do the diff read for the first eight names in
+   `inScope`, write `not reviewed` on the diff lines of the rest, and report
+   `partial`. The dispatcher sends the rest as `Pass: diff` with a `Tools:` line.
 
 ## Read 1: cold read
 
@@ -205,8 +212,9 @@ dropped`). The count is how a reader sees the check ran.
   default, its allowed values) stays in the schema. Semantics (how parameters
   interact, what a value causes, when to use another tool) stay in the description.
 - **Boundary:** a rule in the project's own instructions that requires a section
-  wins over this check. List candidates with `preExisting: true` without a
-  verdict; this change did not introduce them.
+  wins over this check. Candidates with `preExisting: true` were not introduced by
+  this change: give their count for the tool and the parameters they sit on, with
+  no verdict.
 
 ### Error entries, both directions
 
@@ -222,9 +230,21 @@ dropped`). The count is how a reader sees the check ran.
   the path from the handler to the line that produces the failure. Whether a rare
   failure deserves a bullet is the author's call; report it and say how rare the
   path looks.
+- **How to trace one tool:**
+  1. Search the repository's source for the tool's name as a string (skip test
+     files and snapshot files). The match is where the tool is registered, and its
+     handler is beside it.
+  2. Read the handler. List every function it calls that can fail.
+  3. Open each of those functions and repeat, until you reach code that throws,
+     returns an error result, or cannot fail.
+  4. Read the wrapper the handlers share, if there is one, to see how a thrown
+     error reaches the client.
 - **If you cannot find the handler or cannot follow a call:** write `not traced`
   with the reason in the tool's entry. That tool's error check is unfinished, and
   the report is `partial`.
+- **NEVER write `not traced` because tracing is long.** Tracing is the check. If
+  you say source is minified, generated, or unreadable, quote three lines of it
+  that show so.
 
 Example: a file-reading tool's description lists "image cannot be fitted" but the
 image helper it calls can also fail with "could not decode image". The second
@@ -271,7 +291,8 @@ Per tool
   Facts: <N> in the old text — <K> moved (<which>), <J> dropped (<which>)
   Errors: handler <file:function>; <N> failures traced; missing entries: <list | none>;
           entries with no reachable failure: <list | none>; not followed: <callees | none>
-  Candidates: "<overlap text>" → <cut from description | cut from schema | belongs in both> — <reason>
+  Candidates: "<overlap text>" → <cut from description | cut from schema | belongs in both> — <reason>;
+              <N> pre-existing on <parameters>
 <name> — not reviewed
 
 Defects
@@ -298,7 +319,10 @@ Not reviewed: <tool names>      (partial reports only)
 - When both reads ran but a check was skipped, keep its per-tool line and write
   `skipped` on it. Under a section whose check did not run, write
   `not run — <the missing input>`.
-- The report is `partial` when any tool is `not reviewed` or `not traced`.
+- **Set the status last, by counting.** Count the entries that say `not reviewed`
+  or `not traced`. If the count is above zero, the status is `partial` and the
+  `Not reviewed:` line names those tools. `complete` means every in-scope tool went
+  through every check whose input was supplied.
 - Write one `Cleared:` line for each suspicion you checked and dropped, and one
   `Skipped:` line for each check you did not run. A report with neither says
   nothing was looked at.

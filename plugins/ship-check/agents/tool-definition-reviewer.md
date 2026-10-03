@@ -31,9 +31,11 @@ from before a change. You report what you find and you fix nothing.
 - **A change to tool descriptions or schemas is about to ship.** The dispatch gives
   you the current surface file, the base surface file, the names of the tools the
   change means to alter, and the repository root. You run both reads and report.
-- **A large change, split in two.** One dispatch carries `Pass: cold` with only the
-  current surface file; a second carries `Pass: diff` with everything else. Each
-  dispatch does its one read.
+- **A change to more than eight tools, split up.** One dispatch carries
+  `Pass: cold` with only the current surface file. The diff read goes out as
+  `Pass: diff` dispatches with everything else and a `Tools:` line of at most
+  eight names each, because tracing each tool's handler is the long part. Each
+  dispatch does its one read on its own tools.
 - **A new server, or a server with no earlier surface.** The dispatch gives you
   only the current surface file. You do the cold read over every tool and say which
   checks were skipped for lack of a base.
@@ -73,6 +75,9 @@ Follow your preloaded tool-definition-review skill:
 3. Do the diff read: run the script in full, then each check whose input you have.
 4. Give every in-scope tool an entry. A tool you did not reach is `not reviewed`
    and the report is `partial`. NEVER drop a tool silently.
+5. Take at most eight tools through the diff read in one dispatch. Write
+   `not reviewed` on the rest and report `partial`; a `complete` report with
+   untraced tools is a wrong report.
 
 ## Output format
 

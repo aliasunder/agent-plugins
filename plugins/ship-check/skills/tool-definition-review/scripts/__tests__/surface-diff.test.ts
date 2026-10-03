@@ -384,6 +384,20 @@ describe("duplication candidates", () => {
   })
 })
 
+describe("duplication candidates across a change", () => {
+  it("keeps an overlap pre-existing when the change only adds a sentence after it", () => {
+    const repeated = "The note must already exist and must end in md."
+    const report = compare(
+      [rawTool({ description: `Path rules: ${repeated}`, inputSchema: pathSchema(repeated) })],
+      [rawTool({ description: `Path rules: ${repeated}`, inputSchema: pathSchema(`${repeated} Use the exact letter case.`) })],
+    )
+
+    assert.deepStrictEqual(report.duplicationCandidates, [
+      { tool: "list_notes", parameter: "path", text: repeated, length: 47, preExisting: true },
+    ])
+  })
+})
+
 describe("listVariants", () => {
   it("names the tools another configuration words differently, and the tools only one side has", () => {
     const current = surfaceOf([
