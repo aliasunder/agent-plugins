@@ -16,20 +16,29 @@ on:
 permissions:
   contents: write
 
+# Two dispatches started together would compute the same next version and race on the push,
+# so a second run waits for the first.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - name: Generate app token
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
           permission-contents: write
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Check out the branch tip as it is when this run starts. The default is the commit at
+          # dispatch time, and a run that waited in the queue would find that commit one release behind.
+          ref: ${{ github.ref }}
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
@@ -93,19 +102,21 @@ jobs:
 
       - name: Build artifacts
         run: |
+          # Each plugin.json sits at ./plugins/<name>/.claude-plugin/plugin.json; two dirnames reach the plugin root.
           while IFS= read -r PLUGIN_JSON; do
             PLUGIN_DIR=$(dirname "$(dirname "$PLUGIN_JSON")")
             PLUGIN_NAME=$(basename "$PLUGIN_DIR")
 
             echo "Building $PLUGIN_NAME.zip..."
             (cd "$PLUGIN_DIR" && zip -r "$GITHUB_WORKSPACE/${PLUGIN_NAME}.zip" . \
-              -x "evals/*" "dist/*" ".gitignore")
+              -x "evals/*" "dist/*" ".gitignore" "*/__tests__/*")
 
             for SKILL_DIR in "$PLUGIN_DIR"/skills/*/; do
               [ -d "$SKILL_DIR" ] || continue
               SKILL_NAME=$(basename "$SKILL_DIR")
               echo "Building $SKILL_NAME.skill..."
-              (cd "$PLUGIN_DIR/skills" && zip -r "$GITHUB_WORKSPACE/${SKILL_NAME}.skill" "$SKILL_NAME/")
+              (cd "$PLUGIN_DIR/skills" && zip -r "$GITHUB_WORKSPACE/${SKILL_NAME}.skill" "$SKILL_NAME/" \
+                -x "*/__tests__/*")
             done
           done < <(find . -path '*/.claude-plugin/plugin.json' -not -path './.claude-plugin/*')
 
