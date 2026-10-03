@@ -8,12 +8,6 @@ on:
 permissions:
   contents: write
 
-# Two tags pushed together would both commit the changelog to main and race on the push,
-# so a second run waits for the first.
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
-
 jobs:
   validate:
     if: "!endsWith(github.actor, '[bot]')"

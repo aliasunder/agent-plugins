@@ -36,7 +36,9 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          # Check out the branch tip as it is when this run starts. The default is the commit at
+          # dispatch time, and a run that waited in the queue would find that commit one release behind.
+          ref: ${{ github.ref }}
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
