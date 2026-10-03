@@ -104,9 +104,10 @@ them for their own review.
 
 1. Run the script with `--names`. `inScope` is your list.
 2. If the dispatch has a `Review only:` line, those names are your whole scope.
-   Review each of them fully, whether or not it is in the intended-tools list, and
-   review no other tool. The intended-tools list never changes your scope; it only
-   decides which changes the report calls unintended.
+   Review each of them, whether or not it is in the intended-tools list, and
+   review no other tool. The eight-tool cap in rule 4 still applies. The
+   intended-tools list never changes your scope; it only decides which changes
+   the report calls unintended.
 3. Every tool in scope gets an entry in the report. A tool you did not reach is
    written `not reviewed`, and the report is `partial`. NEVER drop a tool silently
    and NEVER thin out the last tools to fit: stop, mark the rest `not reviewed`,
@@ -214,7 +215,8 @@ changed definitions afresh re-scores all of them.
   new text states in different words is preserved.
 
 Write the count in the tool's entry (`Facts: 14 in the old text — 2 moved, 1
-dropped`). The count is how a reader sees the check ran.
+dropped`). "The old text" is the old description and the old schemas together.
+The count is how a reader sees the check ran.
 
 ### Duplicated fact
 
