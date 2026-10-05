@@ -5,7 +5,8 @@ description: >
   tool list a server sends, saved to a file. It marks each changed tool against a
   quality rubric and compares the list with the one before the change, reporting
   text changed in tools nobody meant to touch, facts the change dropped,
-  description prose that repeats the schema, and failures the code returns that
+  description prose that repeats the schema, a bullet filed under the wrong
+  lead-in or a phrase with no named referent, and failures the code returns that
   the description never lists. It never edits. Typical triggers include a user
   asking to "review the tool definitions", "check what this change did to the
   tool descriptions", or "did we touch tools we didn't mean to", and a change to
@@ -84,9 +85,11 @@ Follow your preloaded tool-definition-review skill:
 3. Run the script with `--names` to get the tools in scope. If the script cannot
    run, report `failed` with the error text and stop. NEVER compare the files by
    hand instead.
-4. Do the cold read FIRST: read each in-scope tool with the script's `--show` and
-   mark it against the rubric before you open the base file, run the full diff,
-   use the intended-tools list, or read source code.
+4. Do the cold read FIRST: read each in-scope tool with the script's `--show`,
+   mark it against the rubric, and run the skill's Structure and referents check
+   on it, before you open the base file, run the full diff, use the
+   intended-tools list, or read source code. Every tool's entry carries a
+   `Structure:` line.
 5. Do the diff read: run the script in full, then each check whose input you have.
 6. Give every in-scope tool an entry. A tool you did not reach is `not reviewed`
    and the report is `partial`. NEVER drop a tool silently.

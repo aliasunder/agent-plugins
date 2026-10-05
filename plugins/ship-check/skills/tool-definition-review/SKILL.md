@@ -5,7 +5,8 @@ description: >
   server sends (name, description, input schema), mark each changed tool against
   a quality rubric, and compare it with the list before the change to find text
   changed in tools nobody meant to touch, facts the change dropped, description
-  prose that repeats the schema, and failures the code returns that the
+  prose that repeats the schema, a bullet filed under the wrong lead-in or a
+  phrase with no named referent, and failures the code returns that the
   description never mentions. Report only; never edits.
   Use when asked to "review tool definitions", "check the tool descriptions",
   "did this change touch tools it shouldn't", "TDQS check", or after a change to
@@ -141,7 +142,7 @@ for this dispatch. Each stage has a check that can fail:
 | Stage | Passes when |
 |---|---|
 | Scope | `--names` ran, and you wrote down the number of tools in scope |
-| Cold read (not in a `Pass: diff` dispatch) | Every in-scope tool has six marks, and every mark below 5 has its quoted text or its statement of what is absent |
+| Cold read (not in a `Pass: diff` dispatch) | Every in-scope tool has six marks and a `Structure:` line, and every mark below 5 has its quoted text or its statement of what is absent |
 | Diff read (not in a `Pass: cold` dispatch) | Every tool you took through it has a `Facts:` count, one `Errors:` line for each failure traced, and a verdict on each candidate that is not pre-existing |
 | Count | The `Unfinished entries:` number equals the entries you counted, and the `Status:` line follows from that number |
 
@@ -152,10 +153,10 @@ Three fable-mode rules apply here in a particular way:
 
 - **The self-review runs before the last two lines, and it NEVER changes a
   cold-read mark.** Check the report against this skill: every `MISSING` line has
-  a file and line, every `MISSING` line is a numbered defect, every mark below 5
-  has evidence, and no tool in scope lacks an entry. The cold-read marks are
-  final once the diff read starts. What the diff read finds goes under the diff
-  check that found it.
+  a file and line, every `MISSING` line is a numbered defect, every fault on a
+  `Structure:` line is a numbered defect, every mark below 5 has evidence, and
+  no tool in scope lacks an entry. The cold-read marks are final once the diff
+  read starts. What the diff read finds goes under the diff check that found it.
 - **"Confirm before you flag" is satisfied by the trace.** fable-mode says never
   to report a problem you have not confirmed is present. A `MISSING` line is
   confirmed by the file and line that produce the failure. Text that is absent
@@ -174,8 +175,8 @@ continue.
 ## Read 1: cold read
 
 Read each in-scope tool's `description` and `inputSchema` in the current surface
-with `--show`, as the calling agent receives them, and mark the six rubric
-dimensions.
+with `--show`, as the calling agent receives them. Mark the six rubric
+dimensions, then run the Structure and referents check below.
 
 **Do this read BEFORE you run the full diff, open the base file, use the
 intended-tools list, read source code, or read the grader results.** You are
@@ -193,7 +194,7 @@ Mark each dimension 1 to 5. A 5 has nothing to fix.
 | Usage | 20% | Examples from simple to complex, when-to-use criteria, "prefer X when Y" routing to related tools | One example; no routing; examples that skip the tool's main capability |
 | Behaviour | 20% | An error list with remedies, what an empty result looks like, and non-obvious behaviour (case sensitivity, ordering, truncation, what gets rewritten) | Errors named without a remedy; an edge case the agent would have to discover by calling |
 | Parameters | 15% | The description adds what the schema cannot say: how parameters interact, what a value causes | Description text that only restates the schema (the Parameters correction below sets the marks) |
-| Conciseness | 10% | Every sentence carries a fact the agent needs, stated once | A fact stated twice, never length alone (the Conciseness correction below) |
+| Conciseness | 10% | Every sentence carries a fact the agent needs, stated once, and every list holds only what its lead-in names | A fact stated twice, or a fault from the Structure and referents check; never length alone (the Conciseness correction below) |
 | Completeness | 10% | The return shape with field names and the conditions under which each appears, limits, related tools | Return shape missing or vague; a limit the agent would hit unannounced |
 
 Three corrections. Apply them over the table:
@@ -205,8 +206,9 @@ Three corrections. Apply them over the table:
 - **Behaviour.** A full error list with remedies is credited. Removing an error
   bullet to shorten a description costs more here than it gains under Conciseness.
 - **Conciseness.** Mark down for a fact stated twice, a `Returns:` block that
-  restates the opening sentence, or an example that repeats a parameter bullet.
-  NEVER mark down for the number of facts or for length alone.
+  restates the opening sentence, an example that repeats a parameter bullet, or
+  a fault the Structure and referents check finds. NEVER mark down for the
+  number of facts or for length alone.
 
 Self-score: `0.25·Purpose + 0.20·Usage + 0.20·Behaviour + 0.15·Parameters +
 0.10·Conciseness + 0.10·Completeness`. Label it **"self-score, not a forecast"**
@@ -222,6 +224,64 @@ diff-read checks below do not depend on any grader.
 **Every mark below 5 needs evidence**: the quoted sentence, the quoted schema
 text, or a statement of what is absent ("no entry says what an empty result looks
 like"). A mark with no evidence is not a finding.
+
+### Structure and referents
+
+The calling agent reads a description once, top to bottom, and acts on what it
+decodes. It takes a bullet under the wrong lead-in for an item of that list, and
+it has to guess what a phrase such as "the other form" refers to.
+
+- **Action:** run four tests on each in-scope tool's description as `--show`
+  printed it.
+  1. **List membership.** For every list, write down what its lead-in says the
+     items are. Flag each bullet whose subject is not one of them.
+  2. **Label noun.** Flag a heading, label, or lead-in whose noun is missing, or
+     whose noun could name two different things in this tool.
+  3. **Stand-alone bullets.** Read each bullet as if it were the only one in its
+     list. Flag a phrase that depends on another bullet or sentence and does not
+     name it ("the other form", "that mode", "as above").
+  4. **Mode parameters.** For each parameter that switches the form of the
+     result (a mode, such as raw output or an outline), find where the
+     description says what that mode returns. Flag a mode that is explained
+     only inside bullets about something else.
+- **Condition:** always, in the cold read, for every tool in scope.
+- **Boundary:**
+  - A bullet that belongs to its list may mention a parameter. In a list of
+    operations, "replace: replaces the section body (requires heading)" passes
+    test 1, because its subject is an operation.
+  - An `Errors:` list may hold the tool's empty-result rule ("returns an empty
+    array, not an error"). Do NOT flag it under test 1.
+  - Conventional section labels pass test 2: `Example:`, `When to use:`,
+    `Behavior:`, `Errors:`, `Returns:`.
+  - A reference that names its target passes test 3: "the limit parameter",
+    "the \"file too large\" entry".
+  - A parameter that filters, limits, sorts, or pages the result is not a mode.
+    Test 4 does not apply to it.
+  - The proposed fix moves or relabels text and keeps every fact. NEVER propose
+    cutting a fact to fix a structure fault.
+- **Where each fault goes:**
+  - Write the count on the tool's `Structure:` line, with the test and the
+    quoted text for each fault. Write `no faults` when all four tests pass. The
+    count is how a reader sees the check ran.
+  - Each fault is evidence under the Conciseness mark, and a tool with a fault
+    cannot score 5 there. Do NOT mark it under Parameters.
+  - Each fault is a numbered item under Defects with a proposed replacement.
+
+Example: under the lead-in "What each type returns:", a file-reading tool lists
+Images, Canvas, PDFs, then "- raw: true returns the other form instead: …", then
+Text formats.
+
+- Test 1 flags the raw bullet. The lead-in promises file types, and `raw` is a
+  parameter.
+- Test 2 flags "each type". The tool has file types and content-block types.
+- Test 3 flags "the other form". Only the Canvas and PDFs bullets above it name
+  the two forms.
+- Test 4 passes. `raw` has a bullet of its own, although that bullet sits in
+  the wrong list.
+
+Proposed: title the list "What each file type returns:", keep the four file
+types in it, and give `raw` its own block after the list, "raw: true switches a
+canvas or PDF to its other form:", with one line for canvases and one for PDFs.
 
 ## Read 2: diff read
 
@@ -330,8 +390,8 @@ The count is how a reader sees the check ran.
   5. Write one line for each failure you traced: the message as the client
      receives it, the file and line that produce it, and `listed`, `MISSING`, or
      `unreachable`. Search the description `--show` printed for the message's own
-     words. Write
-     `listed` ONLY when you can point to the entry that names it. A reviewer that
+     words. Write `listed` ONLY when you can point to the entry that names it. A
+     reviewer that
      wrote "6 failures traced; missing entries: none" had traced two messages the
      description never listed, so a count with a verdict is NOT accepted.
 - **A message a library produces** (an image library, a parser) whose text you
@@ -394,6 +454,7 @@ Per tool
   Marks: P5 U4 B3 Pa3 Co4 Cm5 — self-score 4.05, not a forecast
     U4: "<quoted text>" — <what is missing or wrong>
     B3: no entry says what an empty result looks like
+  Structure: <N> lists read — <no faults | K faults: <test> "<quoted text>"; <test> "<quoted text>">
   Facts: <N> in the old text — <K> moved (<which>), <J> dropped (<which>)
   Errors: handler <file:function>
     "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
@@ -423,10 +484,12 @@ Status: <complete | partial | failed>
 
 - In the Marks line, P is Purpose, U is Usage, B is Behaviour, Pa is Parameters,
   Co is Conciseness, and Cm is Completeness.
-- A `Pass: cold` report has Marks and no Facts, Errors, or Candidates lines. A
-  `Pass: diff` report has Facts, Errors, and Candidates lines and no Marks.
+- A `Pass: cold` report has Marks and a `Structure:` line, and no Facts, Errors,
+  or Candidates lines. A `Pass: diff` report has Facts, Errors, and Candidates
+  lines, and no Marks or `Structure:` line.
 - The `Errors:` block has one line for each failure traced. Every `MISSING` line
-  is also a numbered item under Defects.
+  is also a numbered item under Defects, and so is every fault on a `Structure:`
+  line.
 - When both reads ran but a check was skipped, keep its per-tool line and write
   `skipped` on it. Under a section whose check did not run, write
   `not run — <the missing input>`.
