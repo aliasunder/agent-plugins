@@ -13,8 +13,11 @@ description: >
   NOT for: general PR review (use pr-review), whether a description's claims match
   the code beyond its error list (use bug-check), or README and docs prose (use
   code-quality).
+skills:
+  - fable-mode
 allowed-tools:
   - Bash(bun ${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts *)
+  - mcp__sequential-thinking__sequentialthinking
 ---
 
 # Tool Definition Review
@@ -130,6 +133,44 @@ them for their own review.
    The dispatcher sends the rest as `Pass: diff` with a `Review only:` line of at
    most eight names.
 
+## Stages and their checks
+
+Follow fable-mode discipline. Before the first script call, write the stage map
+for this dispatch. Each stage has a check that can fail:
+
+| Stage | Passes when |
+|---|---|
+| Scope | `--names` ran, and you wrote down the number of tools in scope |
+| Cold read (not in a `Pass: diff` dispatch) | Every in-scope tool has six marks, and every mark below 5 has its quoted text or its statement of what is absent |
+| Diff read (not in a `Pass: cold` dispatch) | Every tool you took through it has a `Facts:` count, one `Errors:` line for each failure traced, and a verdict on each candidate that is not pre-existing |
+| Count | The `Unfinished entries:` number equals the entries you counted, and the `Status:` line follows from that number |
+
+When a stage fails its check, redo the work or mark the tools it left unfinished
+`not reviewed`. NEVER write the report over a failed check.
+
+Three fable-mode rules apply here in a particular way:
+
+- **The self-review runs before the last two lines, and it NEVER changes a
+  cold-read mark.** Check the report against this skill: every `MISSING` line has
+  a file and line, every `MISSING` line is a numbered defect, every mark below 5
+  has evidence, and no tool in scope lacks an entry. The cold-read marks are
+  final once the diff read starts. What the diff read finds goes under the diff
+  check that found it.
+- **"Confirm before you flag" is satisfied by the trace.** fable-mode says never
+  to report a problem you have not confirmed is present. A `MISSING` line is
+  confirmed by the file and line that produce the failure. Text that is absent
+  from a definition you read in full with `--show` IS a finding. Do NOT drop a
+  mark or a `MISSING` line on the ground that absence of evidence is not a
+  finding.
+- **Three accumulated concerns do not end the review.** You cannot ask anyone
+  mid-run. Write each concern into the report as a defect, a `Skipped:` line, or
+  a `not traced` reason, and continue.
+
+Call `sequentialthinking` at the two points the diff read marks: before you call
+a fact dropped, and before you write `MISSING` or list an entry with no reachable
+failure. If the tool is not available, write the same reasoning as text and
+continue.
+
 ## Read 1: cold read
 
 Read each in-scope tool's `description` and `inputSchema` in the current surface
@@ -217,6 +258,10 @@ changed definitions afresh re-scores all of them.
 - **Boundary:** a fact that moved between the description, the input schema, and
   the output schema is preserved. List it as moved, not as a finding. A fact the
   new text states in different words is preserved.
+- **Before you call a fact dropped,** call `sequentialthinking` with the old
+  sentence and the new description and schemas. Decide which of four it is: moved,
+  restated in other words, an entry for a failure the schema makes unreachable
+  (see Error entries below), or dropped. Only the last is a finding.
 
 Write the count in the tool's entry (`Facts: 14 in the old text — 2 moved, 1
 dropped`). "The old text" is the old description and the old schemas together.
@@ -265,6 +310,11 @@ The count is how a reader sees the check ran.
   Wrong: `"dependsOn cannot be empty" — MISSING`, reported as a defect, when the
   schema sets `minItems: 1` on that parameter.
   Right: `"dependsOn cannot be empty" — unreachable (schema rejects first: minItems 1)`.
+- **Before you write `MISSING`, or list an entry with no reachable failure,** call
+  `sequentialthinking` with the path from the handler to the line that produces
+  the failure, the schema rules on the inputs that reach that line, and the
+  description's error list. Decide whether the client can receive the failure,
+  and whether an entry already names it in other words.
 - **How to trace one tool:** use the file tools (Read, Grep, Glob). The shell is
   for the script only.
   1. Search the repository's source for the tool's name as a string (skip test

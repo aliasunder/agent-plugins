@@ -30,8 +30,9 @@ Each agent preloads skills via `skills:` frontmatter. The `pr-review`,
 `code-quality`, `test-audit`, `bug-check`, `fresh-eyes`, and
 `tool-definition-review` skills are bundled in this plugin;
 [fable-mode](https://github.com/mrtooher/fable-mode) is external and must be
-installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` and
-`tool-definition-reviewer` each preload only their own skill and use no MCP tools.
+installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` preloads only its
+own skill and uses no MCP tools. `tool-definition-reviewer` preloads its own skill
+and fable-mode, and the only MCP tool it uses is `sequentialthinking`.
 
 The `tool-definition-review` skill bundles one script, `scripts/surface-diff.ts`.
 It has no dependencies and runs with [Bun](https://bun.sh). Without Bun the agent

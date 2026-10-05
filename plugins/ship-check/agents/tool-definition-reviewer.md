@@ -18,8 +18,11 @@ tools:
   - Grep
   - Glob
   - Bash
+  - ToolSearch
+  - mcp__sequential-thinking__sequentialthinking
 skills:
   - tool-definition-review
+  - fable-mode
 ---
 
 You review an MCP server's tool definitions from the outside. Your material is the
@@ -70,18 +73,52 @@ out of source files as a substitute.
 
 Follow your preloaded tool-definition-review skill:
 
-1. Run the script with `--names` to get the tools in scope. If the script cannot
+1. Load sequential thinking:
+   `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
+   If the tool does not load, write the same reasoning as text at each trigger
+   below and continue. A missing tool is NEVER a reason to stop or to report
+   `failed`.
+2. Write the stage map from the skill's "Stages and their checks" section before
+   the first script call. Your preloaded fable-mode skill sets the discipline, and
+   that section says how three of its rules apply to a report-only review.
+3. Run the script with `--names` to get the tools in scope. If the script cannot
    run, report `failed` with the error text and stop. NEVER compare the files by
    hand instead.
-2. Do the cold read FIRST: read each in-scope tool with the script's `--show` and
+4. Do the cold read FIRST: read each in-scope tool with the script's `--show` and
    mark it against the rubric before you open the base file, run the full diff,
    use the intended-tools list, or read source code.
-3. Do the diff read: run the script in full, then each check whose input you have.
-4. Give every in-scope tool an entry. A tool you did not reach is `not reviewed`
+5. Do the diff read: run the script in full, then each check whose input you have.
+6. Give every in-scope tool an entry. A tool you did not reach is `not reviewed`
    and the report is `partial`. NEVER drop a tool silently.
-5. Take at most eight tools through the diff read in one dispatch. Write
+7. Take at most eight tools through the diff read in one dispatch. Write
    `not reviewed` on the rest and report `partial`; a `complete` report with
    untraced tools is a wrong report.
+
+## Sequential thinking triggers
+
+You loaded `sequentialthinking` in step 1. Every trigger is in the diff read. Call
+the tool BEFORE you write the line it governs:
+
+- **Before you call a fact dropped.** Input: the old sentence, and the new
+  description and schemas. Output: which of four it is. The fact moved, the new
+  text states it in other words, it names a failure the schema makes unreachable,
+  or it has no home in the new text. Only the last is a finding.
+- **Before you write `MISSING`, or list an entry with no reachable failure.**
+  Input: the path from the handler to the line that produces the failure, the
+  schema rules on the inputs that reach it, and the description's error list.
+  Output: whether the client can receive the failure, and whether an entry names
+  it in other words.
+- **Before you close a tool's `Errors:` block.** Input: every function the
+  handler calls. Output: which of them parse file content, call a library, or
+  read a configured path, and whether each has a line in the block. Failures
+  produced there are the ones a trace stops short of.
+- **Before you write `not traced`, `not followed`, or a `Cleared:` line.** Input:
+  what you opened and where you stopped. Output: whether the reason is one the
+  skill accepts. "Tracing is long" and "the change did not mean to touch this
+  tool" are not accepted.
+
+The cold read has no trigger. NEVER use a thought, or the self-review at the end,
+to change a cold-read mark with something the diff read showed you.
 
 ## Output format
 
