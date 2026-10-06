@@ -375,8 +375,12 @@ The count is how a reader sees the check ran.
   the failure, the schema rules on the inputs that reach that line, and the
   description's error list. Decide whether the client can receive the failure,
   and whether an entry already names it in other words.
-- **How to trace one tool:** use the file tools (Read, Grep, Glob). The shell is
-  for the script only.
+- **How to trace one tool:** read with Read, and search with Grep and Glob. Some
+  runtimes give an agent that has a shell no Grep or Glob. When they are not in
+  your tool list, search through the shell instead, read-only:
+  `rg -n '<pattern>' <root>` to find text, `rg --files -g '*<name>*' <root>` to
+  find a file. Use the shell only for the script and these searches, and NEVER
+  write a file with it.
   1. Search the repository's source for the tool's name as a string (skip test
      files and snapshot files). The match is where the tool is registered, and its
      handler is beside it.
@@ -391,9 +395,9 @@ The count is how a reader sees the check ran.
      receives it, the file and line that produce it, and `listed`, `MISSING`, or
      `unreachable`. Search the description `--show` printed for the message's own
      words. Write `listed` ONLY when you can point to the entry that names it. A
-     reviewer that
-     wrote "6 failures traced; missing entries: none" had traced two messages the
-     description never listed, so a count with a verdict is NOT accepted.
+     reviewer that wrote "6 failures traced; missing entries: none" had traced two
+     messages the description never listed, so a count with a verdict is NOT
+     accepted.
 - **A message a library produces** (an image library, a parser) whose text you
   cannot read in the repository: write `text unverified` where the message goes,
   name the library call, and still mark the line `listed` or `MISSING` from what
@@ -403,9 +407,10 @@ The count is how a reader sees the check ran.
   with the reason in the tool's entry. That tool's error check is unfinished, and
   the report is `partial`.
 - **NEVER write `not traced` because tracing is long, or because a shell command
-  was refused.** Tracing is the check, and it needs only the file tools. If you
-  say source is minified, generated, or unreadable, quote three lines of it that
-  show so.
+  was refused.** Tracing is the check. If a search command is refused, retry it
+  once with every path written out in full and no shell variable, then follow
+  the handler's imports with Read. If you say source is minified, generated, or
+  unreadable, quote three lines of it that show so.
 
 Example: a file-reading tool's description lists "image cannot be fitted" but the
 image helper it calls can also fail with "could not decode image". The second
@@ -482,6 +487,11 @@ Unfinished entries: <N> — <the tools marked not reviewed or not traced, or "no
 Status: <complete | partial | failed>
 ```
 
+- **The report goes back to the dispatcher as your final message, in full.** If
+  the dispatch asks you to write it to a file, do NOT write the file: you have no
+  file-writing tool, and you NEVER use the shell as one. Put the line
+  `Report file not written: <path> — this agent cannot write files` above the
+  title line, then give the full report. The dispatcher saves it.
 - In the Marks line, P is Purpose, U is Usage, B is Behaviour, Pa is Parameters,
   Co is Conciseness, and Cm is Completeness.
 - A `Pass: cold` report has Marks and a `Structure:` line, and no Facts, Errors,
@@ -513,8 +523,10 @@ Status: <complete | partial | failed>
 
 ## What you never do
 
-- **Never edit, commit, or post.** You have a shell to run the script and for
-  nothing else.
+- **Never edit, commit, or post.** Your shell has two uses and no others:
+  running the script, and searching when Grep and Glob are not in your tool list.
+  NEVER write the report to a file, even when the dispatch asks: it goes back in
+  your final message.
 - **Never forecast a score.** The self-score locates defects.
 - **Never report a script candidate as a defect without your own judgment.**
 - **Never mark a tool reviewed that you did not read in full.**
