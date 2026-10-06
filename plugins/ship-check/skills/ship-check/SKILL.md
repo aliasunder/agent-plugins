@@ -193,7 +193,11 @@ retry:
   ```
   gh pr comment NUMBER --body-file /absolute/path/comment.md
   ```
-  Write the path out in full, not through a shell variable.
+  Write the path out in full, not through a shell variable. Put the file in
+  your session's scratchpad directory when the runtime gives you one;
+  otherwise put it in a `probe-pr-NUMBER/` folder directly under `/tmp`, for
+  example `/tmp/probe-pr-642/comment-deferred.md`. The `probe-` prefix marks the
+  file as a throwaway posting copy: once posted, the PR holds the text.
 - **Not a reason to switch:** backticks in the body. They run inline.
 
 ### Orchestrator setup
@@ -549,7 +553,9 @@ findings: any deferred finding or beyond-diff issue not already visible on the P
 decision trail lives on the PR, not only in the chat transcript. Post it under the
 plain-command rule in "Non-inline findings still land on the PR": no `$(…)` in the
 body, and `gh pr comment NUMBER --body-file /absolute/path/comment.md` when the
-body mentions `git` or the sandbox refuses the call once.
+body mentions `git` or the sandbox refuses the call once. Put that file in your
+scratchpad directory, or in `/tmp/probe-pr-NUMBER/` when the runtime has no
+scratchpad.
 
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the last phase-reviewed SHA and

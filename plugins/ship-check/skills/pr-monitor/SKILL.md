@@ -306,8 +306,13 @@ For each unresolved bot thread, do ALL of these in order:
      gh api repos/OWNER/REPO/pulls/NUMBER/comments/COMMENT_ID/replies -F body=@/absolute/path/reply.md
      ```
      `COMMENT_ID` is the `databaseId` of the thread's first comment (from 2c).
-     Write the path out in full, not through a shell variable. Do NOT pair a body
-     file with the GraphQL mutation above -- the sandbox refuses that form.
+     Write the path out in full, not through a shell variable. Put the file in
+     your session's scratchpad directory when the runtime gives you one;
+     otherwise put it in a `probe-pr-NUMBER/` folder directly under `/tmp`, for
+     example `/tmp/probe-pr-642/reply-registry.md`. The `probe-` prefix marks the
+     file as a throwaway posting copy: once posted, the PR holds the text.
+     Do NOT pair a body file with the GraphQL mutation above -- the sandbox
+     refuses that form.
    - **Not a reason to switch:** backticks in the body, or a reply chained to its
      resolve call with `&&`. Both run inline.
 
@@ -351,7 +356,9 @@ The plain-call rule from the bot-thread reply step (item 5 under "Bot threads")
 applies to this comment too: never build the
 body with `$(…)`, and when the body mentions `git` or the sandbox refuses the
 call once, write the comment to a file and post it with
-`gh pr comment NUMBER --body-file /absolute/path/comment.md`.
+`gh pr comment NUMBER --body-file /absolute/path/comment.md`. Put that file
+where item 5 says: your scratchpad directory, or `/tmp/probe-pr-NUMBER/` when
+the runtime has no scratchpad.
 
 ### Human findings without a thread (issue comments from 2d classified as Human)
 
