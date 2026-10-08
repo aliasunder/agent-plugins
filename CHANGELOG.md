@@ -1,6 +1,82 @@
 # Changelog
 
 
+## [1.2.0] — 2026-10-08
+
+### Features
+
+- **ship-check:** Tool-definition reviewer saves its report to a temp file
+- **ship-check:** Tool-definition reviewer checks list structure and referents
+- **ship-check:** Tool-definition reviewer loads fable-mode and sequential thinking
+- **ship-check:** Tool-definition reviewer agent, skill, and surface-diff script (#33)
+- **ship-check:** Require a repo-wide sweep receipt on pr-monitor fixes
+- **ship-check:** Pr-monitor sweeps the finding's class before each push
+- **ship-check:** Dispatchable persona for fresh-eyes
+- **ship-check:** Code-quality always loads response-style + docs standards
+- **ship-check:** Behavior-preservation contract for fix-mode phases
+- **ship-check:** Parameterized-test titles must name the case, not dump values
+- **ship-check:** Flag prefixed destructuring renames in code-quality
+- **ship-check:** Explicit readability responsibility + spacing and local-extraction triggers
+- **ship-check:** --report, --local, --diff modes + commit attribution + audience-aware review
+- **ship-check:** Code-quality prose-correctness triggers + response-style
+- **ship-check:** Wire fresh-eyes into pipeline as Phase 2
+- **plan-check:** Price the accepted mechanism, not just the rejected alternatives (#19)
+- **ship-check:** Default all phase agents to opus (#18)
+- **ship-check:** Add fresh-eyes, an on-demand stranger read with no review apparatus
+- **ship-check:** Bug-check decides which side of a D1 mismatch is wrong
+- **ship-check:** Code-quality reads as a stranger before the checklist
+- **ship-check:** Add --model flag, default agents to inherit session model (#14)
+
+### Bug Fixes
+
+- **ship-check:** Name where a body file goes before posting it
+- **ship-check:** Tool-definition reviewer searches through the shell when Grep is missing and returns report files inline
+- **ship-check:** The orchestrator's PR-level comments follow the plain-command rule
+- **ship-check:** Pr-monitor names the reply shapes a sandboxed session refuses
+- **pr-review:** The feature-surface section is a list
+- **pr-review:** Accept a feature-surface list as well as a table
+- **ship-check:** Keep Codex PR monitoring active
+- **ship-check:** Pass model in comment mode
+- **ship-check:** Harden attribution dispatch
+- **ship-check:** Pass Codex attribution model
+- **ship-check:** Name the review bots where the sweep misses are described
+- **ship-check:** Keep the sweep receipt in the run output, not the PR reply
+- **ship-check:** Scope the pass-fix contract to out-of-repo surfaces
+- **ship-check:** Drop correction residue from code-quality's style-core step
+- **ship-check:** Code-quality reads style-core, not the dialogue skill
+- **ship-check:** Restructuring rule constrains expected behavior, not assertion form
+- **ship-check:** Invert destructuring trigger — renames carry the source, bare keys lose it
+- **ship-check:** Scope exact model ids to Codex
+- **ship-check:** Require exact model ids in attribution
+- **ship-check:** Anti-narrowing enforcement for pr-monitor + anti-dismissal discipline for code-quality fresh-eyes pauses
+- **ship-check:** Restore original prompt-cache parenthetical
+- **ship-check:** Restore prompt-cache rationale with expansion
+- **ship-check:** Four findings from the fresh-eyes pipeline test run
+- **ship-check:** Pr-monitor steady-state loop must query all 2d endpoints
+- **ship-check:** Drop the model placeholder from dispatch templates
+
+### Documentation
+
+- **ship-check:** Fix README skill path, extend --model rule to delta reviews
+
+### CI / Infrastructure
+
+- Bump umm-actually to v0.4.10 (#32)
+- Wire the phases review-dispatch input to the UMM_PHASES repo variable (#20)
+- Expose diff_exclude_paths and respect_linguist_generated in umm_review.yml (#16)
+
+### Maintenance
+
+- **ci:** Bump umm-actually to v0.4.9 (#31)
+- **ci:** Bump umm-actually to v0.4.8 (#30)
+- Bump umm-actually to v0.4.7 (#28)
+- **ci:** Bump umm-actually to v0.4.6 (#26)
+- **ci:** Bump umm-actually to v0.4.5 (#24)
+- Bump umm-actually to v0.4.4 (#22)
+- Bump umm-actually to v0.4.3, add timeout-minutes: 30 (#21)
+- Bump umm-actually to v0.4.1 (#15)
+
+
 ## [1.1.1] — 2026-09-06
 
 ### Bug Fixes

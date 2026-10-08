@@ -5,14 +5,14 @@
     "name": "aliasunder"
   },
   "metadata": {
-    "version": "1.1.1"
+    "version": "1.2.0"
   },
   "plugins": [
     {
       "name": "ship-check",
       "source": "./plugins/ship-check",
       "description": "Dedicated review agents for the ship-check pipeline. Six agent types (pr-reviewer, code-quality-reviewer, test-auditor, bug-checker, fresh-eyes, tool-definition-reviewer) plus eight skills, including the pipeline orchestrator.",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "keywords": [
         "code-review",
         "ship-check",
@@ -24,7 +24,7 @@
       "name": "plan-check",
       "source": "./plugins/plan-check",
       "description": "Pre-implementation plan review. A fresh-eyes agent (plan-reviewer) plus the plan-review skill: premise audit, alternatives comparison, guard/control arithmetic, concurrent-writer analysis, and verification-plan safety — before any code exists.",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "keywords": [
         "plan-review",
         "plan-check",
