@@ -11,7 +11,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # The suite runs in under a second; five minutes covers a slow runner start.
+    # The suite runs in a few seconds; five minutes covers a slow runner start.
     timeout-minutes: 5
     name: script tests
     steps:

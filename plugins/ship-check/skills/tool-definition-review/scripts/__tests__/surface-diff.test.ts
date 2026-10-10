@@ -1685,6 +1685,24 @@ describe("--plan on a git repository", () => {
     )
   })
 
+  it("copies only the tool lists the plan names, not one whose tools did not change", () => {
+    const repo = makeRepo("unnamed")
+    const withInstructions = (instructions: string) => `${JSON.stringify({ instructions, tools: [rawTool()] }, null, 2)}\n`
+    const from = commit(repo, { "default.json": surfaceText([rawTool()]), "other.json": withInstructions("Old.") })
+    const to = commit(repo, {
+      "default.json": surfaceText([rawTool({ description: "List every note." })]),
+      "other.json": withInstructions("New."),
+    })
+    const out = join(directory, "unnamed-plan")
+
+    const plan = JSON.parse(runPlan(["--repo", repo, "--from", from, "--to", to, "--out", out]).stdout)
+
+    assert.deepStrictEqual(
+      { filesWithNoToolChange: plan.filesWithNoToolChange, written: filesUnder(out) },
+      { filesWithNoToolChange: ["other.json"], written: ["from/default.json", "to/default.json"] },
+    )
+  })
+
   it("reports a tool list that is no longer valid JSON as broken", () => {
     const repo = makeRepo("unparsable")
     const from = commit(repo, { "default.json": surfaceText([rawTool()]) })
@@ -1809,7 +1827,7 @@ describe("--plan on a git repository", () => {
           ],
           ...NO_PLAN_FINDINGS,
         },
-        written: ["from/default.json", "since-base/default.json", "to/default.json"],
+        written: ["since-base/default.json", "to/default.json"],
         composed: {
           tools: [
             { name: "list_notes", description: "Reviewed.", inputSchema: emptySchema() },

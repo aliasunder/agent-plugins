@@ -1253,28 +1253,31 @@ type PrintedFile = Omit<PlannedFile, "base"> & { current: string; base: string |
 type PrintedPlan = Omit<PlanResult, "files"> & { files: PrintedFile[] }
 
 /**
- * Writes the plan's files under `out` and returns the plan with their paths. It copies each tool list it read at
- * `--from` and `--to` to `from/` and `to/`, and writes each composed `--since` base to `since-base/`. The printed
- * plan names the `to/` copy and the base.
+ * Writes the files the printed plan names under `out` and returns the plan with their paths: each planned file's
+ * `--to` copy in `to/`, and its base, either the `--from` copy in `from/` or the composed `--since` base in
+ * `since-base/`.
  */
 const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResult): PrintedPlan => {
   createOutputFolder(out)
 
-  for (const file of files) {
-    if (file.from.kind === "toolList") writeTextFile(join(out, "from", file.fromPath), file.from.text)
-    if (file.to.kind === "toolList") writeTextFile(join(out, "to", file.path), file.to.text)
-  }
+  const changedByPath = new Map(files.map((file) => [file.path, file]))
 
   const basePath = (base: ReviewBase): string => {
     if (base.kind === "fromCopy") return join(out, "from", base.path)
     return join(out, "since-base", base.path)
   }
 
-  for (const { base } of result.files) {
-    if (base?.kind !== "composed") continue
+  for (const { path, base } of result.files) {
+    const file = changedByPath.get(path)
 
-    const composed = { ...base.sections, tools: base.tools.map(toolObject) }
-    writeTextFile(basePath(base), `${JSON.stringify(composed, null, 2)}\n`)
+    if (file?.to.kind === "toolList") writeTextFile(join(out, "to", path), file.to.text)
+
+    if (base?.kind === "fromCopy" && file?.from.kind === "toolList") writeTextFile(basePath(base), file.from.text)
+
+    if (base?.kind === "composed") {
+      const composed = { ...base.sections, tools: base.tools.map(toolObject) }
+      writeTextFile(basePath(base), `${JSON.stringify(composed, null, 2)}\n`)
+    }
   }
 
   const printedFiles = result.files.map((planned) => ({
