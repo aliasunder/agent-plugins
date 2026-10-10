@@ -624,6 +624,12 @@ without `tool-definitions` turns it off.
    in local mode, in the subjects and bodies of the range's commit messages. A
    whole word means `vault_search` does not match inside `vault_search_by_tag`.
    None → `not stated`. Never pass the PR description itself.
+   - This is ONE list for the whole step. Every dispatch gets the same
+     `Intended tools:` line, even one whose `Review only:` names a single tool,
+     because each report's Unintended text changes list covers every changed tool
+     in its file (step 8).
+     - Wrong: `Intended tools: vault_search` for a file whose only record is `vault_search`.
+     - Right: the full list from this step, in every dispatch.
 6. **Dispatch.** For each entry in `files`:
    - `coldDispatch` false → one dispatch for the file's single batch, doing both
      reads.
@@ -647,7 +653,7 @@ without `tool-definitions` turns it off.
    Agent({
      subagent_type: "ship-check:tool-definition-reviewer",
      description: "Tool definitions — <file name>, batch <n>",
-     prompt: "Review the MCP tool definitions changed on branch <branch> (PR #<number>).\nCurrent surface: <current>\nBase surface: <base, or: none>\nIntended tools: <names, or: not stated>\nRepository root: <repository root>   (only when withRoot is true)\nReview only: <the batch's names>\nPass: diff   (only when coldDispatch is true)\nReport file: <parent>/report-<n>.md\nReturn the Defects list, the Unintended text changes list, and the Unfinished entries and Status lines."
+     prompt: "Review the MCP tool definitions changed on branch <branch> (PR #<number>).\nCurrent surface: <current>\nBase surface: <base, or: none>\nIntended tools: <step 5's list, the same in every dispatch, or: not stated>\nRepository root: <repository root>   (only when withRoot is true)\nReview only: <the batch's names>\nPass: diff   (only when coldDispatch is true)\nReport file: <parent>/report-<n>.md\nReturn the Defects list, the Unintended text changes list, and the Unfinished entries and Status lines."
    })
    ```
 
