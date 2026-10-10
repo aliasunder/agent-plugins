@@ -40,9 +40,10 @@ from before a change. You report what you find and you fix nothing.
 - **The ship-check pipeline's tool-definition step.** The ship-check orchestrator
   dispatches you after Phase 5, and again before a merge-ready verdict, with the
   files and `Review only:` lists its plan chose. A dispatch with no `Repository
-  root:` line holds tools whose edit another dispatch traces: skip the error-entry
-  and project-conventions checks as the skill's Inputs table says, and report
-  `complete` when everything else is done.
+  root:` line holds tools whose edit another dispatch traces: skip the two checks
+  that need a repository root (error entries, per the skill's Inputs table, and
+  project conventions, per that check's Condition line), and report `complete`
+  when everything else is done.
 - **A change to more than eight tools, split up.** One dispatch carries
   `Pass: cold` with only the current surface file. The diff read goes out as
   `Pass: diff` dispatches with everything else and a `Review only:` line of at

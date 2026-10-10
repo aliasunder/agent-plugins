@@ -16,7 +16,7 @@ can also be dispatched on demand.
 | `code-quality-reviewer` | 3 | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. |
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
-| `tool-definition-reviewer` | after 5, when a tool list changed; or on demand | orange | MCP tool definitions read as the client receives them: Tool Definition Quality Score (TDQS) rubric marks, a bullet filed under the wrong lead-in or a phrase with no named referent, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
+| `tool-definition-reviewer` | after 5, when a tool list changed; or on demand | orange | MCP tool definitions read as the client receives them: rubric marks from Glama's Tool Definition Quality Score (TDQS), a bullet filed under the wrong lead-in or a phrase with no named referent, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
 
 Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
 and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
@@ -26,9 +26,11 @@ The pipeline dispatches `tool-definition-reviewer` when a change touches a commi
 tool-list file (a server's `tools/list` saved as JSON):
 
 1. After Phase 5, the `ship-check` skill runs `surface-diff.ts --plan` to find each
-   tool whose definition changed, once per distinct wording, and dispatches the
-   reviewer for them.
-2. Before each merge-ready verdict, it reviews again any tool text edited since.
+   tool whose definition changed, and dispatches the reviewer for them. A tool
+   with the same definition before and after in several tool-list files is
+   reviewed once.
+2. Before each merge-ready verdict, it reviews again any tool text edited since
+   the last tool review.
 
 Dispatch it yourself for a server that commits no tool list (see Usage).
 

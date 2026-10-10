@@ -390,8 +390,10 @@ the pipeline pushes nothing).
    repeat step 2 on subsequent passes. Deltas shrink, so this converges.
 6. **Re-review tool text before every merge-ready verdict**, after steps 3-5 and
    their fixes: run the re-review in "Tool-definition review (conditional)". Run it
-   even when step 2 found the delta trivial — its own gates decide whether tool text
-   changed, and it tracks its own tool-review commit, separate from the reviewed SHA.
+   even when step 2 of this section found the delta trivial — the re-review's own
+   gates decide whether tool text changed. It tracks its own tool-review commit (the
+   head the last tool-definition review saw, recorded by that section's step 9),
+   separate from the reviewed SHA.
 
 ## Execution
 
@@ -538,8 +540,9 @@ Run this after Phase 5 and its triage: Phase 3 and Phase 5 rewrite tool text, an
 this review must read the text they leave. It dispatches
 `ship-check:tool-definition-reviewer` (report only) for each MCP tool whose
 definition changed in a **tool-list file**: the JSON a server's `tools/list`
-returns, committed to the repository (vault-cortex commits one per configuration
-under `__snapshots__/tool-surface/`). It is not a numbered phase. It runs only when
+returns, committed to the repository (for example, the vault-cortex MCP server
+commits one such file for each of its server configurations under
+`__snapshots__/tool-surface/`). It is not a numbered phase. It runs only when
 the gates in step 2 pass, and only `--skip tool-definitions` or an `--only` list
 without `tool-definitions` turns it off.
 
@@ -553,9 +556,11 @@ without `tool-definitions` turns it off.
    git merge-base origin/<base-branch> HEAD
    git rev-parse HEAD
    ```
-2. **Gates (no Bun needed).** List the changed JSON files, then check both ends for
-   a tool list. Run them at the repository root: inside a subfolder, git lists only
-   that folder's changes. Each `git grep` is ONE command carrying every listed path:
+2. **Gates (git only).** The gates run before the plan script, so a runtime without
+   Bun fails the step only when a tool list changed. List the changed JSON files,
+   then check both ends for a tool list. Run them at the repository root: inside a
+   subfolder, git lists only that folder's changes. Each `git grep` is ONE command
+   carrying every listed path:
    ```
    git diff --name-only MERGE_BASE HEAD_SHA -- '*.json'
    git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
@@ -565,16 +570,19 @@ without `tool-definitions` turns it off.
    - Neither `git grep` lists a file → `not dispatched: no tool-list file changed`.
      One listed file at either end passes the gate. `git grep` exits 1 when it finds
      nothing, and a path missing at one end finds nothing; neither is an error.
-   - Either outcome, when Phase 1 reported tool definitions changed in source → tell
-     the user the route: capture the server's `tools/list` to a file and dispatch
-     the reviewer on demand.
-3. **Plan the dispatches.** Run the plan script yourself; the reviewer may be
-   read-only. Make a fresh parent folder, then pass a child that does not exist yet:
+   - Either of these two `not dispatched` outcomes, when Phase 1 reported tool
+     definitions changed in source → tell the user the on-demand route: capture the
+     server's `tools/list` to a file and dispatch the reviewer on demand.
+3. **Plan the dispatches.** Run the plan script yourself, never through the
+   reviewer: the script writes files under `--out`, and the reviewer may run without
+   write access. Make a fresh parent folder, then pass a child that does not exist
+   yet:
    ```
    mktemp -d <scratchpad>/probe-tool-definitions-XXXX
    bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --out <parent>/plan
    ```
    - `<scratchpad>` is the session scratchpad; with none, use `/tmp`.
+   - `<parent>` is the folder `mktemp` prints.
    - `<script>` is `tool-definition-review/scripts/surface-diff.ts` in the folder
      that holds this skill's folder: `${CLAUDE_SKILL_DIR}/../tool-definition-review/scripts/surface-diff.ts`
      in Claude Code. When `${CLAUDE_SKILL_DIR}` appears above as literal text, use
@@ -587,12 +595,17 @@ without `tool-definitions` turns it off.
    `records`, `files` (each with `current`, `base`, `reviewOnly`, `withRoot`,
    `coldDispatch`, `batches`, `alsoChangedOnBaseBranch`), `filesWithNoToolChange`,
    `broken`, `removed`, `removedTools`, `addedThenDropped`, and `notToolLists`.
-   - `records` is 0 → `not dispatched`, with the reason: only instructions,
-     prompts, or key order changed (`filesWithNoToolChange`); only tools were
-     removed; the changed JSON files are not tool lists (name the `notToolLists`
-     paths); or, in a re-review, no tool text changed since the last review except
-     edits that came from the base branch.
-   - A changed file that appears in none of these lists holds only reviews that
+   - `records` is 0 → `not dispatched`, with one reason for each non-empty list:
+
+     | Non-empty list | Reason |
+     |---|---|
+     | `filesWithNoToolChange` | no tool needs review: only instructions, prompts, or key order changed; a new file ships only definitions another changed file already has; or, in a re-review, no tool text changed since the last review except edits from the base branch |
+     | `removed` or `removedTools` | only tools were removed |
+     | `addedThenDropped` | the branch added tools and dropped them again |
+     | `broken` | a tool-list file no longer parses as one |
+     | `notToolLists` | the changed JSON files are not tool lists (name the paths) |
+
+   - A changed file that appears in none of these lists holds only records that
      another file in `files` already carries, so it gets no dispatch of its own. In
      a re-review, a file the base branch deleted and this branch never touched is
      also in no list.
@@ -602,12 +615,14 @@ without `tool-definitions` turns it off.
      finding.
 5. **Intended tools.** Collect every name in the plan's `reviewOnly` lists that
    appears as a whole word in the PR title or body
-   (`gh pr view <number> -R OWNER_REPO --json title,body`); in local mode, in the
-   subjects and bodies of the range's commit messages. A whole word means
-   `vault_search` does not match inside `vault_search_by_tag`. None → `not stated`.
-   Never pass the PR description itself.
+   (`gh pr view <number> -R OWNER_REPO --json title,body`, where OWNER_REPO is the
+   repo identifier from "Orchestrator setup", resolved the same way in every mode);
+   in local mode, in the subjects and bodies of the range's commit messages. A
+   whole word means `vault_search` does not match inside `vault_search_by_tag`.
+   None → `not stated`. Never pass the PR description itself.
 6. **Dispatch.** For each entry in `files`:
-   - `coldDispatch` false → one dispatch per batch, doing both reads.
+   - `coldDispatch` false → one dispatch for the file's single batch, doing both
+     reads.
    - `coldDispatch` true → one `Pass: cold` dispatch carrying only the current file
      and every name in `reviewOnly`, plus one `Pass: diff` dispatch per batch.
    - `withRoot` true → include the `Repository root:` line. `withRoot` false → omit
@@ -620,6 +635,10 @@ without `tool-definitions` turns it off.
    - In local mode, replace `branch <branch> (PR #<number>)` in the prompt the way
      "Dispatch prompt changes" under Local review mode says: `commits <short-sha>..<short-sha>`.
 
+   The two parenthesized `(only when …)` notes in this template are instructions
+   to you, not prompt text: keep the line, without the note, when its condition
+   holds, and drop the whole line otherwise.
+
    ```
    Agent({
      subagent_type: "ship-check:tool-definition-reviewer",
@@ -628,8 +647,16 @@ without `tool-definitions` turns it off.
    })
    ```
 
-   The cold dispatch carries only `Current surface:`, `Review only:` with every
-   name, `Pass: cold`, and `Report file:`.
+   The cold dispatch carries only these four lines:
+
+   ```
+   Agent({
+     subagent_type: "ship-check:tool-definition-reviewer",
+     description: "Tool definitions — <file name>, cold read",
+     prompt: "Current surface: <current>\nReview only: <every name in reviewOnly>\nPass: cold\nReport file: <parent>/report-<n>.md"
+   })
+   ```
+
    - Send every dispatch in one message. They write nothing but their reports, so
      they run in parallel.
    - **Codex:** spawn `agent_type: "ship-check:tool-definition-reviewer"` with the
@@ -645,9 +672,12 @@ without `tool-definitions` turns it off.
    - A reviewer that cannot write its report file returns the report inline, under
      a `Report file not written:` line. Save it to the named path yourself.
 7. **Unfinished entries.** A report whose `Unfinished entries:` count is above 0
-   marks tools `not reviewed`. Send ONE continuation dispatch for them: the same
-   file and inputs, with `Review only:` set to those names. Names still unfinished
-   after it make the step `partial`.
+   names its unfinished tools on that line. For each such report, send ONE
+   continuation dispatch: the same file and inputs as that report's dispatch,
+   `Pass:` line included, with `Review only:` set to its unfinished names. A diff
+   dispatch held at most eight names, so its continuation stays within the cap.
+   Names still unfinished after the continuation make the step `partial`; never
+   send a second continuation.
 8. **Triage the findings.** The reviewer reports without flag categories, so assign
    them yourself and run inter-phase triage on each report's Defects:
    - A description-text edit is not an interface change. An input-schema edit (a
@@ -655,47 +685,61 @@ without `tool-definitions` turns it off.
      goes to the user.
    - An unintended text change ALWAYS goes to the user, never to a fix. Only the
      author knows whether it was meant.
-   - Count unintended changes once per tool and change. Each dispatch lists every
-     changed tool in its file, so one change appears in several reports.
+   - Count unintended changes once per tool and change. A report's Unintended text
+     changes list covers every changed tool in its file, not only its `Review only:`
+     names, so one change appears in every report on that file.
    - A tool listed in `alsoChangedOnBaseBranch` was changed on the base branch too:
      say so with any finding on it, since its diff can hold the base branch's edit.
    - Fixes follow the mode's rule in the table below. The re-review covers them.
 9. **Record the tool-review commit.** Write HEAD_SHA and MERGE_BASE into the step's
    `Tool Definitions:` summary line (see Reporting; its "N reviews" is the plan's
-   `records`) on every outcome: not dispatched, no records, complete, or partial
-   or failed once the user accepted the missing coverage. A partial or failed step
-   the user has not accepted keeps the previous tool-review commit, so its tools are
-   reviewed again next time.
+   `records`) on every outcome: not dispatched (including `records` 0), complete,
+   or partial or failed once the user accepted the missing coverage. A partial or
+   failed step the user has not accepted keeps the previous tool-review commit, so
+   its tools are reviewed again next time.
 
 #### The re-review
 
 Run it whenever the step runs again in this session on the same branch: before
 every merge-ready verdict (see "Pre-merge delta review"), and on any later
-`/ship-check`. Take the tool-review commit and its merge base from the step's last
-summary line.
+`/ship-check`. From the step's last summary line, take the tool-review commit as
+TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
 
-1. Recompute MERGE_BASE as in step 1.
-2. Run step 2's gates with the tool-review commit in place of MERGE_BASE. When
-   MERGE_BASE differs from the recorded merge base, run them again with the recorded
-   merge base in place of MERGE_BASE and the new MERGE_BASE in place of HEAD_SHA.
+1. Recompute MERGE_BASE and HEAD_SHA as in step 1.
+2. Run step 2's gates over the branch's edits since the last review:
+   ```
+   git diff --name-only TOOL_REVIEW_SHA HEAD_SHA -- '*.json'
+   git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
+   git grep -l '"inputSchema"' TOOL_REVIEW_SHA -- <every listed path>
+   ```
+   When MERGE_BASE differs from OLD_MERGE_BASE, run them again over the base
+   branch's edits between the two merge bases:
+   ```
+   git diff --name-only OLD_MERGE_BASE MERGE_BASE -- '*.json'
+   git grep -l '"inputSchema"' MERGE_BASE -- <every listed path>
+   git grep -l '"inputSchema"' OLD_MERGE_BASE -- <every listed path>
+   ```
    Either run passing passes.
 3. Plan with `--since`, in a fresh parent folder:
    ```
-   bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --since <tool-review commit> --since-from <recorded merge base> --out <new parent>/plan
+   bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --since TOOL_REVIEW_SHA --since-from OLD_MERGE_BASE --out <new parent>/plan
    ```
-4. Dispatch the plan's records as in step 6. Each `base` is a composed file holding
-   only this branch's edits since the review, so a dropped fact is one dropped since
-   then.
-5. Every re-review finding goes to the user. NEVER fix a re-review finding through
-   triage: each round rereads whole tools and can raise new small defects, and
-   fixing them would start the loop again. The user's earlier decisions stand for
-   text that did not change.
+4. Read the plan, collect the intended tools, dispatch, and send continuations as
+   in steps 4-7. A non-null `base` is a composed file holding only this branch's
+   edits since the review, so a dropped fact is one dropped since then. A `base` of
+   null marks a file that was not a tool list at the review; its tools are reviewed
+   with no base.
+5. Triage as in step 8, except that every re-review finding goes to the user.
+   NEVER fix a re-review finding through triage: each round rereads whole tools and
+   can raise new small defects, and fixing them would start the loop again. The
+   user's earlier decisions stand for text that did not change.
 6. Record the new tool-review commit as in step 9.
 
 - No recorded tool-review commit, or one git cannot find (the gate's `git diff`
   reports a bad object, or the script exits 2 with "not a commit") → run the step in
   full and say so in the summary.
-- A change to tool text is never a trivial delta.
+- In "Pre-merge delta review" step 2, a delta that changes tool text is never
+  trivial.
 
 #### By mode
 
@@ -706,7 +750,7 @@ summary line.
 | `--report` | After Phase 5; re-review whenever a merge-ready verdict is checked or ship-check runs again in the session | To the user only; `--report` wins over every other mode's fixing rule |
 | `--local`, `--diff` on a branch | On the range; then, when triage committed a tool-text fix, one re-review before the summary | First review: triage, fixes committed. Re-review: to the user |
 | `--local` on `main` or a detached head | On the range | To the user only, under the local-on-`main` rule |
-| `--inline`, `--fork` | Invoke the `tool-definition-review` skill in this context or a fork with the same inputs, file by file, at most eight tools per diff pass | As in default; the status can be `complete` and is labelled "not cold" |
+| `--inline`, `--fork` | Invoke the `tool-definition-review` skill in this context or a fork with the same inputs, file by file, at most eight tools per diff pass | As in default; the status can be `complete` and is labelled "not cold", because the cold read ran with this session's context instead of a stranger's |
 | `--skip tool-definitions` | Never, and no re-review | Summary: `skipped` |
 | `--only` including `tool-definitions` | After the other selected phases | As in default |
 | `--only` without `tool-definitions` | Never | Summary: `not selected` |
@@ -723,7 +767,8 @@ until the user accepts the missing coverage in words when the step:
 - stayed `partial` after its continuation; or
 - could not be dispatched because the runtime has no reviewer agent.
 
-Deferred findings already hold the verdict under the existing rule.
+Deferred findings already hold the verdict: Reporting says to put them to the user
+for a decision before any verdict.
 
 ### Phase 6: PR Monitor (inline — does not end)
 

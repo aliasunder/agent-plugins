@@ -151,8 +151,10 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   that defines the tools, or in a committed tool-list JSON file whose tools carry
   `inputSchema`.
 - **Do NOT score or review them here.** The `ship-check:tool-definition-reviewer`
-  agent and its `tool-definition-review` skill own this review. A self-score in this
-  pass covers few tools and misses the error entries the dedicated reviewer traces.
+  agent and its `tool-definition-review` skill own this review. Scoring the tools
+  against the quality rubric in this pass covers few of them, and this pass does
+  not trace each tool's failures against the error list in its description, which
+  the dedicated reviewer does.
 - **In a ship-check run:** report the line
   `Tool definitions: changed — handed to the tool-definition step, not reviewed here`.
   The orchestrator runs that step after Phase 5.
@@ -160,8 +162,9 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   `Tool definitions: changed — not reviewed here; run the tool-definition reviewer`
   and tell the user to dispatch `ship-check:tool-definition-reviewer` (or run the
   `tool-definition-review` skill) on the server's `tools/list` saved to a file.
-- NEVER say the tool definitions are covered unless a tool-definition review report
-  came back.
+- NEVER say the tool definitions are covered unless you hold a report from the
+  tool-definition reviewer on them. In a ship-check run, this pass never receives
+  that report, because the orchestrator reads it after Phase 5.
 - **Boundary:** whether a description's claims match the code stays with bug-check
   dimension 1. No tool-definition change → report `N/A — no tool definition changes`.
 

@@ -47,9 +47,10 @@ author intended.
   since no pipeline is handling the others. A Codex dispatcher includes
   `Attribution model ID: <exact-id>` in this standalone prompt.
 - **Feature surface check.** The PR changes the project's feature surface, and the user
-  wants that dimension specifically evaluated. A change to MCP tool descriptions or
-  input schemas is NOT reviewed here: report the handoff line from dimension 5, and
-  the `ship-check:tool-definition-reviewer` agent reviews it.
+  wants that dimension specifically evaluated.
+- **Not for MCP tool definitions.** A change to tool descriptions or input schemas is
+  NOT reviewed here: report the handoff line from dimension 5, and the
+  `ship-check:tool-definition-reviewer` agent reviews it.
 
 ## Your Core Responsibilities
 
@@ -169,9 +170,12 @@ PR Review complete:
 - By dimension:
   - Correctness: A
   - Security/performance: B
-  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (standalone: "changed — not reviewed here; run the tool-definition reviewer"; or "N/A — no tool definition changes")
-  - Feature surface docs: D (or "N/A — no feature surface changes")
-  - Stale paths: E (or "N/A — no file moves/renames")
+  - Tool definitions: one of
+    - changed — handed to the tool-definition step, not reviewed here   (ship-check run)
+    - changed — not reviewed here; run the tool-definition reviewer   (standalone run)
+    - N/A — no tool definition changes
+  - Feature surface docs: C (or "N/A — no feature surface changes")
+  - Stale paths: D (or "N/A — no file moves/renames")
 - Tests: passing / N failures
 - Verdict: ship / ship-with-minor-fixes / needs-changes
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
@@ -188,9 +192,12 @@ PR Review complete (comment mode):
 - By dimension:
   - Correctness: A
   - Security/performance: B
-  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (standalone: "changed — not reviewed here; run the tool-definition reviewer"; or "N/A")
-  - Feature surface docs: D (or "N/A")
-  - Stale paths: E (or "N/A")
+  - Tool definitions: one of
+    - changed — handed to the tool-definition step, not reviewed here   (ship-check run)
+    - changed — not reviewed here; run the tool-definition reviewer   (standalone run)
+    - N/A
+  - Feature surface docs: C (or "N/A")
+  - Stale paths: D (or "N/A")
 - Verdict: ship / ship-with-minor-fixes / needs-changes
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

@@ -119,6 +119,11 @@ const isJsonObject = (value: unknown): value is JsonObject => {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+/** Any non-null object, such as a thrown error, whose own fields can then be read. */
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null
+}
+
 const optionalString = (value: unknown, field: string, where: string): string | undefined => {
   if (value === undefined || typeof value === "string") return value
   throw new InputError(`${where}: "${field}" must be a string`)
@@ -217,6 +222,12 @@ const parseJson = (text: string, path: string): unknown => {
 
 const loadSurface = (path: string): Surface => parseSurface(parseJson(readText(path), path), path)
 
+const byCodeUnit = (left: string, right: string): number => {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
 /** Sorts object keys at every depth, so schemas that differ only in key order serialise alike. Array order is kept, because it is part of a schema's meaning. */
 const canonicalize = (value: JsonValue): JsonValue => {
   if (Array.isArray(value)) {
@@ -227,7 +238,7 @@ const canonicalize = (value: JsonValue): JsonValue => {
     return value
   }
 
-  const sortedEntries = Object.entries(value).toSorted(([leftKey], [rightKey]) => (leftKey < rightKey ? -1 : 1))
+  const sortedEntries = Object.entries(value).toSorted(([leftKey], [rightKey]) => byCodeUnit(leftKey, rightKey))
   return Object.fromEntries(sortedEntries.map(([key, child]) => [key, canonicalize(child)]))
 }
 
@@ -293,8 +304,9 @@ const countCopies = (texts: string[]): Map<string, number> => {
   return copies
 }
 
-const textsWithMoreCopies = (copies: Map<string, number>, thanIn: Map<string, number>): string[] => {
-  return [...copies.keys()].filter((text) => (copies.get(text) ?? 0) > (thanIn.get(text) ?? 0))
+/** The texts that have more copies in `copies` than in `otherCopies`. */
+const textsWithMoreCopies = (copies: Map<string, number>, otherCopies: Map<string, number>): string[] => {
+  return [...copies.keys()].filter((text) => (copies.get(text) ?? 0) > (otherCopies.get(text) ?? 0))
 }
 
 /** Compares how many copies of each text there are, so losing one of two identical lines is still a removal. Each text is listed once. */
@@ -423,9 +435,11 @@ const findCandidates = (tool: Tool, base: Tool | undefined): Candidate[] => {
   }
 
   return parameterTexts(tool.inputSchema).flatMap(({ parameter, text }) => {
-    // An overlap loses a half character and the spaces at its edges, so it matches the base's
-    // repetition even when the change added a space beside it. The threshold is checked again
-    // because that trimming can shorten an overlap below it.
+    // Each overlap is trimmed before it is compared with the base:
+    // - a lone half of a two-unit character at an edge is dropped, since overlaps are cut by code unit;
+    // - the spaces at its edges are dropped, so it still matches the base's repetition when the change
+    //   only added a space beside it.
+    // Trimming can shorten an overlap below the threshold, so the threshold is checked again.
     const overlaps = commonSubstrings(collapseWhitespace(text), description)
       .map((overlap) => overlap.replace(HALF_CHARACTER_AT_EDGE, "").trim())
       .filter((overlap) => overlap.length >= MIN_OVERLAP_CHARS)
@@ -562,8 +576,9 @@ export type FileSide =
   | { kind: "notToolList"; reason: string }
 
 /**
- * The commits a `--since` review compares beyond `--from` and `--to`. `path` is the file's path at the review;
- * `sinceFrom` is read at the path the file had at the review's merge base, which differs when the branch renamed it.
+ * One file as a `--since` plan reads it at its two extra commits: `since` (the head the last review saw) and
+ * `sinceFrom` (the merge base that review used). `path` is the file's path at `since`; `sinceFrom` is read at the
+ * path the file had at that merge base, which differs when the branch renamed the file before the review.
  */
 export type SinceSides = { path: string; since: FileSide; sinceFrom: FileSide }
 
@@ -576,13 +591,14 @@ export type ChangedFile = {
   sinceSides: SinceSides | null
 }
 
+/** One tool to review. `key`, `edit`, and `definition` are JSON strings, so equal values mean equal content. */
 type ReviewRecord = {
   name: string
-  // Equal keys are one review: the tool's name with its definition before and after.
+  // The tool's name with its whole definition before and after. Records with equal keys are one review.
   key: string
-  // Equal edits need the error trace only once.
+  // What the change did to the tool, without the wording it left alone (see editKey). Equal edits are traced once.
   edit: string
-  // The tool's definition at `--to`, matched by the new-file rule.
+  // The tool's whole definition at `--to`, which dropToolsShippedElsewhere looks for in other files.
   definition: string
   alsoChangedOnBaseBranch: boolean
 }
@@ -606,9 +622,15 @@ type FileReview = {
 
 export type PlannedFile = {
   path: string
+  // The tools this file's dispatches review: the records assigned to it.
   reviewOnly: string[]
+  // True when one of those records is the first of its edit, so the dispatches get the repository root and the
+  // reviewer traces each tool's failures in the source.
   withRoot: boolean
+  // True when `reviewOnly` holds more than TOOLS_PER_DISPATCH tools. The cold read (the reviewer's first read,
+  // without the base) then goes out as one dispatch over all of them, and the diff read as one dispatch per batch.
   coldDispatch: boolean
+  // `reviewOnly` in runs of at most TOOLS_PER_DISPATCH.
   batches: string[][]
   alsoChangedOnBaseBranch: string[]
   // Null for a new tool-list file, which has nothing to compare with.
@@ -616,16 +638,25 @@ export type PlannedFile = {
 }
 
 export type PlanResult = {
+  // How many records the planned files review in total.
   records: number
   files: PlannedFile[]
+  // Changed tool lists with no tool to review, which happens when
+  // - only a file's instructions, prompts, or key order changed;
+  // - a new file ships only definitions another changed file already has;
+  // - in `--since` mode, a file's tools changed since the review only through the base branch.
   filesWithNoToolChange: string[]
   broken: { path: string; reason: string }[]
+  // Whole tool-list files that are gone, with the tools they held.
   removed: { path: string; tools: string[] }[]
+  // Tools gone from a file that is still a tool list.
   removedTools: { path: string; tools: string[] }[]
   addedThenDropped: { path: string; tools: string[] }[]
   notToolLists: string[]
 }
 
+// The MCP specification's order for a tool's parts. Every comparison sorts keys, so only the composed base file that
+// writePlan writes shows this order.
 const TOOL_PARTS_ORDER: Part[] = ["title", "description", "inputSchema", "outputSchema", "annotations"]
 
 /** The tool as one JSON object holding only its present parts, so it can be compared and keyed. */
@@ -643,12 +674,6 @@ const toolKey = (tool: Tool | undefined): string => (tool ? canonicalJson(toolOb
 
 const sameTool = (left: Tool | undefined, right: Tool | undefined): boolean => toolKey(left) === toolKey(right)
 
-const byCodeUnit = (left: string, right: string): number => {
-  if (left < right) return -1
-  if (left > right) return 1
-  return 0
-}
-
 /** Removes string `description` values at every depth. A parameter named `description` holds an object, so it stays. */
 const withoutDescriptionText = (value: JsonValue): JsonValue => {
   if (Array.isArray(value)) {
@@ -663,7 +688,10 @@ const withoutDescriptionText = (value: JsonValue): JsonValue => {
   return Object.fromEntries(kept.map(([key, child]) => [key, withoutDescriptionText(child)]))
 }
 
-/** Every node of a JSON value by its path. Containers get an entry too, so adding an empty object or array is a change. */
+/**
+ * Every node of a JSON value by its path. Containers get an entry too, so adding an empty object or array is a change.
+ * A container's entry is the marker "[]" or "{}", which no leaf can equal, because a leaf is JSON-encoded.
+ */
 const nodesByPath = (value: JsonValue, path = ""): [string, string][] => {
   if (Array.isArray(value)) {
     return [[path, "[]"], ...value.flatMap((child, index) => nodesByPath(child, `${path}/${index}`))]
@@ -676,15 +704,17 @@ const nodesByPath = (value: JsonValue, path = ""): [string, string][] => {
   return [[path, JSON.stringify(value)]]
 }
 
-/** The non-description parts of a tool whose values changed, as sorted path, before, after triples. */
-const changedSchemaNodes = (base: Tool, current: Tool): [string, string | null, string | null][] => {
-  const structure = (tool: Tool): Map<string, string> => {
-    const { description: _description, ...rest } = toolObject(tool)
-    return new Map(nodesByPath(withoutDescriptionText(rest)))
+/**
+ * The nodes of a tool's definition whose values changed, as sorted path, before, after triples. Every part counts
+ * (title, schemas, annotations) except string `description` values, which descriptionLines and schemaSentences cover.
+ */
+const changedDefinitionNodes = (base: Tool, current: Tool): [string, string | null, string | null][] => {
+  const nodesWithoutDescriptions = (tool: Tool): Map<string, string> => {
+    return new Map(nodesByPath(withoutDescriptionText(toolObject(tool))))
   }
 
-  const before = structure(base)
-  const after = structure(current)
+  const before = nodesWithoutDescriptions(base)
+  const after = nodesWithoutDescriptions(current)
   const paths = [...new Set([...before.keys(), ...after.keys()])].toSorted(byCodeUnit)
 
   return paths
@@ -693,40 +723,63 @@ const changedSchemaNodes = (base: Tool, current: Tool): [string, string | null, 
 }
 
 /** What a change did to one tool, independent of the wording it did not touch. An added tool's edit is its whole definition. */
-const editKey = (name: string, base: Tool | undefined, current: Tool): string => {
-  if (!base) return JSON.stringify([name, "added", toolKey(current)])
+const editKey = (base: Tool | undefined, current: Tool): string => {
+  if (!base) return JSON.stringify([current.name, "added", toolKey(current)])
 
   const lines = textChange(descriptionLines(base), descriptionLines(current))
   const sentences = textChange(schemaSentences(base), schemaSentences(current))
 
+  // Sorted, so the same lines added or removed in a different order give the same key.
   return JSON.stringify([
-    name,
+    current.name,
     lines.added.toSorted(byCodeUnit),
     lines.removed.toSorted(byCodeUnit),
     sentences.added.toSorted(byCodeUnit),
     sentences.removed.toSorted(byCodeUnit),
-    changedSchemaNodes(base, current),
+    changedDefinitionNodes(base, current),
   ])
 }
 
-const recordFor = (base: Tool | undefined, current: Tool, alsoChangedOnBaseBranch: boolean): ReviewRecord => {
+const recordFor = ({
+  base,
+  current,
+  alsoChangedOnBaseBranch,
+}: {
+  base: Tool | undefined
+  current: Tool
+  alsoChangedOnBaseBranch: boolean
+}): ReviewRecord => {
   return {
     name: current.name,
     key: JSON.stringify([current.name, toolKey(base), toolKey(current)]),
-    edit: editKey(current.name, base, current),
+    edit: editKey(base, current),
     definition: toolKey(current),
     alsoChangedOnBaseBranch,
   }
 }
 
-const fileReview = (path: string, base: ReviewBase | null, records: ReviewRecord[], current: Surface): FileReview => {
+const fileReview = ({
+  path,
+  base,
+  records,
+  current,
+}: {
+  path: string
+  base: ReviewBase | null
+  records: ReviewRecord[]
+  current: Surface
+}): FileReview => {
   return { path, base, records, shippedDefinitions: new Set(current.tools.map(toolKey)) }
 }
 
-const toolsByName = (side: FileSide): Map<string, Tool> => {
+const sideToolsByName = (side: FileSide): Map<string, Tool> => {
   return side.kind === "toolList" ? new Map(side.surface.tools.map((tool) => [tool.name, tool])) : new Map()
 }
 
+/**
+ * Whether two sides hold the same content. Tool lists compare by their sections and their tools, tool order included.
+ * Two sides that are not tool lists are the same when their kinds match, whatever made either one not a tool list.
+ */
 const sameSide = (left: FileSide, right: FileSide): boolean => {
   if (left.kind !== "toolList" || right.kind !== "toolList") return left.kind === right.kind
 
@@ -738,11 +791,16 @@ const sameSide = (left: FileSide, right: FileSide): boolean => {
 type SinceDecision = { inScope: false } | { inScope: true; base: Tool | undefined; alsoChangedOnBaseBranch: boolean }
 
 /**
- * Whether a tool needs review since the last one, and what to compare it with. The first matching rule applies:
- * 1. The branch never touched it (unchanged from the old merge base to the review, and equal to the new merge base now): no.
- * 2. Changed since the review, first touched after it: yes, against the new merge base.
- * 3. Changed since the review, touched before it: yes, against the reviewed text.
- * 4. Unchanged since the review, but the base branch changed it and the branch's text overrode that: yes, against the new merge base.
+ * Whether a tool needs review since the last one, and what to compare it with. The four definitions are the tool at
+ * `sinceFrom` (the merge base the last review used), `since` (the head that review saw), `from` (the current merge
+ * base), and `to` (the current head). The first matching rule applies:
+ * 1. The branch never touched it (`since` equals `sinceFrom`, and `to` equals `from`): no.
+ * 2. `to` differs from `since`, and `since` equals `sinceFrom` (first touched after the review): yes, against `from`.
+ * 3. `to` differs from `since`, and the branch touched it before the review: yes, against `since`.
+ * 4. `to` equals `since`, but the base branch changed it (`sinceFrom` differs from `from`) and a merge kept the
+ *    branch's text (`to` differs from `from`): yes, against `from`.
+ * 5. Otherwise: no.
+ * `alsoChangedOnBaseBranch` is true whenever `sinceFrom` differs from `from`.
  */
 export const decideSince = (definitions: {
   since: Tool | undefined
@@ -751,16 +809,16 @@ export const decideSince = (definitions: {
   to: Tool | undefined
 }): SinceDecision => {
   const { since, sinceFrom, from, to } = definitions
-  const baseBranchMoved = !sameTool(sinceFrom, from)
+  const alsoChangedOnBaseBranch = !sameTool(sinceFrom, from)
 
   if (sameTool(since, sinceFrom) && sameTool(to, from)) return { inScope: false }
 
   if (!sameTool(to, since)) {
     const firstTouchedAfterReview = sameTool(since, sinceFrom)
-    return { inScope: true, base: firstTouchedAfterReview ? from : since, alsoChangedOnBaseBranch: baseBranchMoved }
+    return { inScope: true, base: firstTouchedAfterReview ? from : since, alsoChangedOnBaseBranch }
   }
 
-  if (baseBranchMoved && !sameTool(to, from)) return { inScope: true, base: from, alsoChangedOnBaseBranch: true }
+  if (alsoChangedOnBaseBranch && !sameTool(to, from)) return { inScope: true, base: from, alsoChangedOnBaseBranch }
 
   return { inScope: false }
 }
@@ -770,6 +828,7 @@ type Classified =
   | { kind: "broken"; reason: string }
   | { kind: "removed"; tools: string[] }
   | { kind: "addedThenDropped"; tools: string[] }
+  // A file the base branch deleted and the branch never touched. planReview lists it nowhere.
   | { kind: "excluded" }
   | { kind: "notToolList" }
 
@@ -786,20 +845,26 @@ const classifyFull = (file: ChangedFile): Classified => {
     return from.kind === "toolList" ? { kind: "removed", tools: toolNames(from) } : { kind: "notToolList" }
   }
 
+  // A `--from` side that is absent or not a tool list gives no base, so the file is reviewed as a new tool list.
   const base = from.kind === "toolList" ? from.surface : null
+
+  // compareSurfaces applies the reviewer's own scope rule; only its `inScope` and `removed` lists are used here.
   const report = compareSurfaces(base, to.surface, { base: file.fromPath, current: file.path })
-  const baseTools = toolsByName(from)
+  const baseTools = sideToolsByName(from)
 
   const records = to.surface.tools
     .filter((tool) => report.inScope.includes(tool.name))
-    .map((tool) => recordFor(baseTools.get(tool.name), tool, false))
+    .map((tool) => recordFor({ base: baseTools.get(tool.name), current: tool, alsoChangedOnBaseBranch: false }))
 
   const reviewBase: ReviewBase | null = base ? { kind: "fromCopy", path: file.fromPath } : null
-  const review = fileReview(file.path, reviewBase, records, to.surface)
+  const review = fileReview({ path: file.path, base: reviewBase, records, current: to.surface })
   return { kind: "review", review, removedTools: report.removed, addedThenDropped: [] }
 }
 
-/** The composed `--since` base: each in-scope tool's chosen base, and the `--to` version of every other tool and of the sections. */
+/**
+ * The composed `--since` base: each in-scope tool's chosen base, and the `--to` version of every other tool and of the
+ * sections. An in-scope tool with no base (one added since) is left out, so the reviewer sees it as added.
+ */
 const composeSinceBase = (to: Surface, bases: ReadonlyMap<string, Tool | undefined>): { tools: Tool[]; sections: JsonObject } => {
   const tools = to.tools.flatMap((tool) => {
     if (!bases.has(tool.name)) return [tool]
@@ -814,7 +879,8 @@ const composeSinceBase = (to: Surface, bases: ReadonlyMap<string, Tool | undefin
 const classifySince = (file: ChangedFile, sinceSides: SinceSides): Classified => {
   const { from, to } = file
 
-  // A file absent at the review compares as it stood on the base branch at both merge bases.
+  // A file absent at the review takes the new merge base's side (`from`) for both review-time sides, so decideSince
+  // compares each of its tools with `from` (rule 2), or leaves it out when it still equals `from` (rule 1).
   const sinceAbsent = sinceSides.since.kind === "absent"
   const since = sinceAbsent ? from : sinceSides.since
   const sinceFrom = sinceAbsent ? from : sinceSides.sinceFrom
@@ -824,14 +890,22 @@ const classifySince = (file: ChangedFile, sinceSides: SinceSides): Classified =>
   }
 
   if (to.kind === "absent") {
+    // Not a tool list at the review, so no reviewed tool is lost.
     if (since.kind !== "toolList") return { kind: "notToolList" }
+
+    // The branch had not changed it by the review, and the new merge base lacks it, so the base branch deleted it.
     if (sameSide(since, sinceFrom) && from.kind === "absent") return { kind: "excluded" }
+
+    // Neither merge base has it, so the branch added it and has deleted it again.
     if (sinceFrom.kind === "absent" && from.kind === "absent") return { kind: "addedThenDropped", tools: toolNames(since) }
 
+    // Otherwise a tool list the review saw is gone.
     return { kind: "removed", tools: toolNames(since) }
   }
 
-  const [sinceTools, sinceFromTools, fromTools] = [toolsByName(since), toolsByName(sinceFrom), toolsByName(from)]
+  const sinceTools = sideToolsByName(since)
+  const sinceFromTools = sideToolsByName(sinceFrom)
+  const fromTools = sideToolsByName(from)
   const bases = new Map<string, Tool | undefined>()
   const records: ReviewRecord[] = []
 
@@ -846,12 +920,13 @@ const classifySince = (file: ChangedFile, sinceSides: SinceSides): Classified =>
     if (!decision.inScope) continue
 
     bases.set(tool.name, decision.base)
-    records.push(recordFor(decision.base, tool, decision.alsoChangedOnBaseBranch))
+    records.push(recordFor({ base: decision.base, current: tool, alsoChangedOnBaseBranch: decision.alsoChangedOnBaseBranch }))
   }
 
   const currentNames = new Set(to.surface.tools.map((tool) => tool.name))
   const goneSinceReview = [...sinceTools.values()].filter((tool) => !currentNames.has(tool.name))
 
+  // The same two rules as for a deleted file above, applied to one tool.
   const baseBranchRemoval = (tool: Tool): boolean => sameTool(tool, sinceFromTools.get(tool.name)) && !fromTools.has(tool.name)
   const branchAddedThenDropped = (tool: Tool): boolean => !sinceFromTools.has(tool.name) && !fromTools.has(tool.name)
 
@@ -859,25 +934,22 @@ const classifySince = (file: ChangedFile, sinceSides: SinceSides): Classified =>
   const addedThenDropped = reported.filter(branchAddedThenDropped).map((tool) => tool.name)
   const removedTools = reported.filter((tool) => !branchAddedThenDropped(tool)).map((tool) => tool.name)
 
+  // A file that was not a tool list at the review has no base, so its tools are reviewed as new, and
+  // dropToolsShippedElsewhere treats it as a new file.
   const reviewBase: ReviewBase | null =
     since.kind === "toolList" ? { kind: "composed", path: file.path, ...composeSinceBase(to.surface, bases) } : null
-  const review = fileReview(file.path, reviewBase, records, to.surface)
+  const review = fileReview({ path: file.path, base: reviewBase, records, current: to.surface })
   return { kind: "review", review, removedTools, addedThenDropped }
 }
 
 const chunk = (names: readonly string[], size: number): string[][] => {
-  const chunks: string[][] = []
-
-  for (let start = 0; start < names.length; start += size) {
-    chunks.push(names.slice(start, start + size))
-  }
-
-  return chunks
+  return Array.from({ length: Math.ceil(names.length / size) }, (_, index) => names.slice(index * size, (index + 1) * size))
 }
 
 /**
- * A new file's tool needs no review when a changed file that has a base already ships the same definition: its text is
- * either unchanged elsewhere or reviewed there. Unchanged files are not read, so an added copy of one is still reviewed.
+ * Drops a tool from a file with no base when a changed file that has a base already ships the same definition: that
+ * text is unchanged there or reviewed there. Unchanged files are not read, so a tool copied from an unchanged file
+ * into a file with no base is still reviewed.
  */
 const dropToolsShippedElsewhere = (reviews: readonly FileReview[]): FileReview[] => {
   const shippedWithBase = new Set(reviews.filter((review) => review.base).flatMap((review) => [...review.shippedDefinitions]))
@@ -937,11 +1009,17 @@ const assignRecords = (reviews: readonly FileReview[]): PlannedFile[] => {
   return planned
 }
 
+/** A path with its tools, or nothing when it has none, for the plan's per-file tool lists. */
+const pathWithTools = (path: string, tools: string[]): { path: string; tools: string[] }[] => {
+  return tools.length > 0 ? [{ path, tools }] : []
+}
+
 /**
  * Turns the changed files into the reviewer's dispatches.
  * - One record per distinct tool definition before and after; equal records across files are reviewed once.
  * - Files are ordered by how many distinct records they hold, most first, then by path in code-unit order.
- * - A file gets the repository root when it holds the first record of some edit, so each distinct edit is traced once.
+ * - A file that holds the first record of some edit gets the repository root, so the reviewer traces that edit's
+ *   failures in the source. Each distinct edit is traced once.
  */
 export const planReview = (files: readonly ChangedFile[]): PlanResult => {
   const classified = files.map((file) => ({
@@ -954,27 +1032,23 @@ export const planReview = (files: readonly ChangedFile[]): PlanResult => {
   const planned = assignRecords(eligible)
   const eligibleCounts = new Map(eligible.map((review) => [review.path, review.records.length]))
 
-  const quiet = reviewResults.filter(({ path, removedTools, addedThenDropped }) => {
-    return !eligibleCounts.get(path) && removedTools.length === 0 && addedThenDropped.length === 0
+  const filesWithNoToolChange = reviewResults.filter(({ path, removedTools, addedThenDropped }) => {
+    return (eligibleCounts.get(path) ?? 0) === 0 && removedTools.length === 0 && addedThenDropped.length === 0
   })
 
-  const removedTools = reviewResults.flatMap(({ path, removedTools: tools }) => (tools.length > 0 ? [{ path, tools }] : []))
-
-  const droppedTools = reviewResults.flatMap(({ path, addedThenDropped: tools }) => {
-    return tools.length > 0 ? [{ path, tools }] : []
-  })
-
-  const droppedFiles = classified.flatMap(({ path, result }) => {
-    return result.kind === "addedThenDropped" ? [{ path, tools: result.tools }] : []
-  })
+  const removedTools = reviewResults.flatMap(({ path, removedTools: tools }) => pathWithTools(path, tools))
+  const droppedTools = reviewResults.flatMap(({ path, addedThenDropped: tools }) => pathWithTools(path, tools))
+  const droppedFiles = classified.flatMap(({ path, result }) => (result.kind === "addedThenDropped" ? [{ path, tools: result.tools }] : []))
 
   return {
     records: planned.reduce((sum, file) => sum + file.reviewOnly.length, 0),
     files: planned,
-    filesWithNoToolChange: quiet.map(({ path }) => path),
+    filesWithNoToolChange: filesWithNoToolChange.map(({ path }) => path),
     broken: classified.flatMap(({ path, result }) => (result.kind === "broken" ? [{ path, reason: result.reason }] : [])),
     removed: classified.flatMap(({ path, result }) => (result.kind === "removed" ? [{ path, tools: result.tools }] : [])),
     removedTools,
+    // Whole files and single tools share this list because the dispatcher only lists them. Removals stay in two lists,
+    // because a removed file is always a finding, and a removed tool is one only when the change does not mention it.
     addedThenDropped: [...droppedFiles, ...droppedTools],
     notToolLists: classified.filter(({ result }) => result.kind === "notToolList").map(({ path }) => path),
   }
@@ -982,7 +1056,7 @@ export const planReview = (files: readonly ChangedFile[]): PlanResult => {
 
 /** Git's own message when it printed one, since execFileSync's error message only says the command failed. */
 const gitErrorText = (error: unknown): string => {
-  if (isJsonObject(error) && typeof error.stderr === "string" && error.stderr.trim()) {
+  if (isRecord(error) && typeof error.stderr === "string" && error.stderr.trim()) {
     return error.stderr.trim()
   }
 
@@ -1002,6 +1076,11 @@ const runGit = (repo: string, args: string[]): string => {
   }
 }
 
+/**
+ * The full SHA of the commit `ref` names. It calls git directly rather than through runGit, because `--quiet` makes
+ * git print nothing for a ref that is not a commit; this function supplies the "not a commit" message, which the
+ * ship-check re-review matches on.
+ */
 const resolveCommit = (repo: string, ref: string): string => {
   try {
     return execFileSync("git", ["-C", repo, "rev-parse", "--verify", "--quiet", `${ref}^{commit}`], {
@@ -1051,14 +1130,21 @@ const parseNameStatus = (output: string): PathChange[] => {
 // A user's git config can turn on colour or an external diff program, either of which would corrupt the parsed output.
 const DIFF_OUTPUT_OPTIONS = ["-z", "--name-status", "-M", "--no-color", "--no-ext-diff"]
 
-const listChangedJson = (repo: string, fromCommit: string, toCommit: string): PathChange[] => {
-  return parseNameStatus(runGit(repo, ["diff", ...DIFF_OUTPUT_OPTIONS, fromCommit, toCommit, "--", "*.json"]))
+/** The `.json` paths that changed from one commit to another, in every folder, since git's `*` in a pathspec crosses `/`. */
+const listChangedJson = (repo: string, range: { from: string; to: string }): PathChange[] => {
+  return parseNameStatus(runGit(repo, ["diff", ...DIFF_OUTPUT_OPTIONS, range.from, range.to, "--", "*.json"]))
 }
 
-const pathExists = (repo: string, commit: string, path: string): boolean => {
+type FileAtCommit = { commit: string; path: string }
+
+const pathExists = (repo: string, { commit, path }: FileAtCommit): boolean => {
   return runGit(repo, ["ls-tree", "-z", "--name-only", commit, "--", path]) !== ""
 }
 
+/**
+ * Unlike parseJson, this returns null for text that fails to parse, which readSide records as a side that is not a
+ * tool list rather than an input error. A parsed value is wrapped, so a file holding `null` still reads as parsed.
+ */
 const parseJsonText = (text: string): { parsed: unknown } | null => {
   try {
     return { parsed: JSON.parse(text) }
@@ -1067,8 +1153,8 @@ const parseJsonText = (text: string): { parsed: unknown } | null => {
   }
 }
 
-const readSide = (repo: string, commit: string, path: string): FileSide => {
-  if (!pathExists(repo, commit, path)) return { kind: "absent" }
+const readSide = (repo: string, { commit, path }: FileAtCommit): FileSide => {
+  if (!pathExists(repo, { commit, path })) return { kind: "absent" }
 
   const text = runGit(repo, ["show", `${commit}:${path}`])
   const json = parseJsonText(text)
@@ -1084,51 +1170,60 @@ const readSide = (repo: string, commit: string, path: string): FileSide => {
   }
 }
 
+/**
+ * The commits a plan compares, named after their options:
+ * - `from`: the commit the change starts from, the current merge base with the base branch.
+ * - `to`: the head under review.
+ * - `since`: the head the last tool review saw (`--since` mode only).
+ * - `sinceFrom`: the merge base that review used (`--since` mode only).
+ */
 type PlanCommits = { from: string; to: string; since: string | null; sinceFrom: string | null }
 
 /** Reads every changed `.json` path at each commit the plan compares. */
 const readChangedFiles = (repo: string, commits: PlanCommits): ChangedFile[] => {
   const { from, to, since, sinceFrom } = commits
-  const fromChanges = listChangedJson(repo, from, to)
-  const fromPaths = new Map(fromChanges.map((change) => [change.path, change.oldPath]))
+  const fromChanges = listChangedJson(repo, { from, to })
+  const fromPathByToPath = new Map(fromChanges.map((change) => [change.path, change.oldPath]))
 
   if (!since || !sinceFrom) {
     return fromChanges.map((change) => ({
       path: change.path,
       fromPath: change.oldPath,
-      from: readSide(repo, from, change.oldPath),
-      to: readSide(repo, to, change.path),
+      from: readSide(repo, { commit: from, path: change.oldPath }),
+      to: readSide(repo, { commit: to, path: change.path }),
       sinceSides: null,
     }))
   }
 
-  const sinceChanges = listChangedJson(repo, since, to)
-  const sincePaths = new Map(sinceChanges.map((change) => [change.path, change.oldPath]))
+  const sinceChanges = listChangedJson(repo, { from: since, to })
+  const sincePathByToPath = new Map(sinceChanges.map((change) => [change.path, change.oldPath]))
 
   // A file the branch renamed before the review still has its old name at the review's merge base.
-  const sinceFromPaths = new Map(listChangedJson(repo, sinceFrom, since).map((change) => [change.path, change.oldPath]))
+  const sinceFromChanges = listChangedJson(repo, { from: sinceFrom, to: since })
+  const sinceFromPathBySincePath = new Map(sinceFromChanges.map((change) => [change.path, change.oldPath]))
 
-  // When the merge base moved, a path the base branch changed is checked too: a merge may have kept the branch's text over it.
-  // Git names that path as it is at `--from`, so a file the branch renamed is listed under its `--to` name.
-  const toPaths = new Map(fromChanges.map((change) => [change.oldPath, change.path]))
-  const baseBranchPaths = sinceFrom === from ? [] : listChangedJson(repo, sinceFrom, from).map((change) => change.path)
-  const changedPaths = [...sinceChanges.map((change) => change.path), ...baseBranchPaths.map((path) => toPaths.get(path) ?? path)]
+  // When the merge base moved, a path the base branch changed is checked too, because a merge may have kept the
+  // branch's text over the base branch's edit. Git names each such path as it is at `--from`; toPathByFromPath turns
+  // it into the `--to` name the other lists use, so a file the branch renamed is read once, under its `--to` name.
+  const toPathByFromPath = new Map(fromChanges.map((change) => [change.oldPath, change.path]))
+  const baseBranchPaths = sinceFrom === from ? [] : listChangedJson(repo, { from: sinceFrom, to: from }).map((change) => change.path)
+  const changedPaths = [...sinceChanges.map((change) => change.path), ...baseBranchPaths.map((path) => toPathByFromPath.get(path) ?? path)]
   const paths = [...new Set(changedPaths)].toSorted(byCodeUnit)
 
   return paths.map((path) => {
-    const fromPath = fromPaths.get(path) ?? path
-    const sincePath = sincePaths.get(path) ?? path
-    const sinceFromPath = sinceFromPaths.get(sincePath) ?? sincePath
+    const fromPath = fromPathByToPath.get(path) ?? path
+    const sincePath = sincePathByToPath.get(path) ?? path
+    const sinceFromPath = sinceFromPathBySincePath.get(sincePath) ?? sincePath
 
     return {
       path,
       fromPath,
-      from: readSide(repo, from, fromPath),
-      to: readSide(repo, to, path),
+      from: readSide(repo, { commit: from, path: fromPath }),
+      to: readSide(repo, { commit: to, path }),
       sinceSides: {
         path: sincePath,
-        since: readSide(repo, since, sincePath),
-        sinceFrom: readSide(repo, sinceFrom, sinceFromPath),
+        since: readSide(repo, { commit: since, path: sincePath }),
+        sinceFrom: readSide(repo, { commit: sinceFrom, path: sinceFromPath }),
       },
     }
   })
@@ -1143,7 +1238,7 @@ const createOutputFolder = (out: string) => {
   try {
     mkdirSync(out)
   } catch (error) {
-    const code = isJsonObject(error) ? error.code : undefined
+    const code = isRecord(error) ? error.code : undefined
 
     if (code === "EEXIST") throw new InputError(`${out}: already exists; --out must name a new folder`)
     if (code === "ENOENT") throw new InputError(`${out}: its parent folder does not exist`)
@@ -1151,8 +1246,17 @@ const createOutputFolder = (out: string) => {
   }
 }
 
-/** Writes each side the plan read, and each composed `--since` base, under `out`; returns the plan with those paths. */
-const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResult) => {
+/** A planned file as the printed plan gives it, with `current` and `base` as paths of files written under `--out`. */
+type PrintedFile = Omit<PlannedFile, "base"> & { current: string; base: string | null }
+
+type PrintedPlan = Omit<PlanResult, "files"> & { files: PrintedFile[] }
+
+/**
+ * Writes the plan's files under `out` and returns the plan with their paths. It copies each tool list it read at
+ * `--from`, `--to`, and `--since` to `from/`, `to/`, and `since/`, and writes each composed `--since` base to
+ * `since-base/`. The printed plan names the `to/` copy and the base; nothing in it points at `since/`.
+ */
+const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResult): PrintedPlan => {
   createOutputFolder(out)
 
   for (const file of files) {
@@ -1164,20 +1268,22 @@ const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResul
     if (sinceSides?.since.kind === "toolList") writeTextFile(join(out, "since", sinceSides.path), sinceSides.since.text)
   }
 
-  const basePathFor = ({ base }: PlannedFile): string | null => {
-    if (!base) return null
+  const basePath = (base: ReviewBase): string => {
     if (base.kind === "fromCopy") return join(out, "from", base.path)
-
-    const composedPath = join(out, "since-base", base.path)
-    const composed = { ...base.sections, tools: base.tools.map(toolObject) }
-    writeTextFile(composedPath, `${JSON.stringify(composed, null, 2)}\n`)
-    return composedPath
+    return join(out, "since-base", base.path)
   }
 
-  const plannedFiles = result.files.map((planned) => ({
+  for (const { base } of result.files) {
+    if (base?.kind !== "composed") continue
+
+    const composed = { ...base.sections, tools: base.tools.map(toolObject) }
+    writeTextFile(basePath(base), `${JSON.stringify(composed, null, 2)}\n`)
+  }
+
+  const printedFiles = result.files.map((planned) => ({
     path: planned.path,
     current: join(out, "to", planned.path),
-    base: basePathFor(planned),
+    base: planned.base ? basePath(planned.base) : null,
     reviewOnly: planned.reviewOnly,
     withRoot: planned.withRoot,
     coldDispatch: planned.coldDispatch,
@@ -1185,7 +1291,7 @@ const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResul
     alsoChangedOnBaseBranch: planned.alsoChangedOnBaseBranch,
   }))
 
-  return { ...result, files: plannedFiles }
+  return { ...result, files: printedFiles }
 }
 
 type PlanArguments = { repo: string; from: string; to: string; since: string | null; sinceFrom: string | null; out: string }
@@ -1202,10 +1308,10 @@ const runPlan = ({ repo, from, to, since, sinceFrom, out }: PlanArguments): stri
   // that folder, so the plan would miss some files and read the rest as absent. Every call runs at the top instead.
   const root = runGit(repo, ["rev-parse", "--show-toplevel"]).trim()
   const files = readChangedFiles(root, commits)
-  const written = writePlan(out, files, planReview(files))
+  const printedPlan = writePlan(out, files, planReview(files))
   const mode = commits.since ? "since" : "full"
 
-  return toJson({ mode, ...commits, out, ...written })
+  return toJson({ mode, ...commits, out, ...printedPlan })
 }
 
 const readArguments = (argv: string[]) => {
