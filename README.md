@@ -42,7 +42,7 @@ For local development, register the repo directory instead:
 claude plugin marketplace add ~/Code/agent-plugins
 ```
 
-The ship-check tool-definition reviewer runs a bundled script, which needs [Bun](https://bun.sh) installed.
+The ship-check tool-definition reviewer runs a bundled script, which needs [Bun](https://bun.sh) installed. The ship-check pipeline runs the same script when a change touches a committed MCP tool list.
 
 ## Adapting for your own use
 

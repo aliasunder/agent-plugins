@@ -3,26 +3,34 @@
 Dedicated review agents for the ship-check pipeline. Each agent approaches the
 codebase without prior context and returns structured findings. The four phase
 agents that load conventions do so independently; `fresh-eyes` (Phase 2)
-deliberately loads none. A sixth agent, `tool-definition-reviewer`, is dispatched
-on demand and is not a pipeline phase.
+deliberately loads none. A sixth agent, `tool-definition-reviewer`, runs as a
+conditional step after Phase 5 when a change touches a committed MCP tool list, and
+can also be dispatched on demand.
 
 ## Agents
 
 | Agent | Phase | Color | Role |
 |-------|-------|-------|------|
-| `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (Tool Definition Quality Score (TDQS), feature surface, stale paths) |
+| `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (tool-definition changes handed to `tool-definition-reviewer`, feature surface, stale paths) |
 | `fresh-eyes` | 2 | purple | Stranger read: every place a newcomer pauses, per function. Report only — no conventions, no edits, no history. Pauses feed into Phase 3. |
 | `code-quality-reviewer` | 3 | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. |
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
-| `tool-definition-reviewer` | on demand | orange | MCP tool definitions read as the client receives them: TDQS rubric marks, a bullet filed under the wrong lead-in or a phrase with no named referent, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
+| `tool-definition-reviewer` | after 5, when a tool list changed; or on demand | orange | MCP tool definitions read as the client receives them: Tool Definition Quality Score (TDQS) rubric marks, a bullet filed under the wrong lead-in or a phrase with no named referent, text changed in tools nobody meant to touch, dropped facts, description text that repeats the schema, and failures the description never lists. Report only. |
 
 Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
 and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
 standalone to see what a newcomer experiences without the pipeline.
 
-`tool-definition-reviewer` is not dispatched by the pipeline. Dispatch it yourself
-when a change touches an MCP server's tool descriptions or input schemas.
+The pipeline dispatches `tool-definition-reviewer` when a change touches a committed
+tool-list file (a server's `tools/list` saved as JSON):
+
+1. After Phase 5, the `ship-check` skill runs `surface-diff.ts --plan` to find each
+   tool whose definition changed, once per distinct wording, and dispatches the
+   reviewer for them.
+2. Before each merge-ready verdict, it reviews again any tool text edited since.
+
+Dispatch it yourself for a server that commits no tool list (see Usage).
 
 ## External Dependencies
 
@@ -36,7 +44,8 @@ and fable-mode, and the only MCP tool it uses is `sequentialthinking`.
 
 The `tool-definition-review` skill bundles one script, `scripts/surface-diff.ts`.
 It has no dependencies and runs with [Bun](https://bun.sh). Without Bun the agent
-reports the review as `failed`.
+reports the review as `failed`, and in the pipeline the tool-definition step fails
+and holds the merge-ready verdict until you accept the missing review.
 
 The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:
@@ -63,10 +72,10 @@ it needs the file list in its prompt:
 Agent({ subagent_type: "ship-check:fresh-eyes", prompt: "Read src/a.ts and src/b.ts at <sha> as a stranger..." })
 ```
 
-`tool-definition-reviewer` needs the tool list as a file (called a "surface" in the
-prompt): the JSON a client gets from the MCP `tools/list` method, or a snapshot the
-project commits to its repository. Give it the file from before the change as well,
-when there is one:
+To dispatch `tool-definition-reviewer` yourself, give it the tool list as a file
+(called a "surface" in the prompt): the JSON a client gets from the MCP `tools/list`
+method, or a snapshot the project commits to its repository. Give it the file from
+before the change as well, when there is one:
 
 ```
 Agent({ subagent_type: "ship-check:tool-definition-reviewer", prompt: "Current surface: /tmp/tools-now.json\nBase surface: /tmp/tools-before.json\nIntended tools: search_notes, read_note\nRepository root: /path/to/server" })

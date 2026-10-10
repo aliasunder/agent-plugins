@@ -29,7 +29,7 @@ plugins/
       test-auditor.md
       bug-checker.md
       fresh-eyes.md           # Phase 2 — stranger read, report only
-      tool-definition-reviewer.md  # On demand — MCP tool definitions, report only
+      tool-definition-reviewer.md  # After Phase 5 when a tool list changed, or on demand — report only
     skills/                   # Skills (SKILL.md in subdirectories)
       ship-check/             # Pipeline orchestrator
       pr-review/              # Phase 1 — correctness, security, conditional checks
@@ -38,8 +38,8 @@ plugins/
       test-audit/             # Phase 4 — test quality + coverage gaps
       bug-check/              # Phase 5 — systematic bug hunt
       pr-monitor/             # Phase 6 — CI, bot comments, merge readiness
-      tool-definition-review/ # On demand — MCP tool-definition review (report only)
-        scripts/              # surface-diff.ts and its __tests__/
+      tool-definition-review/ # MCP tool-definition review, in the pipeline or on demand (report only)
+        scripts/              # surface-diff.ts (also plans the pipeline's dispatches) and its __tests__/
     README.md
   plan-check/                 # Pre-implementation plan review plugin
     .claude-plugin/

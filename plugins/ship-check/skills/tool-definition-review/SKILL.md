@@ -66,6 +66,8 @@ bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show '<tool
 
 - If `${CLAUDE_SKILL_DIR}` appears above as literal text, the script is at
   `scripts/surface-diff.ts` beside this `SKILL.md`. Use that path.
+- The script also has a `--plan` mode. The ship-check orchestrator runs it to choose
+  your dispatches and their inputs; you NEVER run it.
 - Omit `--base` when you have no base file.
 - **Exit code 2** means the file is not a usable tool list, and the reason is on
   standard error. Report the review as `failed` with that reason. Do NOT review a

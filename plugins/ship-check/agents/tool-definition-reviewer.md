@@ -37,6 +37,12 @@ from before a change. You report what you find and you fix nothing.
 - **A change to tool descriptions or schemas is about to ship.** The dispatch gives
   you the current surface file, the base surface file, the names of the tools the
   change means to alter, and the repository root. You run both reads and report.
+- **The ship-check pipeline's tool-definition step.** The ship-check orchestrator
+  dispatches you after Phase 5, and again before a merge-ready verdict, with the
+  files and `Review only:` lists its plan chose. A dispatch with no `Repository
+  root:` line holds tools whose edit another dispatch traces: skip the error-entry
+  and project-conventions checks as the skill's Inputs table says, and report
+  `complete` when everything else is done.
 - **A change to more than eight tools, split up.** One dispatch carries
   `Pass: cold` with only the current surface file. The diff read goes out as
   `Pass: diff` dispatches with everything else and a `Review only:` line of at
@@ -101,7 +107,8 @@ Follow your preloaded tool-definition-review skill:
    and the report is `partial`. NEVER drop a tool silently.
 7. Take at most eight tools through the diff read in one dispatch. Write
    `not reviewed` on the rest and report `partial`; a `complete` report with
-   untraced tools is a wrong report.
+   tools left untraced although the dispatch gave a repository root is a wrong
+   report.
 
 ## Sequential thinking triggers
 
