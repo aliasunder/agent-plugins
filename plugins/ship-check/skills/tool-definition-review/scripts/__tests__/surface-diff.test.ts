@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { after, describe, it } from "node:test"
@@ -881,34 +881,58 @@ describe("command line", () => {
     })
   })
 
-  it("exits 2 when --plan is missing --out", () => {
-    assert.deepStrictEqual(runScript(["--plan", "--repo", directory, "--from", "a", "--to", "b"]), {
-      status: 2,
-      stdout: "",
-      stderr: `--plan needs --repo, --from, --to, and --out\n${USAGE}\n`,
+  const requiredPlanOptions = { "--repo": directory, "--from": "a", "--to": "b", "--out": join(directory, "x") }
+
+  for (const missing of Object.keys(requiredPlanOptions)) {
+    it(`exits 2 when --plan is missing ${missing}`, () => {
+      const given = Object.entries(requiredPlanOptions).filter(([option]) => option !== missing)
+
+      assert.deepStrictEqual(runScript(["--plan", ...given.flat()]), {
+        status: 2,
+        stdout: "",
+        stderr: `--plan needs --repo, --from, --to, and --out\n${USAGE}\n`,
+      })
     })
-  })
+  }
 
-  it("exits 2 when --since comes without --since-from", () => {
-    const args = ["--plan", "--repo", directory, "--from", "a", "--to", "b", "--since", "c", "--out", join(directory, "x")]
+  const loneSinceOptions = [
+    { label: "--since comes without --since-from", flag: "--since" },
+    { label: "--since-from comes without --since", flag: "--since-from" },
+  ]
 
-    assert.deepStrictEqual(runScript(args), {
-      status: 2,
-      stdout: "",
-      stderr: "--since and --since-from go together: the last review's commit and the merge base it used\n",
+  for (const { label, flag } of loneSinceOptions) {
+    it(`exits 2 when ${label}`, () => {
+      const args = ["--plan", "--repo", directory, "--from", "a", "--to", "b", flag, "c", "--out", join(directory, "x")]
+
+      assert.deepStrictEqual(runScript(args), {
+        status: 2,
+        stdout: "",
+        stderr: "--since and --since-from go together: the last review's commit and the merge base it used\n",
+      })
     })
-  })
+  }
 
-  it("exits 2 when --plan is combined with --current", () => {
-    const current = writeSurface("plan-current.json", [rawTool()])
-    const args = ["--plan", "--current", current, "--repo", directory, "--from", "a", "--to", "b", "--out", join(directory, "y")]
+  // The options of the modes that read --current, each with the arguments it takes.
+  const fileModeOptions = [
+    { label: "--current", option: (file: string) => ["--current", file] },
+    { label: "--base", option: (file: string) => ["--base", file] },
+    { label: "--names", option: () => ["--names"] },
+    { label: "--variants", option: (file: string) => ["--variants", file] },
+    { label: "--show", option: () => ["--show", "list_notes"] },
+  ]
 
-    assert.deepStrictEqual(runScript(args), {
-      status: 2,
-      stdout: "",
-      stderr: "--plan reads the files from git; it cannot be combined with --current, --base, --names, --variants, or --show\n",
+  for (const { label, option } of fileModeOptions) {
+    it(`exits 2 when --plan is combined with ${label}`, () => {
+      const file = writeSurface(`plan-with-${label.slice(2)}.json`, [rawTool()])
+      const args = ["--plan", ...option(file), "--repo", directory, "--from", "a", "--to", "b", "--out", join(directory, "y")]
+
+      assert.deepStrictEqual(runScript(args), {
+        status: 2,
+        stdout: "",
+        stderr: "--plan reads the files from git; it cannot be combined with --current, --base, --names, --variants, or --show\n",
+      })
     })
-  })
+  }
 
   it("exits 2 when a --plan option comes without --plan", () => {
     const current = writeSurface("repo-current.json", [rawTool()])
@@ -927,6 +951,8 @@ const toolListSide = (tools: unknown[], sections: Record<string, unknown> = {}):
 }
 
 const ABSENT: FileSide = { kind: "absent" }
+
+const notToolListSide = (path: string): FileSide => ({ kind: "notToolList", reason: `${path}: not a tool list` })
 
 const changedFile = (path: string, from: FileSide, to: FileSide): ChangedFile => {
   return { path, fromPath: path, from, to, sinceSides: null }
@@ -1041,13 +1067,11 @@ describe("planReview", () => {
       changedFile("b.json", before, toolListSide([propertiesOf({ y: {} })])),
     ])
 
-    assert.deepStrictEqual(
-      summarize(result).files.map(({ path, withRoot }) => ({ path, withRoot })),
-      [
-        { path: "a.json", withRoot: true },
-        { path: "b.json", withRoot: true },
-      ],
-    )
+    assert.deepStrictEqual(summarize(result), {
+      records: 2,
+      files: [plannedFile("a.json", ["list_notes"]), plannedFile("b.json", ["list_notes"])],
+      ...NO_PLAN_FINDINGS,
+    })
   })
 
   it("counts a constraint on a parameter named description as a schema edit, not description text", () => {
@@ -1062,14 +1086,50 @@ describe("planReview", () => {
       changedFile("c.json", toolListSide([describedTool("C.", undefined)]), toolListSide([describedTool("C.", 2)])),
     ])
 
-    assert.deepStrictEqual(
-      summarize(result).files.map(({ path, withRoot }) => ({ path, withRoot })),
-      [
-        { path: "a.json", withRoot: true },
-        { path: "b.json", withRoot: false },
-        { path: "c.json", withRoot: true },
+    assert.deepStrictEqual(summarize(result), {
+      records: 3,
+      files: [
+        plannedFile("a.json", ["list_notes"]),
+        plannedFile("b.json", ["list_notes"], { withRoot: false }),
+        plannedFile("c.json", ["list_notes"]),
       ],
-    )
+      ...NO_PLAN_FINDINGS,
+    })
+  })
+
+  it("traces the same lines added in a different order as one edit", () => {
+    const changeFile = (path: string, lead: string, addedLines: string[]) => {
+      const before = toolListSide([rawTool({ description: lead })])
+      const after = toolListSide([rawTool({ description: [lead, ...addedLines].join("\n") })])
+      return changedFile(path, before, after)
+    }
+
+    const result = planReview([
+      changeFile("a.json", "List notes.", ["First rule.", "Second rule."]),
+      changeFile("b.json", "List notes, read-only.", ["Second rule.", "First rule."]),
+    ])
+
+    assert.deepStrictEqual(summarize(result), {
+      records: 2,
+      files: [plannedFile("a.json", ["list_notes"]), plannedFile("b.json", ["list_notes"], { withRoot: false })],
+      ...NO_PLAN_FINDINGS,
+    })
+  })
+
+  it("traces a sentence removed from differently worded parameter descriptions as one edit", () => {
+    const changeFile = (path: string, lead: string) => {
+      const before = toolListSide([rawTool({ inputSchema: pathSchema(`${lead} Must end in md.`) })])
+      const after = toolListSide([rawTool({ inputSchema: pathSchema(lead) })])
+      return changedFile(path, before, after)
+    }
+
+    const result = planReview([changeFile("a.json", "Note path."), changeFile("b.json", "Note path, read-only.")])
+
+    assert.deepStrictEqual(summarize(result), {
+      records: 2,
+      files: [plannedFile("a.json", ["list_notes"]), plannedFile("b.json", ["list_notes"], { withRoot: false })],
+      ...NO_PLAN_FINDINGS,
+    })
   })
 
   it("reviews a tool once when two files differ only in the key order of its schema", () => {
@@ -1114,7 +1174,23 @@ describe("planReview", () => {
     })
   })
 
-  it("reviews an added file whose definitions match only an unchanged file, since unchanged files are not read", () => {
+  it("drops a new file's tool that a changed file with a base ships unchanged, and reviews the tool it words differently", () => {
+    const readNote = rawTool({ name: "read_note", description: "Read a note." })
+    const modified = changedFile(
+      "default.json",
+      toolListSide([rawTool(), readNote]),
+      toolListSide([rawTool({ description: "List every note." }), readNote]),
+    )
+    const newFile = changedFile("readonly.json", ABSENT, toolListSide([readNote, rawTool({ description: "List notes, read-only." })]))
+
+    assert.deepStrictEqual(summarize(planReview([modified, newFile])), {
+      records: 2,
+      files: [plannedFile("default.json", ["list_notes"]), plannedFile("readonly.json", ["list_notes"], { base: null })],
+      ...NO_PLAN_FINDINGS,
+    })
+  })
+
+  it("reviews every tool of an added file that no changed file with a base ships", () => {
     const added = changedFile("copy.json", ABSENT, toolListSide([rawTool()]))
 
     assert.deepStrictEqual(summarize(planReview([added])), {
@@ -1130,14 +1206,15 @@ describe("planReview", () => {
       fromPath: "original.json",
     }
 
-    assert.deepStrictEqual(summarize(planReview([renamed])).files, [
-      plannedFile("renamed.json", ["list_notes"], { base: { kind: "fromCopy", path: "original.json" } }),
-    ])
+    assert.deepStrictEqual(summarize(planReview([renamed])), {
+      records: 1,
+      files: [plannedFile("renamed.json", ["list_notes"], { base: { kind: "fromCopy", path: "original.json" } })],
+      ...NO_PLAN_FINDINGS,
+    })
   })
 
   it("reports removed, broken, not-a-tool-list, and unchanged files and removed tools, without dispatching them", () => {
     const toolList = toolListSide([rawTool()])
-    const notToolList: FileSide = { kind: "notToolList", reason: "broken.json: not a tool list" }
     const sectionsOnly = changedFile("sections.json", toolListSide([rawTool()], { instructions: "a" }), toolListSide([rawTool()], { instructions: "b" }))
     const keyOrderOnly = changedFile(
       "order.json",
@@ -1148,8 +1225,8 @@ describe("planReview", () => {
 
     const result = planReview([
       changedFile("deleted.json", toolList, ABSENT),
-      changedFile("broken.json", toolList, notToolList),
-      changedFile("package.json", { kind: "notToolList", reason: "package.json: not a tool list" }, notToolList),
+      changedFile("broken.json", toolList, notToolListSide("broken.json")),
+      changedFile("package.json", notToolListSide("package.json"), notToolListSide("package.json")),
       sectionsOnly,
       keyOrderOnly,
       lostTool,
@@ -1167,29 +1244,62 @@ describe("planReview", () => {
     })
   })
 
-  it("splits more than eight reviews in one file into a cold dispatch and batches of eight", () => {
-    const names = Array.from({ length: 9 }, (_, index) => `tool_${index + 1}`)
+  it("lists an added or deleted JSON file that is not a tool list as not a tool list", () => {
+    const result = planReview([
+      changedFile("added.json", ABSENT, notToolListSide("added.json")),
+      changedFile("deleted.json", notToolListSide("deleted.json"), ABSENT),
+    ])
+
+    assert.deepStrictEqual(summarize(result), {
+      records: 0,
+      files: [],
+      ...NO_PLAN_FINDINGS,
+      notToolLists: ["added.json", "deleted.json"],
+    })
+  })
+
+  const changedToolsFile = (count: number) => {
+    const names = Array.from({ length: count }, (_, index) => `tool_${index + 1}`)
     const before = toolListSide(names.map((name) => rawTool({ name })))
     const after = toolListSide(names.map((name) => rawTool({ name, description: "Changed." })))
+    return { names, file: changedFile("default.json", before, after) }
+  }
 
-    assert.deepStrictEqual(summarize(planReview([changedFile("default.json", before, after)])).files, [
-      plannedFile("default.json", names, { coldDispatch: true, batches: [names.slice(0, 8), names.slice(8)] }),
-    ])
+  it("keeps eight reviews in one file as a single dispatch", () => {
+    const { names, file } = changedToolsFile(8)
+
+    assert.deepStrictEqual(summarize(planReview([file])), {
+      records: 8,
+      files: [plannedFile("default.json", names)],
+      ...NO_PLAN_FINDINGS,
+    })
+  })
+
+  it("splits more than eight reviews in one file into a cold dispatch and batches of eight", () => {
+    const { names, file } = changedToolsFile(9)
+
+    assert.deepStrictEqual(summarize(planReview([file])), {
+      records: 9,
+      files: [plannedFile("default.json", names, { coldDispatch: true, batches: [names.slice(0, 8), names.slice(8)] })],
+      ...NO_PLAN_FINDINGS,
+    })
   })
 
   it("orders files by review count, then by path in code-unit order", () => {
     const before = toolListSide([rawTool(), rawTool({ name: "read_note" })])
     const changeOne = (description: string) => toolListSide([rawTool({ description }), rawTool({ name: "read_note" })])
+    const changeBoth = toolListSide([rawTool({ description: "Z." }), rawTool({ name: "read_note", description: "Read." })])
 
     const result = planReview([
       changedFile("b.json", before, changeOne("B.")),
       changedFile("a.json", before, changeOne("A.")),
       changedFile("B.json", before, changeOne("Upper.")),
+      changedFile("z.json", before, changeBoth),
     ])
 
     assert.deepStrictEqual(
       result.files.map(({ path }) => path),
-      ["B.json", "a.json", "b.json"],
+      ["z.json", "B.json", "a.json", "b.json"],
     )
   })
 })
@@ -1263,6 +1373,12 @@ describe("decideSince", () => {
       inScope: false,
     })
   })
+
+  it("leaves out a tool unchanged since the review when the base branch landed the reviewed text", () => {
+    assert.deepStrictEqual(decideSince({ since: reviewedText, sinceFrom: mergeBaseText, from: reviewedText, to: reviewedText }), {
+      inScope: false,
+    })
+  })
 })
 
 describe("planReview since a review", () => {
@@ -1270,20 +1386,50 @@ describe("planReview since a review", () => {
   const readNote = (description: string) => rawTool({ name: "read_note", description })
 
   it("composes a base from the reviewed text for in-scope tools and the current text for the rest", () => {
+    const search = (description: string) => rawTool({ name: "search", description })
     const file = sinceFile("default.json", {
-      since: toolListSide([listNotes("Reviewed."), readNote("Read.")], { instructions: "old" }),
-      sinceFrom: toolListSide([listNotes("Merge base."), readNote("Read.")], { instructions: "old" }),
-      from: toolListSide([listNotes("Merge base."), readNote("Read.")], { instructions: "old" }),
-      to: toolListSide([listNotes("Edited after review."), readNote("Read, edited.")], { instructions: "new" }),
+      since: toolListSide([listNotes("Reviewed."), readNote("Read."), search("Search.")], { instructions: "old" }),
+      sinceFrom: toolListSide([listNotes("Merge base."), readNote("Read."), search("Search.")], { instructions: "old" }),
+      from: toolListSide([listNotes("Merge base."), readNote("Read."), search("Search, edited on main.")], { instructions: "old" }),
+      to: toolListSide(
+        [listNotes("Edited after review."), readNote("Read, edited."), search("Search, edited on main.")],
+        { instructions: "new" },
+      ),
     })
 
-    const [planned] = planReview([file]).files
-
-    assert.deepStrictEqual(planned?.base, {
+    const composedBase = {
       kind: "composed",
       path: "default.json",
-      tools: [parsedTool({ description: "Reviewed." }), parsedTool({ name: "read_note", description: "Read." })],
+      tools: [
+        parsedTool({ description: "Reviewed." }),
+        parsedTool({ name: "read_note", description: "Read." }),
+        parsedTool({ name: "search", description: "Search, edited on main." }),
+      ],
       sections: { instructions: "new" },
+    }
+
+    assert.deepStrictEqual(planReview([file]), {
+      records: 2,
+      files: [plannedFile("default.json", ["list_notes", "read_note"], { base: composedBase })],
+      ...NO_PLAN_FINDINGS,
+    })
+  })
+
+  it("leaves a tool added since the review out of the composed base, so the reviewer sees it as added", () => {
+    const unchanged = toolListSide([listNotes("List.")])
+    const file = sinceFile("default.json", {
+      since: unchanged,
+      sinceFrom: unchanged,
+      from: unchanged,
+      to: toolListSide([listNotes("List."), readNote("Added after the review.")]),
+    })
+
+    const composedBase = { kind: "composed", path: "default.json", tools: [parsedTool({ description: "List." })], sections: {} }
+
+    assert.deepStrictEqual(planReview([file]), {
+      records: 1,
+      files: [plannedFile("default.json", ["read_note"], { base: composedBase })],
+      ...NO_PLAN_FINDINGS,
     })
   })
 
@@ -1319,6 +1465,23 @@ describe("planReview since a review", () => {
     })
   })
 
+  it("lists a reviewed tool that is gone as removed, even when the base branch deleted it after the branch edited it", () => {
+    const search = rawTool({ name: "search", description: "Search." })
+    const file = sinceFile("default.json", {
+      since: toolListSide([listNotes("List."), readNote("Edited by the branch."), search]),
+      sinceFrom: toolListSide([listNotes("List."), readNote("Read."), search]),
+      from: toolListSide([listNotes("List."), search]),
+      to: toolListSide([listNotes("List.")]),
+    })
+
+    assert.deepStrictEqual(summarize(planReview([file])), {
+      records: 0,
+      files: [],
+      ...NO_PLAN_FINDINGS,
+      removedTools: [{ path: "default.json", tools: ["read_note", "search"] }],
+    })
+  })
+
   it("lists a file added, reviewed, and deleted as added then dropped", () => {
     const file = sinceFile("branch-only.json", {
       since: toolListSide([listNotes("List.")]),
@@ -1342,7 +1505,60 @@ describe("planReview since a review", () => {
     assert.deepStrictEqual(summarize(planReview([file])), { records: 0, files: [], ...NO_PLAN_FINDINGS })
   })
 
-  it("compares a file added after the review with the base branch", () => {
+  it("reports a file the branch edited and the base branch deleted as removed", () => {
+    const file = sinceFile("default.json", {
+      since: toolListSide([listNotes("Edited by the branch.")]),
+      sinceFrom: toolListSide([listNotes("Merge base.")]),
+      from: ABSENT,
+      to: ABSENT,
+    })
+
+    assert.deepStrictEqual(summarize(planReview([file])), {
+      records: 0,
+      files: [],
+      ...NO_PLAN_FINDINGS,
+      removed: [{ path: "default.json", tools: ["list_notes"] }],
+    })
+  })
+
+  it("reports deleted, broken, and not-a-tool-list files since the review without dispatching them", () => {
+    const toolList = toolListSide([listNotes("List.")])
+    const reviewedToolList = (path: string, to: FileSide) => {
+      return sinceFile(path, { since: toolList, sinceFrom: toolList, from: toolList, to })
+    }
+    const reviewedNotToolList = (path: string, to: FileSide) => {
+      const side = notToolListSide(path)
+      return sinceFile(path, { since: side, sinceFrom: side, from: side, to })
+    }
+
+    const result = planReview([
+      reviewedToolList("deleted.json", ABSENT),
+      reviewedToolList("broken.json", notToolListSide("broken.json")),
+      reviewedNotToolList("package.json", notToolListSide("package.json")),
+      reviewedNotToolList("settings.json", ABSENT),
+    ])
+
+    assert.deepStrictEqual(summarize(result), {
+      records: 0,
+      files: [],
+      ...NO_PLAN_FINDINGS,
+      broken: [{ path: "broken.json", reason: "broken.json: not a tool list" }],
+      removed: [{ path: "deleted.json", tools: ["list_notes"] }],
+      notToolLists: ["package.json", "settings.json"],
+    })
+  })
+
+  it("reviews a file the branch added after the review with no base", () => {
+    const file = sinceFile("new.json", { since: ABSENT, sinceFrom: ABSENT, from: ABSENT, to: toolListSide([listNotes("List.")]) })
+
+    assert.deepStrictEqual(summarize(planReview([file])), {
+      records: 1,
+      files: [plannedFile("new.json", ["list_notes"], { base: null })],
+      ...NO_PLAN_FINDINGS,
+    })
+  })
+
+  it("compares a file the base branch added after the review with the new merge base", () => {
     const file = sinceFile("late.json", {
       since: ABSENT,
       sinceFrom: ABSENT,
@@ -1350,13 +1566,12 @@ describe("planReview since a review", () => {
       to: toolListSide([listNotes("Edited after review.")]),
     })
 
-    const [planned] = planReview([file]).files
+    const composedBase = { kind: "composed", path: "late.json", tools: [parsedTool({ description: "Merge base." })], sections: {} }
 
-    assert.deepStrictEqual(planned?.base, {
-      kind: "composed",
-      path: "late.json",
-      tools: [parsedTool({ description: "Merge base." })],
-      sections: {},
+    assert.deepStrictEqual(planReview([file]), {
+      records: 1,
+      files: [plannedFile("late.json", ["list_notes"], { base: composedBase })],
+      ...NO_PLAN_FINDINGS,
     })
   })
 })
@@ -1381,7 +1596,8 @@ describe("--plan on a git repository", () => {
 
   const makeRepo = (name: string): string => {
     const repo = join(directory, name)
-    spawnSync("git", ["init", "-q", "-b", "main", repo], { env: GIT_ENV })
+    mkdirSync(repo)
+    git(repo, ["init", "-q", "-b", "main"])
     return repo
   }
 
@@ -1406,6 +1622,13 @@ describe("--plan on a git repository", () => {
   const runPlan = (args: string[]) => {
     const { status, stdout, stderr } = spawnSync(process.execPath, [SCRIPT_PATH, "--plan", ...args], { encoding: "utf8" })
     return { status, stdout, stderr }
+  }
+
+  /** Every file the plan wrote, as sorted paths relative to `out`. */
+  const filesUnder = (out: string): string[] => {
+    return readdirSync(out, { recursive: true, encoding: "utf8" })
+      .filter((entry) => statSync(join(out, entry)).isFile())
+      .toSorted()
   }
 
   it("writes both sides of a changed tool list and points the plan at them", () => {
@@ -1449,8 +1672,45 @@ describe("--plan on a git repository", () => {
     )
 
     assert.deepStrictEqual(
-      [readFileSync(join(out, "from", "default.json"), "utf8"), readFileSync(join(out, "to", "default.json"), "utf8")],
-      [surfaceText([rawTool()]), surfaceText([rawTool({ description: "List every note." })])],
+      {
+        written: filesUnder(out),
+        fromCopy: readFileSync(join(out, "from", "default.json"), "utf8"),
+        toCopy: readFileSync(join(out, "to", "default.json"), "utf8"),
+      },
+      {
+        written: ["from/default.json", "to/default.json"],
+        fromCopy: surfaceText([rawTool()]),
+        toCopy: surfaceText([rawTool({ description: "List every note." })]),
+      },
+    )
+  })
+
+  it("reports a tool list that is no longer valid JSON as broken", () => {
+    const repo = makeRepo("unparsable")
+    const from = commit(repo, { "default.json": surfaceText([rawTool()]) })
+    const to = commit(repo, { "default.json": "{ not json\n" })
+    const out = join(directory, "unparsable-plan")
+
+    const { status, stdout, stderr } = runPlan(["--repo", repo, "--from", from, "--to", to, "--out", out])
+
+    assert.deepStrictEqual(
+      { status, stderr, plan: JSON.parse(stdout) },
+      {
+        status: 0,
+        stderr: "",
+        plan: {
+          mode: "full",
+          from,
+          to,
+          since: null,
+          sinceFrom: null,
+          out,
+          records: 0,
+          files: [],
+          ...NO_PLAN_FINDINGS,
+          broken: [{ path: "default.json", reason: "default.json: not valid JSON" }],
+        },
+      },
     )
   })
 
@@ -1465,8 +1725,14 @@ describe("--plan on a git repository", () => {
     const plan = JSON.parse(runPlan(["--repo", repo, "--from", from, "--to", to, "--out", out]).stdout)
 
     assert.deepStrictEqual(
-      plan.files.map(({ path, base, reviewOnly }: { path: string; base: string; reviewOnly: string[] }) => ({ path, base, reviewOnly })),
-      [{ path: "new.json", base: join(out, "from", "old.json"), reviewOnly: ["tool_5"] }],
+      {
+        files: plan.files.map(({ path, base, reviewOnly }: { path: string; base: string; reviewOnly: string[] }) => ({ path, base, reviewOnly })),
+        baseCopy: readFileSync(join(out, "from", "old.json"), "utf8"),
+      },
+      {
+        files: [{ path: "new.json", base: join(out, "from", "old.json"), reviewOnly: ["tool_5"] }],
+        baseCopy: surfaceText(tools),
+      },
     )
   })
 
@@ -1508,19 +1774,42 @@ describe("--plan on a git repository", () => {
     const out = join(directory, "since-plan")
 
     const args = ["--repo", repo, "--from", mergeBase, "--to", head, "--since", reviewed, "--since-from", mergeBase, "--out", out]
-    const plan = JSON.parse(runPlan(args).stdout)
+    const { status, stdout, stderr } = runPlan(args)
 
     assert.deepStrictEqual(
       {
-        mode: plan.mode,
-        base: plan.files[0]?.base,
-        reviewOnly: plan.files[0]?.reviewOnly,
+        status,
+        stderr,
+        plan: JSON.parse(stdout),
+        written: filesUnder(out),
         composed: JSON.parse(readFileSync(join(out, "since-base", "default.json"), "utf8")),
       },
       {
-        mode: "since",
-        base: join(out, "since-base", "default.json"),
-        reviewOnly: ["list_notes"],
+        status: 0,
+        stderr: "",
+        plan: {
+          mode: "since",
+          from: mergeBase,
+          to: head,
+          since: reviewed,
+          sinceFrom: mergeBase,
+          out,
+          records: 1,
+          files: [
+            {
+              path: "default.json",
+              current: join(out, "to", "default.json"),
+              base: join(out, "since-base", "default.json"),
+              reviewOnly: ["list_notes"],
+              withRoot: true,
+              coldDispatch: false,
+              batches: [["list_notes"]],
+              alsoChangedOnBaseBranch: [],
+            },
+          ],
+          ...NO_PLAN_FINDINGS,
+        },
+        written: ["from/default.json", "since-base/default.json", "to/default.json"],
         composed: {
           tools: [
             { name: "list_notes", description: "Reviewed.", inputSchema: emptySchema() },
@@ -1546,12 +1835,12 @@ describe("--plan on a git repository", () => {
     const composed = JSON.parse(readFileSync(join(out, "since-base", "new.json"), "utf8"))
 
     assert.deepStrictEqual(
-      { reviewOnly: plan.files[0]?.reviewOnly, composedTool: composed.tools[5] },
-      { reviewOnly: ["tool_5"], composedTool: { name: "tool_5", description: "Reviewed.", inputSchema: emptySchema() } },
+      { reviewOnly: plan.files[0]?.reviewOnly, composed },
+      { reviewOnly: ["tool_5"], composed: { tools: reviewedTools } },
     )
   })
 
-  it("leaves a file renamed before the review out of scope when only the base branch changed it since", () => {
+  it("reviews only the branch's later edit in a file renamed before the review, after a merge brought in a base-branch edit", () => {
     const repo = makeRepo("since-renamed-before")
     const tools = Array.from({ length: 6 }, (_, index) => rawTool({ name: `tool_${index}`, description: `Tool ${index} does a thing.` }))
     const reword = (list: typeof tools, index: number, description: string) => list.with(index, rawTool({ name: `tool_${index}`, description }))
@@ -1584,6 +1873,54 @@ describe("--plan on a git repository", () => {
         merged: { tools: mergedTools },
         files: [{ path: "new.json", reviewOnly: ["tool_2"], alsoChangedOnBaseBranch: [] }],
         removed: [],
+      },
+    )
+  })
+
+  it("reviews a tool a merge kept at the reviewed text over a base-branch edit, against the base branch's text", () => {
+    const repo = makeRepo("since-merge-kept")
+    const toolsWith = (description: string) => surfaceText([rawTool({ description }), rawTool({ name: "read_note" })])
+
+    const mergeBase = commit(repo, { "default.json": toolsWith("Merge base.") })
+    git(repo, ["switch", "-q", "-c", "feature"])
+    const reviewed = commit(repo, { "default.json": toolsWith("Reviewed.") })
+    git(repo, ["switch", "-q", "main"])
+    const newMergeBase = commit(repo, { "default.json": toolsWith("Base branch edit.") })
+    git(repo, ["switch", "-q", "feature"])
+    git(repo, ["merge", "-q", "--no-edit", "-X", "ours", "main"])
+    const head = git(repo, ["rev-parse", "HEAD"])
+    const out = join(directory, "since-merge-kept-plan")
+
+    const args = ["--repo", repo, "--from", newMergeBase, "--to", head, "--since", reviewed, "--since-from", mergeBase, "--out", out]
+    const plan = JSON.parse(runPlan(args).stdout)
+
+    assert.deepStrictEqual(
+      {
+        // The head must hold the reviewed text, so only the base branch's change can bring the file into the plan.
+        changedSinceReview: git(repo, ["diff", "--name-only", reviewed, head]),
+        files: plan.files,
+        composed: JSON.parse(readFileSync(join(out, "since-base", "default.json"), "utf8")),
+      },
+      {
+        changedSinceReview: "",
+        files: [
+          {
+            path: "default.json",
+            current: join(out, "to", "default.json"),
+            base: join(out, "since-base", "default.json"),
+            reviewOnly: ["list_notes"],
+            withRoot: true,
+            coldDispatch: false,
+            batches: [["list_notes"]],
+            alsoChangedOnBaseBranch: ["list_notes"],
+          },
+        ],
+        composed: {
+          tools: [
+            { name: "list_notes", description: "Base branch edit.", inputSchema: emptySchema() },
+            { name: "read_note", description: "List notes.", inputSchema: emptySchema() },
+          ],
+        },
       },
     )
   })
