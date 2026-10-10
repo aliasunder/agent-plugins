@@ -5,7 +5,9 @@ description: >
   code-quality -> test-audit -> bug-check -> pr-monitor. Phases 1-5 run as
   dedicated agent types (ship-check plugin) with skills preloaded — genuine fresh
   eyes with no inherited context. Phase 6 (pr-monitor) runs inline for user
-  interaction.
+  interaction. When a change touches a committed MCP tool list, the
+  tool-definition reviewer runs after Phase 5 and again before each merge-ready
+  verdict.
   Use when asked to "ship check", "review pipeline", "full review", "run all
   reviews", or after implementation is complete and ready for review.
   NOT for: single-dimension review (use the individual skill), quick CI check
@@ -31,6 +33,8 @@ Phase 2: ship-check:fresh-eyes            -> stranger pauses (report only, no co
 Phase 3: ship-check:code-quality-reviewer -> convention compliance, readability (resolves Phase 2 pauses)
 Phase 4: ship-check:test-auditor          -> test design, assertion quality, coverage gaps
 Phase 5: ship-check:bug-checker           -> description-vs-code, SQL, type coercion, boundary
+Tool-definition review (conditional): ship-check:tool-definition-reviewer
+                                          -> MCP tool definitions, only when a tool-list file changed (report only)
 Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until ready
 ```
 
@@ -44,7 +48,8 @@ orchestrator triage, pr-monitor replies).
 **Comment footer format**: `\n\n---\n*🔍 ship-check · <component> · <model-id>*`
 
 - `<component>` is the phase or role: `pr-review`, `code-quality`, `test-audit`,
-  `bug-check`, `pr-monitor`, or `triage` (for orchestrator inter-phase triage posts).
+  `bug-check`, `pr-monitor`, `triage` (for orchestrator inter-phase triage posts), or
+  `tool-definitions` (for the orchestrator's post of tool-definition review findings).
 - `<model-id>` identifies the poster's exact runtime model. Resolve it by runtime:
   - **Claude agent mode:** the phase agent uses the family ID from its system context,
     such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
@@ -125,6 +130,7 @@ reviewing a PR it isn't responsible for.
 | Phase 6 | Runs (monitoring loop) | Skipped |
 | Phase sequencing | Sequential (each sees prior fixes) | Sequential (each sees prior findings to avoid duplicates) |
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
+| Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reports' Defects and Unintended text changes; no re-review |
 | Inter-phase triage | Evaluates flagged findings, may fix | Evaluates flagged findings, may post additional comments |
 
 ### Dispatch prompt addition
@@ -174,8 +180,8 @@ the PR itself, not only in the chat transcript. Sub-agents include what they can
 their review body (e.g. a "Findings beyond the diff" section), but **ensuring
 coverage is the primary agent's responsibility, not the sub-agents'**: in default
 mode, verify and post as part of Phase 6 (pr-monitoring); in comment mode (Phase 6
-skipped), verify after Phase 5 triage and post anything missing before the final
-summary. Post via `gh pr comment` /
+skipped), verify after Phase 5 triage and the tool-definition review, and post
+anything missing before the final summary. Post via `gh pr comment` /
 `POST /repos/{owner}/{repo}/issues/{n}/comments` — include the attribution footer
 (see Attribution section above). A finding that exists only in agent output is
 invisible to anyone reading the PR.
@@ -229,6 +235,7 @@ accepted.
 | Comment mode | Posts inline PR review comments | Not available (no PR) |
 | Findings | Edit/commit/push (default) or PR comments | On main: report only (implies `--report`). On a branch: edit/commit/push unless `--report` is set. |
 | Delta review | Tracks PR head | Not applicable |
+| Tool-definition re-review | Before each merge-ready verdict | On a branch, once before the summary when triage fixed tool text; none on `main` |
 
 ### Dispatch prompt changes
 
@@ -251,6 +258,10 @@ and commit normally — local mode only implies `--report` when reviewing main d
    boilerplate to wave through. Each phase determines its own scope and exits
    cleanly when nothing is applicable; the orchestrator dispatches unconditionally.
    Only the user can skip phases — via `--skip` or `--only`.
+   **The tool-definition review is the one conditional step.** It runs only when its
+   gates find a changed tool-list file — a fact git and the plan script decide (see
+   "Tool-definition review (conditional)"). NEVER skip it on your own reading of the
+   change; only `--skip tool-definitions` or an `--only` list without it turns it off.
 
 2. **Each phase handles its own scope.** If a phase detects nothing in scope, it reports
    "0 files in scope" and exits cleanly. The orchestrator reports this result, not its
@@ -377,6 +388,10 @@ the pipeline pushes nothing).
    ever saw it.
 5. **Advance the reviewed SHA** once a delta review (and its fixes) completes, then
    repeat step 2 on subsequent passes. Deltas shrink, so this converges.
+6. **Re-review tool text before every merge-ready verdict**, after steps 3-5 and
+   their fixes: run the re-review in "Tool-definition review (conditional)". Run it
+   even when step 2 found the delta trivial — its own gates decide whether tool text
+   changed, and it tracks its own tool-review commit, separate from the reviewed SHA.
 
 ## Execution
 
@@ -517,11 +532,188 @@ Agent({
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
 flagged findings.
 
+### Tool-definition review (conditional)
+
+Run this after Phase 5 and its triage: Phase 3 and Phase 5 rewrite tool text, and
+this review must read the text they leave. It dispatches
+`ship-check:tool-definition-reviewer` (report only) for each MCP tool whose
+definition changed in a **tool-list file**: the JSON a server's `tools/list`
+returns, committed to the repository (vault-cortex commits one per configuration
+under `__snapshots__/tool-surface/`). It is not a numbered phase. It runs only when
+the gates in step 2 pass, and only `--skip tool-definitions` or an `--only` list
+without `tool-definitions` turns it off.
+
+1. **Resolve the base.** In PR mode, fetch the base branch and take the merge base;
+   in local mode, use the base of the review range. Call the result MERGE_BASE and
+   the head commit HEAD_SHA.
+   ```
+   git fetch origin <base-branch>
+   git merge-base origin/<base-branch> HEAD
+   ```
+2. **Gates (no Bun needed).** List the changed JSON files, then check both ends for
+   a tool list:
+   ```
+   git diff --name-only MERGE_BASE HEAD_SHA -- '*.json'
+   git grep -l '"inputSchema"' HEAD_SHA -- <each listed path>
+   git grep -l '"inputSchema"' MERGE_BASE -- <each listed path>
+   ```
+   - No JSON file changed → the step is `not dispatched: no JSON file changed`.
+   - Neither `git grep` lists a file → `not dispatched: no tool-list file changed`.
+     `git grep` exits 1 when it finds nothing, and a path missing at one end finds
+     nothing; neither is an error.
+3. **Plan the dispatches.** Run the plan script yourself; the reviewer may be
+   read-only. Make a fresh parent folder, then pass a child that does not exist yet:
+   ```
+   mktemp -d <scratchpad>/probe-tool-definitions-XXXX
+   bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --out <parent>/plan
+   ```
+   - `<scratchpad>` is the session scratchpad; with none, use `/tmp`.
+   - `<script>` is `tool-definition-review/scripts/surface-diff.ts` in the folder
+     that holds this skill's folder: `${CLAUDE_SKILL_DIR}/../tool-definition-review/scripts/surface-diff.ts`
+     in Claude Code. When `${CLAUDE_SKILL_DIR}` appears above as literal text, use
+     the skills folder this `SKILL.md` was read from, such as `~/.agents/skills/`.
+     Resolve the path to an absolute one and write it unquoted, so a permission rule
+     written for that path matches.
+   - The step **fails** when the script exits non-zero (its reason is on standard
+     error), Bun is missing, or the parent folder cannot be created.
+4. **Read the plan.** The script prints JSON. The fields this step uses are
+   `records`, `files` (each with `current`, `base`, `reviewOnly`, `withRoot`,
+   `coldDispatch`, `batches`, `alsoChangedOnBaseBranch`), `filesWithNoToolChange`,
+   `broken`, `removed`, `removedTools`, `addedThenDropped`, and `notToolLists`.
+   - `records` is 0 → `not dispatched`, with the reason: only instructions,
+     prompts, or key order changed (`filesWithNoToolChange`); only tools were
+     removed; or the changed JSON files are not tool lists (name the
+     `notToolLists` paths).
+   - Each `broken` or `removed` file goes to the user as a finding before the verdict.
+   - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
+     tool whose name the PR title or body does not mention goes to the user as a
+     finding.
+   - Phase 1 reported tool definitions changed in source, but no tool-list file
+     changed → tell the user the route: capture the server's `tools/list` to a file
+     and dispatch the reviewer on demand.
+5. **Intended tools.** Collect every name in the plan's `reviewOnly` lists that
+   appears word for word in the PR title or body
+   (`gh pr view <number> -R OWNER_REPO --json title,body`); in local mode, in the
+   commit messages of the range. None → `not stated`. Never pass the PR
+   description itself.
+6. **Dispatch.** For each entry in `files`:
+   - `coldDispatch` false → one dispatch per batch, doing both reads.
+   - `coldDispatch` true → one `Pass: cold` dispatch carrying only the current file
+     and every name in `reviewOnly`, plus one `Pass: diff` dispatch per batch.
+   - `withRoot` true → include the `Repository root:` line. `withRoot` false → omit
+     it: those tools repeat an edit another file's dispatch traces, so the reviewer
+     skips the error-entry and project-conventions checks for them and can still
+     report `complete`.
+   - Name the report files `report-1.md`, `report-2.md`, … in the parent folder.
+
+   ```
+   Agent({
+     subagent_type: "ship-check:tool-definition-reviewer",
+     description: "Tool definitions — <file name>, batch <n>",
+     prompt: "Review the MCP tool definitions changed on branch <branch> (PR #<number>).\nCurrent surface: <current>\nBase surface: <base, or: none>\nIntended tools: <names, or: not stated>\nRepository root: <repository root>   (only when withRoot is true)\nReview only: <the batch's names>\nPass: diff   (only when coldDispatch is true)\nReport file: <parent>/report-<n>.md\nReturn the Defects list, the Unintended text changes list, and the Unfinished entries and Status lines."
+   })
+   ```
+
+   The cold dispatch carries only `Current surface:`, `Review only:` with every
+   name, `Pass: cold`, and `Report file:`.
+   - Send every dispatch in one message. They write nothing but their reports, so
+     they run in parallel.
+   - **Codex:** spawn `agent_type: "ship-check:tool-definition-reviewer"` with the
+     model from the Execution table. Codex has no operation to close an agent, so a
+     spawn refused with "agent thread limit reached" waits on `wait_agent` for one of
+     this step's own dispatches, then retries. When none of this step's dispatches
+     is running, the refusal fails the step.
+   - **OpenCode:** the subagent is `ship-check--tool-definition-reviewer`.
+   - The runtime has no reviewer agent → `not dispatched: no reviewer agent in this
+     runtime`; the verdict rule below applies.
+   - A dispatch that errors (an API error, a timeout) is retried once. A second
+     error fails the step.
+   - A reviewer that cannot write its report file returns the report inline, under
+     a `Report file not written:` line. Save it to the named path yourself.
+7. **Unfinished entries.** A report whose `Unfinished entries:` count is above 0
+   marks tools `not reviewed`. Send ONE continuation dispatch for them: the same
+   file and inputs, with `Review only:` set to those names. Names still unfinished
+   after it make the step `partial`.
+8. **Triage the findings.** The reviewer reports without flag categories, so assign
+   them yourself and run inter-phase triage on each report's Defects:
+   - A description-text edit is not an interface change. An input-schema edit (a
+     type, `required`, `enum`, or a parameter name) is an interface change, so it
+     goes to the user.
+   - An unintended text change ALWAYS goes to the user, never to a fix. Only the
+     author knows whether it was meant.
+   - Count unintended changes once per tool and change. Each dispatch lists every
+     changed tool in its file, so one change appears in several reports.
+   - A tool listed in `alsoChangedOnBaseBranch` was changed on the base branch too:
+     say so with any finding on it, since its diff can hold the base branch's edit.
+   - Fixes follow the mode's rule in the table below. The re-review covers them.
+9. **Record the tool-review commit.** Write HEAD_SHA and MERGE_BASE into the step's
+   summary line on every outcome: not dispatched, no records, complete, or partial
+   or failed once the user accepted the missing coverage. A partial or failed step
+   the user has not accepted keeps the previous tool-review commit, so its tools are
+   reviewed again next time.
+
+#### The re-review
+
+Run it whenever the step runs again in this session on the same branch: before
+every merge-ready verdict (see "Pre-merge delta review"), and on any later
+`/ship-check`. Take the tool-review commit and its merge base from the step's last
+summary line.
+
+1. Recompute MERGE_BASE as in step 1.
+2. Run step 2's gates on the range from the tool-review commit to HEAD_SHA. When
+   MERGE_BASE differs from the recorded merge base, also run them on the range
+   between the two merge bases. Either range passing passes.
+3. Plan with `--since`, in a fresh parent folder:
+   ```
+   bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --since <tool-review commit> --since-from <recorded merge base> --out <new parent>/plan
+   ```
+4. Dispatch the plan's records as in step 6. Each `base` is a composed file holding
+   only this branch's edits since the review, so a dropped fact is one dropped since
+   then.
+5. Every re-review finding goes to the user. NEVER fix a re-review finding through
+   triage: each round rereads whole tools and can raise new small defects, and
+   fixing them would start the loop again. The user's earlier decisions stand for
+   text that did not change.
+6. Record the new tool-review commit as in step 9.
+
+- No recorded tool-review commit, or one git cannot find (the script exits 2 with
+  "not a commit") → run the step in full and say so in the summary.
+- A change to tool text is never a trivial delta.
+
+#### By mode
+
+| Mode | When it runs | What happens to findings |
+|---|---|---|
+| Default | After Phase 5; re-review before each merge-ready verdict | First review: triage, fixes committed and pushed. Re-review: to the user |
+| `--comment` | After Phase 5; no re-review (Phase 6 is skipped) | One PR-level comment holding each report's Defects and Unintended text changes, posted under "Non-inline findings still land on the PR" with component `tool-definitions`; nothing edited |
+| `--report` | After Phase 5; re-review whenever a merge-ready verdict is checked or ship-check runs again in the session | To the user only; `--report` wins over every other mode's fixing rule |
+| `--local`, `--diff` on a branch | On the range; then, when triage committed a tool-text fix, one re-review before the summary | First review: triage, fixes committed. Re-review: to the user |
+| `--local` on `main` or a detached head | On the range | To the user only, under the local-on-`main` rule |
+| `--inline`, `--fork` | Invoke the `tool-definition-review` skill in this context or a fork with the same inputs, file by file, at most eight tools per diff pass | As in default; the status can be `complete` and is labelled "not cold" |
+| `--skip tool-definitions` | Never, and no re-review | Summary: `skipped` |
+| `--only` including `tool-definitions` | After the other selected phases | As in default |
+| `--only` without `tool-definitions` | Never | Summary: `not selected` |
+| `--model` | The Execution table's model choice | — |
+
+#### Verdict
+
+Withhold the merge-ready verdict (in comment and local modes, the `ship` verdict)
+until the user accepts the missing coverage in words when the step:
+
+- failed: the script exited non-zero, Bun is missing, the parent folder could not
+  be created, a dispatch failed after its retry, or a spawn was refused while none
+  of this step's dispatches was running;
+- stayed `partial` after its continuation; or
+- could not be dispatched because the runtime has no reviewer agent.
+
+Deferred findings already hold the verdict under the existing rule.
+
 ### Phase 6: PR Monitor (inline — does not end)
 
 **Skip this phase entirely in comment mode.** The pipeline is reviewing a PR it isn't
 responsible for — there are no pushed fixes to monitor, no bot comments to resolve, and
-no CI to watch. After Phase 5 completes, output the summary report and stop.
+no CI to watch. After Phase 5 and the tool-definition review complete, output the
+summary report and stop.
 
 Run /pr-monitor inline (not as an agent). This phase stays inline because timed
 follow-up and human comment decisions need the primary agent.
@@ -531,8 +723,8 @@ pr-monitor run resolves the current session's exact model under the Attribution 
 
 **Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when
-Phases 1-5 are done, but Phase 6 runs until the user says stop or the PR merges
-or closes.
+Phases 1-5 and the tool-definition review are done, but Phase 6 runs until the user
+says stop or the PR merges or closes.
 
 **Invoke the pr-monitor skill** (call the Skill tool with `skill: "pr-monitor"`) and
 follow ALL steps through Step 5, including:
@@ -559,7 +751,8 @@ scratchpad.
 
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the last phase-reviewed SHA and
-dispatch a delta review if the difference is substantive.
+dispatch a delta review if the difference is substantive, then run the
+tool-definition re-review (delta review step 6).
 
 ## Reporting
 
@@ -576,6 +769,7 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <head short SHA> (merge base <short SHA>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
@@ -583,15 +777,17 @@ Ship check complete:
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
 
-If any findings remain deferred at the end of Phases 1-5, present them to the user with
-their flag category and ask for a decision before declaring the verdict.
+If any findings remain deferred at the end of Phases 1-5 and the tool-definition
+review, present them to the user with their flag category and ask for a decision
+before declaring the verdict.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
 
 ### Comment mode
 
-Output the final summary after Phase 5 completes — this is the pipeline conclusion.
+Output the final summary after Phase 5 and the tool-definition review complete — this
+is the pipeline conclusion.
 
 ```
 Ship check complete (comment mode):
@@ -601,6 +797,7 @@ Ship check complete (comment mode):
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <head short SHA> (merge base <short SHA>), K defects, J unintended changes, posted as one PR comment
 - Triage:       N flagged findings triaged across all phases — M commented, K deferred
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
@@ -620,6 +817,10 @@ The user can customize the pipeline:
 - `/ship-check --skip fresh-eyes` — code-quality runs on its own dimension 0 only
 - `/ship-check --only pr-review,test-audit` — run specific phases
 - `/ship-check --only fresh-eyes` — standalone stranger read, report to user
+- `/ship-check --skip tool-definitions` — skip the tool-definition review and its
+  re-review (see "Tool-definition review (conditional)" → By mode)
+- `/ship-check --only tool-definitions` — run only the tool-definition review; it
+  still dispatches nothing when no tool-list file changed
 - `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
   reported to the orchestrator). Alias: `--no-fix`.
 - `/ship-check --local` — run without a PR. Reviews the commit range on the current
@@ -658,4 +859,5 @@ Fresh-eyes option interactions:
 | `--only` set excluding fresh-eyes | Not dispatched |
 | `--inline`, `--fork` | Skipped (inherited context defeats the persona); noted in the summary |
 
-If the user doesn't specify options, run all six phases with agents (the default).
+If the user doesn't specify options, run all six phases with agents, plus the
+tool-definition review when its gates pass (the default).
