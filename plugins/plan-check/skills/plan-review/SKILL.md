@@ -40,6 +40,73 @@ when), a plan-mode plan, or an approach stated in conversation. The reviewer
 produces **findings only — never edits the plan.** Revision belongs to the plan's
 author, who holds context the reviewer doesn't.
 
+## Dispatcher guidance
+
+**Read this section BEFORE spawning `plan-check:plan-reviewer`.** It applies to
+the dispatching session. An already-running reviewer proceeds to "Before
+starting"; it never relaunches itself or changes its model or effort.
+
+1. Read model guidance named in the active project instructions. With no pointer
+   and available vault tools, search with
+   `vault_search({ query: "model selection", filters: { type: "reference", tags: ["model-selection"], properties: { lifecycle: "living" } } })`.
+   Read the unique result with `vault_read_note`. Conflicting results require
+   resolving the project pointer. If access or a result is absent, report the
+   fallback and use `gpt-6.1-sol` in Codex or `opus` in Claude, at `xhigh`.
+2. Select guidance's **adversarial review** values. Explicit user choices override
+   guidance. Astra/Fable require an explicit model request; never escalate the
+   model silently.
+
+   | Controls | Model | Effort |
+   |---|---|---|
+   | Neither supplied | Guidance or portable runtime default | Guidance or portable adversarial value (`xhigh`) |
+   | Concrete `--model`, no `--effort` | Requested model | Guidance or portable adversarial value |
+   | `--model inherit`, no `--effort` | Verified parent model | Verified parent effort |
+   | Any model choice + concrete `--effort` | Resolve model as above | Requested effort |
+   | Any model choice + `--effort inherit` | Resolve model as above | Verified parent effort |
+
+3. Verify inheritance from current runtime context or correlated session metadata.
+   For Codex, match `CODEX_THREAD_ID` to `session_meta.payload.id`, then read model
+   and effort from the latest applicable `turn_context.payload.model` and
+   `turn_context.payload.effort`. Session-start provenance is a model fallback
+   only when the applicable turn has no model and no model-change evidence
+   contradicts it. Never select metadata by recency, cwd, display name or a stale
+   summary. Missing required model/effort evidence blocks inheritance-dependent
+   dispatch.
+4. Validate both choices against the exposed tool schema, client catalog and
+   model-supported efforts. Local Codex's catalog is `~/.codex/models_cache.json`;
+   Claude needs the exposed Agent schema and dated supported-effort documentation.
+   Report unsupported choices instead of substituting another model or effort.
+5. Keep the dedicated reviewer role and include both controls in the dispatch
+   label and prompt, for example `Plan review — gpt-6.1-sol / xhigh`. Record the
+   guidance source or fallback.
+
+   | Runtime | Dispatch controls |
+   |---|---|
+   | Codex | `agent_type: "plan-check:plan-reviewer"`, `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Put the label in the message when the tool has no description field. |
+   | Claude | `subagent_type: "plan-check:plan-reviewer"`, supported `model` and `effort`. If the tool has no effort field, use a verified setting on that same dedicated role only when it matches the intended effort; otherwise report that the requested dispatch cannot be expressed. Never substitute a generic effort role. |
+   | OpenCode | Task selects `plan-check--plan-reviewer` without per-call model/effort fields. Read that role's configured model and supported variant, label the effective controls, and report any requested override it cannot realize. Never invent Task parameters or replace the reviewer role. |
+
+For example, a Codex cold review uses:
+
+```
+spawn_agent({
+  agent_type: "plan-check:plan-reviewer",
+  fork_turns: "none",
+  model: "<resolved model>",
+  reasoning_effort: "<resolved adversarial effort>",
+  task_name: "plan_review",
+  message: "Dispatch: Plan review — <resolved model> / <resolved effort>\nReview <plan path> in full. <scope and context>"
+})
+```
+
+Populate every placeholder before dispatch. Preserve role operation allowlists
+and the planning workflow's different-vendor second pass. These instructions do
+not authorize nested delegation or hidden cross-runtime dispatches.
+
+Inline skill invocation and forks retain the existing session's model and effort.
+Disclose any ignored `--model` or `--effort` controls; do not start a cold review
+merely to honor flags on an inline invocation.
+
 ## Before starting
 
 1. Read the plan artifact IN FULL, plus the task note / card it implements and any

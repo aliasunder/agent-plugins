@@ -57,13 +57,51 @@ loaded at runtime via `ToolSearch`:
 
 ## Usage
 
+### Model and effort
+
+The dispatcher reads guidance named by the project. Without a pointer, it uses
+vault tools to find a unique living reference tagged `model-selection`. If
+guidance cannot be read or found, it reports the fallback and uses these defaults:
+
+| Runtime | Model | Ordinary review | Bug-check or explicitly adversarial/security PR review |
+|---|---|---|---|
+| Codex | `gpt-6.1-sol` | `high` | `xhigh` |
+| Claude | `opus` | `high` | `xhigh` |
+
+Guidance overrides the portable defaults. The selected model stays fixed through
+the run, including fresh-eyes, delta reviews and tool-definition continuations.
+The dispatcher never escalates to Astra or Fable without an explicit model choice.
+
+| Option | Effect |
+|---|---|
+| `--model <selector>` | Selects one supported model for the run; omitted effort follows the review's task class. |
+| `--effort <level>` | Selects supported effort for every cold review in the run. |
+| `--model inherit` alone | Preserves verified parent model and effort. |
+| `--effort inherit` | Preserves verified parent effort, independently of model selection. |
+| `--model inherit --effort high` | Preserves parent model and explicitly uses high effort. |
+| `--inline`, `--fork` | Retain session controls; ignored model/effort flags are disclosed. |
+
+Codex cold dispatches use dedicated `agent_type`, `fork_turns: "none"`, `model`
+and `reasoning_effort`. Claude uses dedicated `subagent_type`, `model` and supported
+`effort`; when the tool lacks effort, a verified matching setting on that same
+role is required. OpenCode Task has no per-call model/effort fields: the dispatcher
+reads the dedicated role's model and supported variant and reports overrides the
+role cannot realize. Unsupported choices are reported without substitution.
+
+For standalone agents, first read the [skill's Execution guidance](skills/ship-check/SKILL.md#execution)
+and resolve both controls before dispatch. Every label includes model and effort.
+The examples below show explicit Claude choices; validate them against the current
+Agent schema and model support.
+
+### Review dispatches
+
 The agents are dispatched by the `ship-check` skill (bundled in this plugin at `skills/ship-check/`):
 
 ```
-Agent({ subagent_type: "ship-check:pr-reviewer", prompt: "Review PR #123..." })
-Agent({ subagent_type: "ship-check:code-quality-reviewer", prompt: "..." })
-Agent({ subagent_type: "ship-check:test-auditor", prompt: "..." })
-Agent({ subagent_type: "ship-check:bug-checker", prompt: "..." })
+Agent({ subagent_type: "ship-check:pr-reviewer", model: "opus", effort: "high", description: "PR review — opus / high", prompt: "Review PR #123..." })
+Agent({ subagent_type: "ship-check:code-quality-reviewer", model: "opus", effort: "high", description: "Code quality — opus / high", prompt: "..." })
+Agent({ subagent_type: "ship-check:test-auditor", model: "opus", effort: "high", description: "Test audit — opus / high", prompt: "..." })
+Agent({ subagent_type: "ship-check:bug-checker", model: "opus", effort: "xhigh", description: "Bug check — opus / xhigh", prompt: "..." })
 ```
 
 They can also be dispatched standalone for single-dimension reviews. `fresh-eyes`
@@ -71,7 +109,7 @@ runs as Phase 2 in the pipeline and can also be dispatched standalone — either
 it needs the file list in its prompt:
 
 ```
-Agent({ subagent_type: "ship-check:fresh-eyes", prompt: "Read src/a.ts and src/b.ts at <sha> as a stranger..." })
+Agent({ subagent_type: "ship-check:fresh-eyes", model: "opus", effort: "high", description: "Fresh eyes — opus / high", prompt: "Read src/a.ts and src/b.ts at <sha> as a stranger..." })
 ```
 
 To dispatch `tool-definition-reviewer` yourself, give it the tool list as a file
@@ -80,7 +118,7 @@ method, or a snapshot the project commits to its repository. Give it the file fr
 before the change as well, when there is one:
 
 ```
-Agent({ subagent_type: "ship-check:tool-definition-reviewer", prompt: "Current surface: /tmp/tools-now.json\nBase surface: /tmp/tools-before.json\nIntended tools: search_notes, read_note\nRepository root: /path/to/server" })
+Agent({ subagent_type: "ship-check:tool-definition-reviewer", model: "opus", effort: "high", description: "Tool definitions — opus / high", prompt: "Current surface: /tmp/tools-now.json\nBase surface: /tmp/tools-before.json\nIntended tools: search_notes, read_note\nRepository root: /path/to/server" })
 ```
 
 Only `Current surface` is required. Each other line unlocks checks:

@@ -9,7 +9,9 @@ description: >
   fable-mode planning session wanting adversarial
   review of its ratified plan, and pre-implementation review of any card that
   adds behavior, adds a guard or control, or spans sessions. See "When to invoke"
-  in the agent body for worked scenarios.
+  in the agent body for worked scenarios. Before spawning this agent, read the
+  plan-review skill's "Dispatcher guidance" to resolve model and effort; retain
+  this dedicated role.
 model: inherit
 color: blue
 tools:

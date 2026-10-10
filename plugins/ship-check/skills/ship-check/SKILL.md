@@ -61,8 +61,10 @@ orchestrator triage, pr-monitor replies).
     runtime or supplied by its dispatcher.
   - **Inline mode:** the poster uses the current session's exact runtime context. A
     Codex inline poster matches its own `CODEX_THREAD_ID` to
-    `session_meta.payload.id` before reading
-    `session_meta.payload.base_instructions.provenance.model`.
+    `session_meta.payload.id`, then reads the latest applicable
+    `turn_context.payload.model`. Use
+    `session_meta.payload.base_instructions.provenance.model` only when that turn
+    has no model and no later model-change evidence contradicts the provenance.
   If the required source is missing, stop before posting and report the attribution
   blocker.
 - **The orchestrator's own PR-level comments** (non-inline findings, deferred items
@@ -84,7 +86,7 @@ Add this instruction to each phase dispatch prompt (phases 1, 3-5 — Phase 2 do
 commit):
 
 For Codex agent mode, prepend the literal prefix `Attribution model ID: ` followed by
-the exact model passed to spawn, for example `Attribution model ID: gpt-5.6-terra`.
+the exact model passed to spawn, for example `Attribution model ID: gpt-6.1-sol`.
 Never dispatch an unexpanded placeholder.
 
 ```
@@ -379,7 +381,8 @@ the pipeline pushes nothing).
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
    when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
-   Model selection follows the same table as phases 1-5 (see Execution below).
+   Model and effort follow Execution below: retain the run's selected model;
+   bug-checker uses the adversarial class, code-quality-reviewer the ordinary class.
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
@@ -397,25 +400,89 @@ the pipeline pushes nothing).
 
 ## Execution
 
-The dispatch templates below omit model selection. Resolve it once, then reuse it for
-every agent-mode phase:
+### Resolve model and effort before dispatch
 
-| Runtime | No `--model` | Explicit `--model` | `--model inherit` |
-|---|---|---|---|
-| Claude | pass `opus` | pass the supported Claude selector | omit the override; the child inherits |
-| Codex | pass `gpt-5.6-terra` | pass the exact supported `gpt-*` ID | resolve the parent's exact model and reasoning effort, then pass both explicitly |
-| OpenCode | use its configured default | pass the runtime-supported selector or provider/model ID | use its inherited-model mechanism |
+1. Read model guidance named in the active project instructions. If no pointer is
+   supplied and vault tools are available, search with
+   `vault_search({ query: "model selection", filters: { type: "reference", tags: ["model-selection"], properties: { lifecycle: "living" } } })`.
+   Read the unique result with `vault_read_note`. Conflicting results require
+   resolving the project pointer before dispatch. If access or a result is absent,
+   use the portable defaults below and report that fallback.
+2. Map each review to its task class. Guidance owns the values; the table below
+   supplies values only when guidance is unavailable. Explicit user controls win.
 
-For Codex `inherit`, match the root's `CODEX_THREAD_ID` to one rollout's
-`session_meta.payload.id`. Read the model from
-`session_meta.payload.base_instructions.provenance.model`, then read the reasoning
-effort from the latest `turn_context.payload.effort` in that same rollout at or before
-the phase dispatch. Never select a rollout by recency, cwd, or display name. Stop before
-dispatch if the matching rollout, model, or applicable effort is missing.
+   | Review | Task class | Portable Codex model | Portable Claude model | Portable effort |
+   |---|---|---|---|---|
+   | PR review, fresh-eyes, code-quality, test-audit, tool-definition review | Ordinary review | `gpt-6.1-sol` | `opus` | `high` |
+   | Bug-check, including delta bug-check | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
+   | PR review explicitly scoped to security/adversarial analysis | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
 
-`--inline` needs no child model selection. `--fork` inherits the session model and
-ignores model overrides; a Codex fork prompt still carries the root's verified
-`Attribution model ID`.
+3. Resolve one model for the run and effort for each task class. Keep that model
+   for phases, fresh-eyes persona reads, delta reviews, tool-definition cold/diff
+   passes, continuations and re-reviews. Astra/Fable require an explicit
+   `--model`; escalation advice in guidance never switches this run's model.
+
+   | Controls | Model | Effort |
+   |---|---|---|
+   | Neither supplied | Guidance or portable runtime default | Guidance or portable task-class value |
+   | Concrete `--model`, no `--effort` | Requested model | Guidance or portable task-class value |
+   | `--model inherit`, no `--effort` | Verified parent model | Verified parent effort |
+   | Any model choice + concrete `--effort` | Resolve model as above | Requested effort for every review |
+   | Any model choice + `--effort inherit` | Resolve model as above | Verified parent effort |
+
+4. Validate model and effort together against the exposed spawn schema, client
+   catalog and the model's supported efforts. For local Codex, check
+   `~/.codex/models_cache.json`; for Claude, check the exposed Agent schema and
+   dated supported-effort documentation. Unsupported explicit choices are
+   reported, never replaced with another model or effort. A catalog entry alone
+   does not prove that the current client can express the choice.
+5. Include both resolved controls in every dispatch label, for example
+   `Bug check — gpt-6.1-sol / xhigh`. Record the guidance source or fallback.
+
+For Codex parent inheritance, match the root's `CODEX_THREAD_ID` to one rollout's
+`session_meta.payload.id`. Read model and effort from the latest applicable
+`turn_context.payload.model` and `turn_context.payload.effort` at or before
+dispatch. Use `session_meta.payload.base_instructions.provenance.model` only if
+the applicable turn has no model and no later model-change evidence contradicts
+it. Never select a rollout by recency, cwd, display name or a stale summary. For
+Claude, verify parent model and effort from the current runtime context or
+correlated session metadata. Stop before an inheritance-dependent dispatch when
+the required model or effort cannot be verified.
+
+### Apply controls at every dispatch site
+
+The phase templates below show Claude's Agent form. Populate the model, effort and
+label placeholders before invoking a tool; never dispatch literal placeholders.
+
+| Runtime | Cold dispatch |
+|---|---|
+| Codex | Keep the dedicated `agent_type`; use `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Prepend `Attribution model ID: <resolved exact model>` to the prompt. |
+| Claude | Keep the dedicated `subagent_type`; pass supported `model` and `effort`. If the exposed tool lacks effort, use a verified setting on that same dedicated role only when it matches the intended effort. Otherwise report that the dispatch cannot express the choice. Never substitute a generic effort role. |
+| OpenCode | Keep the configured dedicated role, such as `ship-check--bug-checker`. Task has no per-call model or effort fields: read that role's configured model and supported variant, and label the effective controls. Report any requested override the role cannot realize; never invent Task parameters or replace the reviewer role. |
+
+For example, the Codex Phase 1 call is:
+
+```
+spawn_agent({
+  agent_type: "ship-check:pr-reviewer",
+  fork_turns: "none",
+  model: "<resolved model>",
+  reasoning_effort: "<resolved phase effort>",
+  task_name: "pr_review",
+  message: "Attribution model ID: <resolved exact model>\nDispatch: PR review — <resolved model> / <resolved phase effort>\n<Phase 1 prompt>"
+})
+```
+
+Use the runtime's available label field for model and effort; when Codex exposes
+no description field, include `Dispatch: <role> — <model> / <effort>` in the
+message. These controls apply to EVERY cold dispatch, including retries,
+continuations, both fresh-eyes personas, delta reviews and tool-definition
+re-reviews. Keep each role's operation allowlist and nested-delegation limits.
+Do not add hidden cross-runtime dispatches to obtain vendor diversity.
+
+`--inline` and `--fork` cannot change the session model or effort. Disclose ignored
+`--model` and `--effort` controls; a Codex fork prompt still carries the root's
+verified `Attribution model ID`.
 
 The dispatch templates below also omit the `Ship-Check` commit trailer instruction.
 Append it to every phase that commits (phases 1, 3-5):
@@ -435,7 +502,9 @@ Dispatch the `pr-reviewer` agent type from the ship-check plugin:
 ```
 Agent({
   subagent_type: "ship-check:pr-reviewer",
-  description: "PR review — correctness, security, conditional checks",
+  model: "<resolved model>",
+  effort: "<resolved phase effort>",
+  description: "PR review — <resolved model> / <resolved phase effort>",
   prompt: "Review the PR on branch <branch> (PR #<number>) against main. This is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push."
 })
 ```
@@ -477,7 +546,9 @@ git diff --name-only main...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
 ```
 Agent({
   subagent_type: "ship-check:fresh-eyes",
-  description: "Fresh eyes — stranger read, report only",
+  model: "<resolved model>",
+  effort: "<resolved phase effort>",
+  description: "Fresh eyes — <resolved model> / <resolved phase effort>",
   prompt: "Read the following files at HEAD on branch <branch> (PR #<number>) as a reader who has never seen this codebase. Report every place you pause — a name you had to trace, a loop with no stated reason, a comparison you had to reason about, a term never introduced. Report only; do not edit anything.\n<if a persona was chosen, append:>\nPersona: <the chosen reader>\n\nFiles:\n<file list, one per line>"
 })
 ```
@@ -496,7 +567,9 @@ dismissal.
 ```
 Agent({
   subagent_type: "ship-check:code-quality-reviewer",
-  description: "Code quality — conventions, readability",
+  model: "<resolved model>",
+  effort: "<resolved phase effort>",
+  description: "Code quality — <resolved model> / <resolved phase effort>",
   prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a readability problem that reader hit — fix it or dismiss it on the trigger's boundary only. 'Pre-existing' is not a dismissal; 'matches local style' is not a boundary. A pause with no matching trigger is still a finding. If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting. List every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
@@ -511,7 +584,9 @@ Dispatch the `test-auditor` agent type:
 ```
 Agent({
   subagent_type: "ship-check:test-auditor",
-  description: "Test audit — quality + coverage gaps",
+  model: "<resolved model>",
+  effort: "<resolved phase effort>",
+  description: "Test audit — <resolved model> / <resolved phase effort>",
   prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
 })
 ```
@@ -526,7 +601,9 @@ Dispatch the `bug-checker` agent type:
 ```
 Agent({
   subagent_type: "ship-check:bug-checker",
-  description: "Bug check — 7-dimension systematic hunt",
+  model: "<resolved model>",
+  effort: "<resolved phase effort>",
+  description: "Bug check — <resolved model> / <resolved phase effort>",
   prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
@@ -652,17 +729,22 @@ without `tool-definitions` turns it off.
    ```
    Agent({
      subagent_type: "ship-check:tool-definition-reviewer",
-     description: "Tool definitions — <file name>, batch <n>",
+     model: "<resolved model>",
+     effort: "<resolved tool-definition effort>",
+     description: "Tool definitions — <file name>, batch <n> — <resolved model> / <resolved tool-definition effort>",
      prompt: "Review the MCP tool definitions changed on branch <branch> (PR #<number>).\nCurrent surface: <current>\nBase surface: <base, or: none>\nIntended tools: <step 5's list, the same in every dispatch, or: not stated>\nRepository root: <repository root>   (only when withRoot is true)\nReview only: <the batch's names>\nPass: diff   (only when coldDispatch is true)\nReport file: <parent>/report-<n>.md\nReturn the Defects list, the Unintended text changes list, and the Unfinished entries and Status lines."
    })
    ```
 
-   The cold dispatch carries only these four lines:
+   The cold dispatch carries only these four review-input lines. Runtime dispatch
+   controls, its model/effort label and Codex attribution still follow Execution:
 
    ```
    Agent({
      subagent_type: "ship-check:tool-definition-reviewer",
-     description: "Tool definitions — <file name>, cold read",
+     model: "<resolved model>",
+     effort: "<resolved tool-definition effort>",
+     description: "Tool definitions — <file name>, cold read — <resolved model> / <resolved tool-definition effort>",
      prompt: "Current surface: <current>\nReview only: <every name in reviewOnly>\nPass: cold\nReport file: <parent>/report-<n>.md"
    })
    ```
@@ -670,7 +752,8 @@ without `tool-definitions` turns it off.
    - Send every dispatch in one message. They write nothing but their reports, so
      they run in parallel.
    - **Codex:** spawn `agent_type: "ship-check:tool-definition-reviewer"` with the
-     model from the Execution table. Codex has no operation to close an agent, so a
+     resolved model and reasoning_effort, with `fork_turns: "none"`, as required
+     by Execution. Codex has no operation to close an agent, so a
      spawn refused with "agent thread limit reached" waits on `wait_agent` for one of
      this step's own dispatches, then retries. When none of this step's dispatches
      is running, the refusal fails the step.
@@ -764,7 +847,7 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
 | `--skip tool-definitions` | Never, and no re-review | Summary: `skipped` |
 | `--only` including `tool-definitions` | After the other selected phases | As in default |
 | `--only` without `tool-definitions` | Never | Summary: `not selected` |
-| `--model` | The Execution table's model choice | — |
+| `--model`, `--effort` | Execution's resolved controls, including each continuation and re-review | — |
 
 #### Verdict
 
@@ -908,10 +991,15 @@ The user can customize the pipeline:
   type. No-op when fresh-eyes doesn't run.
 - `/ship-check --model <name>` — override the model for all phase agents for this run.
   Use a selector the active runtime accepts: Claude aliases such as `opus`, exact Codex
-  IDs such as `gpt-5.6-luna`, or an OpenCode-supported selector/provider ID. `inherit`
-  follows the session model through the runtime-specific procedure in Execution.
-  Ignored with `--inline` and `--fork` — both run on the session model, though Codex
-  fork prompts still receive the root's verified attribution ID.
+  IDs such as `gpt-6.1-sol`. `inherit` alone preserves verified parent model AND
+  effort; a supplied `--effort` controls effort separately. OpenCode Task cannot
+  override the configured dedicated role's model: report that limitation.
+- `/ship-check --effort <level|inherit>` — override effort for every cold review,
+  including delta and tool-definition reviews. Validate the level for the model
+  and runtime. `inherit` uses verified parent effort independently of model.
+  Without this flag, use task-class effort except with `--model inherit` alone.
+  Both controls are ignored with `--inline` and `--fork`; disclose this and retain
+  the session controls. Codex forks still receive the verified attribution ID.
 - `/ship-check --inline` — run all phases in the current context (no agents, no fresh
   eyes — useful when context from prior work is actually helpful). Fresh-eyes is skipped
   because inherited context defeats the no-prior-knowledge persona.
