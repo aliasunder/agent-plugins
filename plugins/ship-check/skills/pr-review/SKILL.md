@@ -156,9 +156,10 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 - **In a ship-check run:** report the line
   `Tool definitions: changed — handed to the tool-definition step, not reviewed here`.
   The orchestrator runs that step after Phase 5.
-- **In a standalone run:** report the same line and tell the user to dispatch
-  `ship-check:tool-definition-reviewer` (or run the `tool-definition-review` skill) on
-  the server's `tools/list` saved to a file.
+- **In a standalone run:** no tool-definition step follows, so report
+  `Tool definitions: changed — not reviewed here; run the tool-definition reviewer`
+  and tell the user to dispatch `ship-check:tool-definition-reviewer` (or run the
+  `tool-definition-review` skill) on the server's `tools/list` saved to a file.
 - NEVER say the tool definitions are covered unless a tool-definition review report
   came back.
 - **Boundary:** whether a description's claims match the code stays with bug-check

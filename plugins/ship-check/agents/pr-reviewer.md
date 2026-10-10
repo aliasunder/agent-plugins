@@ -169,7 +169,7 @@ PR Review complete:
 - By dimension:
   - Correctness: A
   - Security/performance: B
-  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (or "N/A — no tool definition changes")
+  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (standalone: "changed — not reviewed here; run the tool-definition reviewer"; or "N/A — no tool definition changes")
   - Feature surface docs: D (or "N/A — no feature surface changes")
   - Stale paths: E (or "N/A — no file moves/renames")
 - Tests: passing / N failures
@@ -188,7 +188,7 @@ PR Review complete (comment mode):
 - By dimension:
   - Correctness: A
   - Security/performance: B
-  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (or "N/A")
+  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (standalone: "changed — not reviewed here; run the tool-definition reviewer"; or "N/A")
   - Feature surface docs: D (or "N/A")
   - Stale paths: E (or "N/A")
 - Verdict: ship / ship-with-minor-fixes / needs-changes

@@ -554,7 +554,8 @@ without `tool-definitions` turns it off.
    git rev-parse HEAD
    ```
 2. **Gates (no Bun needed).** List the changed JSON files, then check both ends for
-   a tool list. Each `git grep` is ONE command carrying every listed path:
+   a tool list. Run them at the repository root: inside a subfolder, git lists only
+   that folder's changes. Each `git grep` is ONE command carrying every listed path:
    ```
    git diff --name-only MERGE_BASE HEAD_SHA -- '*.json'
    git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
@@ -564,6 +565,9 @@ without `tool-definitions` turns it off.
    - Neither `git grep` lists a file → `not dispatched: no tool-list file changed`.
      One listed file at either end passes the gate. `git grep` exits 1 when it finds
      nothing, and a path missing at one end finds nothing; neither is an error.
+   - Either outcome, when Phase 1 reported tool definitions changed in source → tell
+     the user the route: capture the server's `tools/list` to a file and dispatch
+     the reviewer on demand.
 3. **Plan the dispatches.** Run the plan script yourself; the reviewer may be
    read-only. Make a fresh parent folder, then pass a child that does not exist yet:
    ```
@@ -589,14 +593,13 @@ without `tool-definitions` turns it off.
      paths); or, in a re-review, no tool text changed since the last review except
      edits that came from the base branch.
    - A changed file that appears in none of these lists holds only reviews that
-     another file in `files` already carries, so it gets no dispatch of its own.
+     another file in `files` already carries, so it gets no dispatch of its own. In
+     a re-review, a file the base branch deleted and this branch never touched is
+     also in no list.
    - Each `broken` or `removed` file goes to the user as a finding before the verdict.
    - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
      tool whose name the PR title or body does not mention goes to the user as a
      finding.
-   - Phase 1 reported tool definitions changed in source, but no tool-list file
-     changed → tell the user the route: capture the server's `tools/list` to a file
-     and dispatch the reviewer on demand.
 5. **Intended tools.** Collect every name in the plan's `reviewOnly` lists that
    appears as a whole word in the PR title or body
    (`gh pr view <number> -R OWNER_REPO --json title,body`); in local mode, in the
@@ -689,8 +692,9 @@ summary line.
    text that did not change.
 6. Record the new tool-review commit as in step 9.
 
-- No recorded tool-review commit, or one git cannot find (the script exits 2 with
-  "not a commit") → run the step in full and say so in the summary.
+- No recorded tool-review commit, or one git cannot find (the gate's `git diff`
+  reports a bad object, or the script exits 2 with "not a commit") → run the step in
+  full and say so in the summary.
 - A change to tool text is never a trivial delta.
 
 #### By mode

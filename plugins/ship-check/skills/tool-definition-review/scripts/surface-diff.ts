@@ -561,7 +561,10 @@ export type FileSide =
   | { kind: "toolList"; surface: Surface; text: string }
   | { kind: "notToolList"; reason: string }
 
-/** The commits a `--since` review compares beyond `--from` and `--to`, read at the path the file had at the review. */
+/**
+ * The commits a `--since` review compares beyond `--from` and `--to`. `path` is the file's path at the review;
+ * `sinceFrom` is read at the path the file had at the review's merge base, which differs when the branch renamed it.
+ */
 export type SinceSides = { path: string; since: FileSide; sinceFrom: FileSide }
 
 /** One changed `.json` path. `path` is its path at `--to`; `fromPath` differs only when the file was renamed. */
@@ -1102,13 +1105,20 @@ const readChangedFiles = (repo: string, commits: PlanCommits): ChangedFile[] => 
   const sinceChanges = listChangedJson(repo, since, to)
   const sincePaths = new Map(sinceChanges.map((change) => [change.path, change.oldPath]))
 
+  // A file the branch renamed before the review still has its old name at the review's merge base.
+  const sinceFromPaths = new Map(listChangedJson(repo, sinceFrom, since).map((change) => [change.path, change.oldPath]))
+
   // When the merge base moved, a path the base branch changed is checked too: a merge may have kept the branch's text over it.
-  const baseBranchChanges = sinceFrom === from ? [] : listChangedJson(repo, sinceFrom, from)
-  const paths = [...new Set([...sinceChanges, ...baseBranchChanges].map((change) => change.path))].toSorted(byCodeUnit)
+  // Git names that path as it is at `--from`, so a file the branch renamed is listed under its `--to` name.
+  const toPaths = new Map(fromChanges.map((change) => [change.oldPath, change.path]))
+  const baseBranchPaths = sinceFrom === from ? [] : listChangedJson(repo, sinceFrom, from).map((change) => change.path)
+  const changedPaths = [...sinceChanges.map((change) => change.path), ...baseBranchPaths.map((path) => toPaths.get(path) ?? path)]
+  const paths = [...new Set(changedPaths)].toSorted(byCodeUnit)
 
   return paths.map((path) => {
     const fromPath = fromPaths.get(path) ?? path
     const sincePath = sincePaths.get(path) ?? path
+    const sinceFromPath = sinceFromPaths.get(sincePath) ?? sincePath
 
     return {
       path,
@@ -1118,7 +1128,7 @@ const readChangedFiles = (repo: string, commits: PlanCommits): ChangedFile[] => 
       sinceSides: {
         path: sincePath,
         since: readSide(repo, since, sincePath),
-        sinceFrom: readSide(repo, sinceFrom, sincePath),
+        sinceFrom: readSide(repo, sinceFrom, sinceFromPath),
       },
     }
   })
@@ -1188,7 +1198,10 @@ const runPlan = ({ repo, from, to, since, sinceFrom, out }: PlanArguments): stri
     sinceFrom: sinceFrom ? resolveCommit(repo, sinceFrom) : null,
   }
 
-  const files = readChangedFiles(repo, commits)
+  // Run inside a folder of the work tree, git lists only that folder's changes and looks each listed path up from
+  // that folder, so the plan would miss some files and read the rest as absent. Every call runs at the top instead.
+  const root = runGit(repo, ["rev-parse", "--show-toplevel"]).trim()
+  const files = readChangedFiles(root, commits)
   const written = writePlan(out, files, planReview(files))
   const mode = commits.since ? "since" : "full"
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { after, describe, it } from "node:test"
@@ -1548,6 +1548,98 @@ describe("--plan on a git repository", () => {
     assert.deepStrictEqual(
       { reviewOnly: plan.files[0]?.reviewOnly, composedTool: composed.tools[5] },
       { reviewOnly: ["tool_5"], composedTool: { name: "tool_5", description: "Reviewed.", inputSchema: emptySchema() } },
+    )
+  })
+
+  it("leaves a file renamed before the review out of scope when only the base branch changed it since", () => {
+    const repo = makeRepo("since-renamed-before")
+    const tools = Array.from({ length: 6 }, (_, index) => rawTool({ name: `tool_${index}`, description: `Tool ${index} does a thing.` }))
+    const reword = (list: typeof tools, index: number, description: string) => list.with(index, rawTool({ name: `tool_${index}`, description }))
+    const branchTools = reword(tools, 0, "Edited by the branch.")
+    const mergedTools = reword(branchTools, 1, "Edited on main.")
+
+    const mergeBase = commit(repo, { "old.json": surfaceText(tools) })
+    git(repo, ["switch", "-q", "-c", "feature"])
+    git(repo, ["mv", "old.json", "new.json"])
+    const reviewed = commit(repo, { "new.json": surfaceText(branchTools) })
+    git(repo, ["switch", "-q", "main"])
+    const newMergeBase = commit(repo, { "old.json": surfaceText(reword(tools, 1, "Edited on main.")) })
+    git(repo, ["switch", "-q", "feature"])
+    git(repo, ["merge", "-q", "--no-edit", "main"])
+    // The merge must carry main's edit into the renamed file, or the base branch's change never reaches the plan.
+    const merged = JSON.parse(git(repo, ["show", "HEAD:new.json"]))
+    const head = commit(repo, { "new.json": surfaceText(reword(mergedTools, 2, "Edited after the review.")) })
+    const out = join(directory, "since-renamed-before-plan")
+
+    const args = ["--repo", repo, "--from", newMergeBase, "--to", head, "--since", reviewed, "--since-from", mergeBase, "--out", out]
+    const plan = JSON.parse(runPlan(args).stdout)
+
+    assert.deepStrictEqual(
+      {
+        merged,
+        files: plan.files.map(({ path, reviewOnly, alsoChangedOnBaseBranch }: Record<string, unknown>) => ({ path, reviewOnly, alsoChangedOnBaseBranch })),
+        removed: plan.removed,
+      },
+      {
+        merged: { tools: mergedTools },
+        files: [{ path: "new.json", reviewOnly: ["tool_2"], alsoChangedOnBaseBranch: [] }],
+        removed: [],
+      },
+    )
+  })
+
+  it("reads from the top of the repository when --repo names a folder inside it", () => {
+    const repo = makeRepo("inner-folder")
+    mkdirSync(join(repo, "inner"))
+    const from = commit(repo, { "default.json": surfaceText([rawTool()]) })
+    const to = commit(repo, { "default.json": surfaceText([rawTool({ description: "List every note." })]) })
+
+    const plan = JSON.parse(runPlan(["--repo", join(repo, "inner"), "--from", from, "--to", to, "--out", join(directory, "inner-plan")]).stdout)
+
+    assert.deepStrictEqual(
+      plan.files.map(({ path, reviewOnly }: { path: string; reviewOnly: string[] }) => ({ path, reviewOnly })),
+      [{ path: "default.json", reviewOnly: ["list_notes"] }],
+    )
+  })
+
+  it("exits 2 on a path that climbs out of the repository, and writes nothing", () => {
+    const repo = makeRepo("climbing-path")
+    const from = commit(repo, { "default.json": surfaceText([rawTool()]) })
+
+    // Git refuses to stage a ".." entry, but a hand-built tree can hold one, and git diff lists the path it makes.
+    const writeObject = (args: string[], input: string): string => {
+      const { status, stdout, stderr } = spawnSync("git", ["-C", repo, ...args], { input, encoding: "utf8", env: GIT_ENV })
+
+      if (status !== 0) {
+        throw new Error(`git ${args.join(" ")} failed: ${stderr}`)
+      }
+
+      return stdout.trim()
+    }
+    const plantedBlob = writeObject(["hash-object", "-w", "--stdin"], surfaceText([rawTool({ name: "planted" })]))
+    const innerTree = writeObject(["mktree"], `100644 blob ${plantedBlob}\tplanted.json\n`)
+    const climbingTree = writeObject(["mktree"], `040000 tree ${innerTree}\t..\n`)
+    const defaultBlob = git(repo, ["rev-parse", `${from}:default.json`])
+    const rootTree = writeObject(["mktree"], `100644 blob ${defaultBlob}\tdefault.json\n040000 tree ${climbingTree}\t..\n`)
+    const to = git(repo, ["commit-tree", rootTree, "-p", from, "-m", "climb"])
+
+    // The plan's own folder sits one level down, so "to/../../planted.json" would land beside it.
+    const parent = join(directory, "climbing-plan")
+    mkdirSync(parent)
+    const out = join(parent, "plan")
+
+    const { status, stdout, stderr } = runPlan(["--repo", repo, "--from", from, "--to", to, "--out", out])
+
+    assert.deepStrictEqual(
+      {
+        listedPath: git(repo, ["diff", "--name-only", from, to, "--", "*.json"]),
+        status,
+        stdout,
+        namesPath: stderr.includes("../../planted.json"),
+        planWritten: existsSync(out),
+        plantedWritten: existsSync(join(parent, "planted.json")),
+      },
+      { listedPath: "../../planted.json", status: 2, stdout: "", namesPath: true, planWritten: false, plantedWritten: false },
     )
   })
 
