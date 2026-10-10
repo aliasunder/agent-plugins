@@ -1262,14 +1262,33 @@ type PrintedFile = Omit<PlannedFile, "base"> & { current: string; base: string |
 
 type PrintedPlan = Omit<PlanResult, "files"> & { files: PrintedFile[] }
 
+type PlanWrite = { path: string; text: string }
+
+/**
+ * Stops the plan when two of its files differ only in letter case. On a case-insensitive file system, such as the
+ * macOS default, the second write would replace the first and the reviewer would read the wrong file.
+ */
+const refuseCaseCollisions = (writes: readonly PlanWrite[]) => {
+  const pathByFoldedPath = new Map<string, string>()
+
+  for (const { path } of writes) {
+    const folded = path.toLowerCase()
+    const earlier = pathByFoldedPath.get(folded)
+
+    if (earlier && earlier !== path) {
+      throw new InputError(`${earlier} and ${path} differ only in letter case, so one would overwrite the other; --plan cannot copy both`)
+    }
+
+    pathByFoldedPath.set(folded, path)
+  }
+}
+
 /**
  * Writes the files the printed plan names under `out` and returns the plan with their paths: each planned file's
  * `--to` copy in `to/`, and its base, either the `--from` copy in `from/` or the composed `--since` base in
- * `since-base/`.
+ * `since-base/`. Every path is checked before `out` is created, so a refused plan writes nothing.
  */
 const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResult): PrintedPlan => {
-  createOutputFolder(out)
-
   const changedByPath = new Map(files.map((file) => [file.path, file]))
 
   const basePath = (base: ReviewBase): string => {
@@ -1277,17 +1296,27 @@ const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResul
     return join(out, "since-base", base.path)
   }
 
-  for (const { path, base } of result.files) {
+  const writes = result.files.flatMap(({ path, base }): PlanWrite[] => {
     const file = changedByPath.get(path)
+    const current = file?.to.kind === "toolList" ? [{ path: join(out, "to", path), text: file.to.text }] : []
 
-    if (file?.to.kind === "toolList") writeTextFile(join(out, "to", path), file.to.text)
-
-    if (base?.kind === "fromCopy" && file?.from.kind === "toolList") writeTextFile(basePath(base), file.from.text)
+    if (base?.kind === "fromCopy" && file?.from.kind === "toolList") {
+      return [...current, { path: basePath(base), text: file.from.text }]
+    }
 
     if (base?.kind === "composed") {
       const composed = { ...base.sections, tools: base.tools.map(toolObject) }
-      writeTextFile(basePath(base), `${JSON.stringify(composed, null, 2)}\n`)
+      return [...current, { path: basePath(base), text: `${JSON.stringify(composed, null, 2)}\n` }]
     }
+
+    return current
+  })
+
+  refuseCaseCollisions(writes)
+  createOutputFolder(out)
+
+  for (const { path, text } of writes) {
+    writeTextFile(path, text)
   }
 
   const printedFiles = result.files.map((planned) => ({

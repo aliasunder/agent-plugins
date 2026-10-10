@@ -1634,6 +1634,17 @@ describe("--plan on a git repository", () => {
     return git(repo, ["rev-parse", "HEAD"])
   }
 
+  /** Runs a git command that reads `input` and writes an object, for trees no working tree could hold. */
+  const writeObject = (repo: string, args: string[], input: string): string => {
+    const { status, stdout, stderr } = spawnSync("git", ["-C", repo, ...args], { input, encoding: "utf8", env: GIT_ENV })
+
+    if (status !== 0) {
+      throw new Error(`git ${args.join(" ")} failed: ${stderr}`)
+    }
+
+    return stdout.trim()
+  }
+
   const surfaceText = (tools: unknown[]) => `${JSON.stringify({ tools }, null, 2)}\n`
 
   const runPlan = (args: string[]) => {
@@ -2017,20 +2028,11 @@ describe("--plan on a git repository", () => {
     const from = commit(repo, { "default.json": surfaceText([rawTool()]) })
 
     // Git refuses to stage a ".." entry, but a hand-built tree can hold one, and git diff lists the path it makes.
-    const writeObject = (args: string[], input: string): string => {
-      const { status, stdout, stderr } = spawnSync("git", ["-C", repo, ...args], { input, encoding: "utf8", env: GIT_ENV })
-
-      if (status !== 0) {
-        throw new Error(`git ${args.join(" ")} failed: ${stderr}`)
-      }
-
-      return stdout.trim()
-    }
-    const plantedBlob = writeObject(["hash-object", "-w", "--stdin"], surfaceText([rawTool({ name: "planted" })]))
-    const innerTree = writeObject(["mktree"], `100644 blob ${plantedBlob}\tplanted.json\n`)
-    const climbingTree = writeObject(["mktree"], `040000 tree ${innerTree}\t..\n`)
+    const plantedBlob = writeObject(repo, ["hash-object", "-w", "--stdin"], surfaceText([rawTool({ name: "planted" })]))
+    const innerTree = writeObject(repo, ["mktree"], `100644 blob ${plantedBlob}\tplanted.json\n`)
+    const climbingTree = writeObject(repo, ["mktree"], `040000 tree ${innerTree}\t..\n`)
     const defaultBlob = git(repo, ["rev-parse", `${from}:default.json`])
-    const rootTree = writeObject(["mktree"], `100644 blob ${defaultBlob}\tdefault.json\n040000 tree ${climbingTree}\t..\n`)
+    const rootTree = writeObject(repo, ["mktree"], `100644 blob ${defaultBlob}\tdefault.json\n040000 tree ${climbingTree}\t..\n`)
     const to = git(repo, ["commit-tree", rootTree, "-p", from, "-m", "climb"])
 
     // The plan's own folder sits one level down, so "to/../../planted.json" would land beside it.
@@ -2050,6 +2052,38 @@ describe("--plan on a git repository", () => {
         plantedWritten: existsSync(join(parent, "planted.json")),
       },
       { listedPath: "../../planted.json", status: 2, stdout: "", namesPath: true, planWritten: false, plantedWritten: false },
+    )
+  })
+
+  it("exits 2 when two changed tool lists differ only in letter case, and writes nothing", () => {
+    const repo = makeRepo("letter-case")
+
+    // A macOS working tree holds only one of the two names, so the commits are built from git objects. The two files
+    // are worded differently, so each gets its own dispatch and both are copied.
+    const commitTools = (description: string, parent: string | null): string => {
+      const blobFor = (text: string) => writeObject(repo, ["hash-object", "-w", "--stdin"], surfaceText([rawTool({ description: text })]))
+      const tree = writeObject(
+        repo,
+        ["mktree"],
+        `100644 blob ${blobFor(`${description} Upper.`)}\tTools.json\n100644 blob ${blobFor(`${description} Lower.`)}\ttools.json\n`,
+      )
+      const parentArgs = parent ? ["-p", parent] : []
+      return git(repo, ["commit-tree", tree, ...parentArgs, "-m", "change"])
+    }
+    const from = commitTools("List notes.", null)
+    const to = commitTools("List every note.", from)
+    const out = join(directory, "letter-case-plan")
+
+    const { status, stdout, stderr } = runPlan(["--repo", repo, "--from", from, "--to", to, "--out", out])
+
+    assert.deepStrictEqual(
+      { status, stdout, stderr, planWritten: existsSync(out) },
+      {
+        status: 2,
+        stdout: "",
+        stderr: `${join(out, "to", "Tools.json")} and ${join(out, "to", "tools.json")} differ only in letter case, so one would overwrite the other; --plan cannot copy both\n`,
+        planWritten: false,
+      },
     )
   })
 
