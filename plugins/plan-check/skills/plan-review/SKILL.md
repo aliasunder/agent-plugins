@@ -53,9 +53,9 @@ starting"; it never relaunches itself or changes its model or effort.
    resolving the project pointer. If access or a result is absent, report the
    fallback and use `gpt-6.1-sol` in Codex or `opus` in Claude, at `xhigh`.
 2. Select guidance's **adversarial review** values. Explicit user choices override
-   guidance. Choose the initial model through guidance and its allowance
-   constraints, and record the reason. Do not silently switch models after
-   selection.
+   guidance. Choose the initial model through task-fit guidance and any
+   user-stated constraints, and record the reason. Do not silently switch models
+   after selection.
 
    | Controls | Model | Effort |
    |---|---|---|
