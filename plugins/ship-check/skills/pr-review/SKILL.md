@@ -3,9 +3,9 @@ name: pr-review
 description: >
   Project-aware PR review grounded in AGENTS.md conventions and vault memory. Runs a
   multi-dimension review: correctness, convention compliance, test quality, security,
-  performance, and conditional checks (TDQS scoring, feature surface docs). Use when
-  asked to "review this PR", "review PR #X", "do a thorough review", "review against
-  AGENTS.md", or "review with my preferences in mind". Complements the built-in
+  performance, and conditional checks (the tool-definition handoff, feature surface
+  docs). Use when asked to "review this PR", "review PR #X", "do a thorough review",
+  "review against AGENTS.md", or "review with my preferences in mind". Complements the built-in
   /code-review (which is generic) by loading project-specific conventions and personal
   preferences.
   NOT for: quick CI failure diagnosis (use pr-monitor), post-merge testing (use verify),
@@ -146,11 +146,23 @@ Structure the review by dimension. Use sequential thinking to organize findings.
     `isFile() || isSymbolicLink()`), check that validation covers the guarantees
     the old filter implicitly provided
 
-### 5. TDQS scoring (conditional)
-- **Only when tool descriptions changed.** If the PR modifies MCP tool descriptions
-  in `tool-definitions.ts` (or equivalent), self-score against the TDQS rubric.
-- Check the project's CLAUDE.local.md or AGENTS.md for links to the TDQS rubric
-  and scoring references.
+### 5. Tool definitions (conditional)
+- **Trigger:** the PR changes MCP tool descriptions or input schemas — in the source
+  that defines the tools, or in a committed tool-list JSON file whose tools carry
+  `inputSchema`.
+- **Do NOT score or review them here.** The `ship-check:tool-definition-reviewer`
+  agent and its `tool-definition-review` skill own this review. A self-score in this
+  pass covers few tools and misses the error entries the dedicated reviewer traces.
+- **In a ship-check run:** report the line
+  `Tool definitions: changed — handed to the tool-definition step, not reviewed here`.
+  The orchestrator runs that step after Phase 5.
+- **In a standalone run:** report the same line and tell the user to dispatch
+  `ship-check:tool-definition-reviewer` (or run the `tool-definition-review` skill) on
+  the server's `tools/list` saved to a file.
+- NEVER say the tool definitions are covered unless a tool-definition review report
+  came back.
+- **Boundary:** whether a description's claims match the code stays with bug-check
+  dimension 1. No tool-definition change → report `N/A — no tool definition changes`.
 
 ### 6. Feature surface docs (conditional)
 - **Trigger: the PR adds, removes, or changes a feature.** A feature surface change

@@ -5,7 +5,7 @@ description: >
   memory preferences. Typical triggers include being dispatched by the ship-check pipeline
   for Phase 1 (correctness, security, conditional checks), a user asking for a
   convention-aware PR review rather than a generic one, and reviewing a PR against
-  project-specific TDQS scoring or feature surface doc requirements. See "When to invoke"
+  project-specific feature surface doc requirements. See "When to invoke"
   in the agent body for worked scenarios. A Codex dispatcher must include
   `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
@@ -40,15 +40,16 @@ author intended.
 
 - **Ship-check Phase 1.** The ship-check orchestrator dispatches you to run the first
   review pass on a PR. You focus on correctness, security/performance, and conditional
-  dimensions (TDQS, feature surface docs, stale paths) — skipping conventions and test
-  quality since dedicated agents handle those in later phases.
+  dimensions (the tool-definition handoff, feature surface docs, stale paths) — skipping
+  conventions and test quality since dedicated agents handle those in later phases.
 - **Standalone PR review.** A user asks for a project-aware PR review ("review this PR
   against AGENTS.md", "thorough review with my preferences"). You run all dimensions
   since no pipeline is handling the others. A Codex dispatcher includes
   `Attribution model ID: <exact-id>` in this standalone prompt.
-- **TDQS or feature surface check.** The PR changes MCP tool descriptions or the
-  project's feature surface, and the user wants those dimensions specifically evaluated
-  against the project's scoring rubric.
+- **Feature surface check.** The PR changes the project's feature surface, and the user
+  wants that dimension specifically evaluated. A change to MCP tool descriptions or
+  input schemas is NOT reviewed here: report the handoff line from dimension 5, and
+  the `ship-check:tool-definition-reviewer` agent reviews it.
 
 ## Your Core Responsibilities
 
@@ -87,7 +88,8 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 Follow the pr-review skill's dimensions. When dispatched by ship-check:
 - **Focus on**: dimensions 1 (correctness), 4 (security/performance), and conditional
-  dimensions 5-7 (TDQS, feature surface docs, stale path references).
+  dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path
+  references).
 - **Skip**: dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle
   those in later phases.
 
@@ -167,7 +169,7 @@ PR Review complete:
 - By dimension:
   - Correctness: A
   - Security/performance: B
-  - TDQS: C (or "N/A — no tool description changes")
+  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (or "N/A — no tool definition changes")
   - Feature surface docs: D (or "N/A — no feature surface changes")
   - Stale paths: E (or "N/A — no file moves/renames")
 - Tests: passing / N failures
@@ -186,7 +188,7 @@ PR Review complete (comment mode):
 - By dimension:
   - Correctness: A
   - Security/performance: B
-  - TDQS: C (or "N/A")
+  - Tool definitions: changed — handed to the tool-definition step, not reviewed here (or "N/A")
   - Feature surface docs: D (or "N/A")
   - Stale paths: E (or "N/A")
 - Verdict: ship / ship-with-minor-fixes / needs-changes
