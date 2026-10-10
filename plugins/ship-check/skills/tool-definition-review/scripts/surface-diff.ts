@@ -633,7 +633,8 @@ export type PlannedFile = {
   // `reviewOnly` in runs of at most TOOLS_PER_DISPATCH.
   batches: string[][]
   alsoChangedOnBaseBranch: string[]
-  // Null for a new tool-list file, which has nothing to compare with.
+  // Null when the file has nothing to compare with: a new tool-list file, or in `--since` mode a file that was not a
+  // tool list at the review.
   base: ReviewBase | null
 }
 
@@ -1253,8 +1254,8 @@ type PrintedPlan = Omit<PlanResult, "files"> & { files: PrintedFile[] }
 
 /**
  * Writes the plan's files under `out` and returns the plan with their paths. It copies each tool list it read at
- * `--from`, `--to`, and `--since` to `from/`, `to/`, and `since/`, and writes each composed `--since` base to
- * `since-base/`. The printed plan names the `to/` copy and the base; nothing in it points at `since/`.
+ * `--from` and `--to` to `from/` and `to/`, and writes each composed `--since` base to `since-base/`. The printed
+ * plan names the `to/` copy and the base.
  */
 const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResult): PrintedPlan => {
   createOutputFolder(out)
@@ -1262,10 +1263,6 @@ const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResul
   for (const file of files) {
     if (file.from.kind === "toolList") writeTextFile(join(out, "from", file.fromPath), file.from.text)
     if (file.to.kind === "toolList") writeTextFile(join(out, "to", file.path), file.to.text)
-
-    const { sinceSides } = file
-
-    if (sinceSides?.since.kind === "toolList") writeTextFile(join(out, "since", sinceSides.path), sinceSides.since.text)
   }
 
   const basePath = (base: ReviewBase): string => {
