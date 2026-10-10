@@ -379,7 +379,7 @@ the pipeline pushes nothing).
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
    when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
-   Model selection follows the same table as phases 1-5 (see Execution above).
+   Model selection follows the same table as phases 1-5 (see Execution below).
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
@@ -558,11 +558,14 @@ without `tool-definitions` turns it off.
    ```
 2. **Gates (git only).** The gates run before the plan script, so a runtime without
    Bun fails the step only when a tool list changed. List the changed JSON files,
-   then check both ends for a tool list. Run them at the repository root: inside a
-   subfolder, git lists only that folder's changes. Each `git grep` is ONE command
-   carrying every listed path:
+   then check both ends for a tool list:
+   - Run the commands at the repository root: inside a subfolder, git lists only
+     that folder's changes.
+   - `core.quotepath=off` makes git print a path with non-ASCII letters as it is.
+     The octal-escaped name it prints otherwise matches nothing in `git grep`.
+   - Each `git grep` is ONE command carrying every listed path.
    ```
-   git diff --name-only MERGE_BASE HEAD_SHA -- '*.json'
+   git -c core.quotepath=off diff --name-only MERGE_BASE HEAD_SHA -- '*.json'
    git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
    git grep -l '"inputSchema"' MERGE_BASE -- <every listed path>
    ```
@@ -599,7 +602,7 @@ without `tool-definitions` turns it off.
 
      | Non-empty list | Reason |
      |---|---|
-     | `filesWithNoToolChange` | no tool needs review: only instructions, prompts, or key order changed; a new file ships only definitions another changed file already has; or, in a re-review, no tool text changed since the last review except edits from the base branch |
+     | `filesWithNoToolChange` | no tool needs review: only instructions, prompts, tool order, key order, or formatting changed; a new file ships only definitions another changed file already has; or, in a re-review, no tool text changed since the last review except edits from the base branch |
      | `removed` or `removedTools` | only tools were removed |
      | `addedThenDropped` | the branch added tools and dropped them again |
      | `broken` | a tool-list file no longer parses as one |
@@ -608,7 +611,8 @@ without `tool-definitions` turns it off.
    - A changed file that appears in none of these lists holds only records that
      another file in `files` already carries, so it gets no dispatch of its own. In
      a re-review, a file the base branch deleted and this branch never touched is
-     also in no list.
+     also in no list. When every list is empty and `records` is 0, the reason is
+     `the base branch deleted every changed tool list`.
    - Each `broken` or `removed` file goes to the user as a finding before the verdict.
    - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
      tool whose name the PR title or body does not mention goes to the user as a
@@ -708,14 +712,14 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
 1. Recompute MERGE_BASE and HEAD_SHA as in step 1.
 2. Run step 2's gates over the branch's edits since the last review:
    ```
-   git diff --name-only TOOL_REVIEW_SHA HEAD_SHA -- '*.json'
+   git -c core.quotepath=off diff --name-only TOOL_REVIEW_SHA HEAD_SHA -- '*.json'
    git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
    git grep -l '"inputSchema"' TOOL_REVIEW_SHA -- <every listed path>
    ```
    When MERGE_BASE differs from OLD_MERGE_BASE, run them again over the base
    branch's edits between the two merge bases:
    ```
-   git diff --name-only OLD_MERGE_BASE MERGE_BASE -- '*.json'
+   git -c core.quotepath=off diff --name-only OLD_MERGE_BASE MERGE_BASE -- '*.json'
    git grep -l '"inputSchema"' MERGE_BASE -- <every listed path>
    git grep -l '"inputSchema"' OLD_MERGE_BASE -- <every listed path>
    ```

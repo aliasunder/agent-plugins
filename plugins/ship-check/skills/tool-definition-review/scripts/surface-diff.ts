@@ -643,7 +643,7 @@ export type PlanResult = {
   records: number
   files: PlannedFile[]
   // Changed tool lists with no tool to review, which happens when
-  // - only a file's instructions, prompts, or key order changed;
+  // - only a file's instructions, prompts, tool order, key order, or formatting changed;
   // - a new file ships only definitions another changed file already has;
   // - in `--since` mode, a file's tools changed since the review only through the base branch.
   filesWithNoToolChange: string[]
@@ -924,8 +924,11 @@ const classifySince = (file: ChangedFile, sinceSides: SinceSides): Classified =>
     records.push(recordFor({ base: decision.base, current: tool, alsoChangedOnBaseBranch: decision.alsoChangedOnBaseBranch }))
   }
 
+  // A tool the base branch added after the review is at neither review-time side. As for a whole file the base branch
+  // added, its `from` definition stands in for both, so the branch removing it is reported like any other removal.
+  const addedOnBaseBranch = [...fromTools.values()].filter((tool) => !sinceTools.has(tool.name) && !sinceFromTools.has(tool.name))
   const currentNames = new Set(to.surface.tools.map((tool) => tool.name))
-  const goneSinceReview = [...sinceTools.values()].filter((tool) => !currentNames.has(tool.name))
+  const goneSinceReview = [...sinceTools.values(), ...addedOnBaseBranch].filter((tool) => !currentNames.has(tool.name))
 
   // The same two rules as for a deleted file above, applied to one tool.
   const baseBranchRemoval = (tool: Tool): boolean => sameTool(tool, sinceFromTools.get(tool.name)) && !fromTools.has(tool.name)
@@ -1210,17 +1213,24 @@ const readChangedFiles = (repo: string, commits: PlanCommits): ChangedFile[] => 
   const baseBranchPaths = sinceFrom === from ? [] : listChangedJson(repo, { from: sinceFrom, to: from }).map((change) => change.path)
   const changedPaths = [...sinceChanges.map((change) => change.path), ...baseBranchPaths.map((path) => toPathByFromPath.get(path) ?? path)]
   const paths = [...new Set(changedPaths)].toSorted(byCodeUnit)
+  const listedPaths = new Set(paths)
 
   return paths.map((path) => {
-    const fromPath = fromPathByToPath.get(path) ?? path
     const sincePath = sincePathByToPath.get(path) ?? path
     const sinceFromPath = sinceFromPathBySincePath.get(sincePath) ?? sincePath
+    const toSide = readSide(repo, { commit: to, path })
+
+    // A file the branch renamed before the review and deleted after it is listed under the name the review saw, which
+    // `--from` never had. `--from` is read at the file's name at the review's merge base instead, unless that name has
+    // an entry of its own (the base branch changed the file), which then reports the deletion.
+    const readFromAtMergeBaseName = toSide.kind === "absent" && !listedPaths.has(sinceFromPath)
+    const fromPath = fromPathByToPath.get(path) ?? (readFromAtMergeBaseName ? sinceFromPath : path)
 
     return {
       path,
       fromPath,
       from: readSide(repo, { commit: from, path: fromPath }),
-      to: readSide(repo, { commit: to, path }),
+      to: toSide,
       sinceSides: {
         path: sincePath,
         since: readSide(repo, { commit: since, path: sincePath }),
@@ -1297,6 +1307,13 @@ const writePlan = (out: string, files: readonly ChangedFile[], result: PlanResul
 type PlanArguments = { repo: string; from: string; to: string; since: string | null; sinceFrom: string | null; out: string }
 
 const runPlan = ({ repo, from, to, since, sinceFrom, out }: PlanArguments): string => {
+  // Every git call runs at the top of the work tree, found first:
+  // - Run inside a folder, git lists only that folder's changes and looks each listed path up from that folder, so
+  //   the plan would miss some files and read the rest as absent.
+  // - Found before the commits, a --repo outside any repository fails as that, not as "not a commit", which the
+  //   ship-check re-review reads as a lost tool-review commit.
+  const root = runGit(repo, ["rev-parse", "--show-toplevel"]).trim()
+
   const commits: PlanCommits = {
     from: resolveCommit(repo, from),
     to: resolveCommit(repo, to),
@@ -1304,9 +1321,6 @@ const runPlan = ({ repo, from, to, since, sinceFrom, out }: PlanArguments): stri
     sinceFrom: sinceFrom ? resolveCommit(repo, sinceFrom) : null,
   }
 
-  // Run inside a folder of the work tree, git lists only that folder's changes and looks each listed path up from
-  // that folder, so the plan would miss some files and read the rest as absent. Every call runs at the top instead.
-  const root = runGit(repo, ["rev-parse", "--show-toplevel"]).trim()
   const files = readChangedFiles(root, commits)
   const printedPlan = writePlan(out, files, planReview(files))
   const mode = commits.since ? "since" : "full"

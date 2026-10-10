@@ -1482,6 +1482,23 @@ describe("planReview since a review", () => {
     })
   })
 
+  it("lists a tool the base branch added after the review and the branch then removed as removed", () => {
+    const reviewed = toolListSide([listNotes("List.")])
+    const file = sinceFile("default.json", {
+      since: reviewed,
+      sinceFrom: reviewed,
+      from: toolListSide([listNotes("List."), readNote("Added on main after the review.")]),
+      to: reviewed,
+    })
+
+    assert.deepStrictEqual(summarize(planReview([file])), {
+      records: 0,
+      files: [],
+      ...NO_PLAN_FINDINGS,
+      removedTools: [{ path: "default.json", tools: ["read_note"] }],
+    })
+  })
+
   it("lists a file added, reviewed, and deleted as added then dropped", () => {
     const file = sinceFile("branch-only.json", {
       since: toolListSide([listNotes("List.")]),
@@ -1895,6 +1912,44 @@ describe("--plan on a git repository", () => {
     )
   })
 
+  it("reports a file renamed before the review and deleted after it as removed, once even when the base branch changed it", () => {
+    const tools = Array.from({ length: 6 }, (_, index) => rawTool({ name: `tool_${index}`, description: `Tool ${index} does a thing.` }))
+    const toolNames = tools.map((tool) => tool.name)
+
+    const removedSinceReview = ({ name, editOnMain }: { name: string; editOnMain: boolean }) => {
+      const repo = makeRepo(name)
+      const mergeBase = commit(repo, { "old.json": surfaceText(tools) })
+      git(repo, ["switch", "-q", "-c", "feature"])
+      git(repo, ["mv", "old.json", "new.json"])
+      const reviewed = commit(repo, {})
+
+      const mainEdit = { "old.json": surfaceText(tools.with(1, rawTool({ name: "tool_1", description: "Edited on main." }))) }
+      git(repo, ["switch", "-q", "main"])
+      const newMergeBase = editOnMain ? commit(repo, mainEdit) : mergeBase
+      git(repo, ["switch", "-q", "feature"])
+
+      if (editOnMain) {
+        git(repo, ["merge", "-q", "--no-edit", "main"])
+      }
+
+      const head = commit(repo, { "new.json": null })
+      const out = join(directory, `${name}-plan`)
+      const args = ["--repo", repo, "--from", newMergeBase, "--to", head, "--since", reviewed, "--since-from", mergeBase, "--out", out]
+      return JSON.parse(runPlan(args).stdout).removed
+    }
+
+    assert.deepStrictEqual(
+      {
+        untouchedOnMain: removedSinceReview({ name: "since-renamed-deleted", editOnMain: false }),
+        editedOnMain: removedSinceReview({ name: "since-renamed-deleted-edited", editOnMain: true }),
+      },
+      {
+        untouchedOnMain: [{ path: "new.json", tools: toolNames }],
+        editedOnMain: [{ path: "old.json", tools: toolNames }],
+      },
+    )
+  })
+
   it("reviews a tool a merge kept at the reviewed text over a base-branch edit, against the base branch's text", () => {
     const repo = makeRepo("since-merge-kept")
     const toolsWith = (description: string) => surfaceText([rawTool({ description }), rawTool({ name: "read_note" })])
@@ -2031,5 +2086,17 @@ describe("--plan on a git repository", () => {
       stdout: "",
       stderr: `no-such-ref: not a commit in ${repo}\n`,
     })
+  })
+
+  it("exits 2 with git's reason, not 'not a commit', when --repo is outside any repository", () => {
+    const outsideRepository = mkdtempSync(join(directory, "outside-"))
+    const out = join(directory, "outside-plan")
+
+    const { status, stdout, stderr } = runPlan(["--repo", outsideRepository, "--from", "HEAD", "--to", "HEAD", "--out", out])
+
+    assert.deepStrictEqual(
+      { status, stdout, failedCommand: stderr.startsWith("git rev-parse --show-toplevel: "), saysNotACommit: stderr.includes("not a commit") },
+      { status: 2, stdout: "", failedCommand: true, saysNotACommit: false },
+    )
   })
 })
