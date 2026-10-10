@@ -545,22 +545,25 @@ without `tool-definitions` turns it off.
 
 1. **Resolve the base.** In PR mode, fetch the base branch and take the merge base;
    in local mode, use the base of the review range. Call the result MERGE_BASE and
-   the head commit HEAD_SHA.
+   the head commit HEAD_SHA. Write both as full commit SHAs (`git rev-parse <ref>`),
+   never as a symbolic ref such as `main~1`, because step 9 records them for a later
+   re-review.
    ```
    git fetch origin <base-branch>
    git merge-base origin/<base-branch> HEAD
+   git rev-parse HEAD
    ```
 2. **Gates (no Bun needed).** List the changed JSON files, then check both ends for
-   a tool list:
+   a tool list. Each `git grep` is ONE command carrying every listed path:
    ```
    git diff --name-only MERGE_BASE HEAD_SHA -- '*.json'
-   git grep -l '"inputSchema"' HEAD_SHA -- <each listed path>
-   git grep -l '"inputSchema"' MERGE_BASE -- <each listed path>
+   git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
+   git grep -l '"inputSchema"' MERGE_BASE -- <every listed path>
    ```
    - No JSON file changed → the step is `not dispatched: no JSON file changed`.
    - Neither `git grep` lists a file → `not dispatched: no tool-list file changed`.
-     `git grep` exits 1 when it finds nothing, and a path missing at one end finds
-     nothing; neither is an error.
+     One listed file at either end passes the gate. `git grep` exits 1 when it finds
+     nothing, and a path missing at one end finds nothing; neither is an error.
 3. **Plan the dispatches.** Run the plan script yourself; the reviewer may be
    read-only. Make a fresh parent folder, then pass a child that does not exist yet:
    ```
@@ -582,8 +585,11 @@ without `tool-definitions` turns it off.
    `broken`, `removed`, `removedTools`, `addedThenDropped`, and `notToolLists`.
    - `records` is 0 → `not dispatched`, with the reason: only instructions,
      prompts, or key order changed (`filesWithNoToolChange`); only tools were
-     removed; or the changed JSON files are not tool lists (name the
-     `notToolLists` paths).
+     removed; the changed JSON files are not tool lists (name the `notToolLists`
+     paths); or, in a re-review, no tool text changed since the last review except
+     edits that came from the base branch.
+   - A changed file that appears in none of these lists holds only reviews that
+     another file in `files` already carries, so it gets no dispatch of its own.
    - Each `broken` or `removed` file goes to the user as a finding before the verdict.
    - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
      tool whose name the PR title or body does not mention goes to the user as a
@@ -592,10 +598,11 @@ without `tool-definitions` turns it off.
      changed → tell the user the route: capture the server's `tools/list` to a file
      and dispatch the reviewer on demand.
 5. **Intended tools.** Collect every name in the plan's `reviewOnly` lists that
-   appears word for word in the PR title or body
+   appears as a whole word in the PR title or body
    (`gh pr view <number> -R OWNER_REPO --json title,body`); in local mode, in the
-   commit messages of the range. None → `not stated`. Never pass the PR
-   description itself.
+   subjects and bodies of the range's commit messages. A whole word means
+   `vault_search` does not match inside `vault_search_by_tag`. None → `not stated`.
+   Never pass the PR description itself.
 6. **Dispatch.** For each entry in `files`:
    - `coldDispatch` false → one dispatch per batch, doing both reads.
    - `coldDispatch` true → one `Pass: cold` dispatch carrying only the current file
@@ -604,7 +611,11 @@ without `tool-definitions` turns it off.
      it: those tools repeat an edit another file's dispatch traces, so the reviewer
      skips the error-entry and project-conventions checks for them and can still
      report `complete`.
-   - Name the report files `report-1.md`, `report-2.md`, … in the parent folder.
+   - Number the report files with one counter across the whole step:
+     `report-1.md`, `report-2.md`, … in the parent folder. The `batch <n>` in each
+     description counts within its file.
+   - In local mode, replace `branch <branch> (PR #<number>)` in the prompt the way
+     "Dispatch prompt changes" under Local review mode says: `commits <short-sha>..<short-sha>`.
 
    ```
    Agent({
@@ -647,7 +658,8 @@ without `tool-definitions` turns it off.
      say so with any finding on it, since its diff can hold the base branch's edit.
    - Fixes follow the mode's rule in the table below. The re-review covers them.
 9. **Record the tool-review commit.** Write HEAD_SHA and MERGE_BASE into the step's
-   summary line on every outcome: not dispatched, no records, complete, or partial
+   `Tool Definitions:` summary line (see Reporting; its "N reviews" is the plan's
+   `records`) on every outcome: not dispatched, no records, complete, or partial
    or failed once the user accepted the missing coverage. A partial or failed step
    the user has not accepted keeps the previous tool-review commit, so its tools are
    reviewed again next time.
@@ -660,9 +672,10 @@ every merge-ready verdict (see "Pre-merge delta review"), and on any later
 summary line.
 
 1. Recompute MERGE_BASE as in step 1.
-2. Run step 2's gates on the range from the tool-review commit to HEAD_SHA. When
-   MERGE_BASE differs from the recorded merge base, also run them on the range
-   between the two merge bases. Either range passing passes.
+2. Run step 2's gates with the tool-review commit in place of MERGE_BASE. When
+   MERGE_BASE differs from the recorded merge base, run them again with the recorded
+   merge base in place of MERGE_BASE and the new MERGE_BASE in place of HEAD_SHA.
+   Either run passing passes.
 3. Plan with `--since`, in a fresh parent folder:
    ```
    bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --since <tool-review commit> --since-from <recorded merge base> --out <new parent>/plan
@@ -769,7 +782,7 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
-- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <head short SHA> (merge base <short SHA>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
@@ -797,7 +810,7 @@ Ship check complete (comment mode):
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
-- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <head short SHA> (merge base <short SHA>), K defects, J unintended changes, posted as one PR comment
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
 - Triage:       N flagged findings triaged across all phases — M commented, K deferred
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
