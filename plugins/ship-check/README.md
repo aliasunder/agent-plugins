@@ -84,9 +84,11 @@ The dispatcher never escalates to Astra or Fable without an explicit model choic
 Codex cold dispatches use dedicated `agent_type`, `fork_turns: "none"`, `model`
 and `reasoning_effort`. Claude uses dedicated `subagent_type`, `model` and supported
 `effort`; when the tool lacks effort, a verified matching setting on that same
-role is required. OpenCode Task has no per-call model/effort fields: the dispatcher
-reads the dedicated role's model and supported variant and reports overrides the
-role cannot realize. Unsupported choices are reported without substitution.
+role is required. OpenCode Task has no per-call model/effort fields. The dispatcher
+reads the dedicated role's configured model and supported variant; when no model
+is configured, it verifies the inherited parent model and variant. It labels the
+effective controls and reports requested choices the role cannot realize.
+Unsupported choices are reported without substitution.
 
 For standalone agents, first read the [skill's Execution guidance](skills/ship-check/SKILL.md#execution)
 and resolve both controls before dispatch. Every label includes model and effort.

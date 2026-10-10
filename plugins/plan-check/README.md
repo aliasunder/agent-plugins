@@ -90,7 +90,9 @@ Guidance overrides these defaults; explicit user choices override guidance.
 Codex keeps `agent_type: "plan-check:plan-reviewer"` with `fork_turns: "none"`
 and explicit `model` and `reasoning_effort`. Claude keeps the dedicated
 `subagent_type` with supported `model` and `effort`; if the tool lacks effort, a
-verified matching setting on that same role is required. OpenCode Task reads the
-configured `plan-check--plan-reviewer` model and supported variant; it has no
-per-call model/effort fields. Unsupported choices are reported without
-substitution. Every dispatch label names model and effort.
+verified matching setting on that same role is required. OpenCode Task has no
+per-call model/effort fields. The dispatcher reads `plan-check--plan-reviewer`'s
+configured model and supported variant; when no model is configured, it verifies
+the inherited parent model and variant. It labels the effective controls and
+reports requested choices the role cannot realize. Unsupported choices are
+reported without substitution. Every dispatch label names model and effort.

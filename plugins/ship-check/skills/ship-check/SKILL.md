@@ -458,7 +458,7 @@ label placeholders before invoking a tool; never dispatch literal placeholders.
 |---|---|
 | Codex | Keep the dedicated `agent_type`; use `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Prepend `Attribution model ID: <resolved exact model>` to the prompt. |
 | Claude | Keep the dedicated `subagent_type`; pass supported `model` and `effort`. If the exposed tool lacks effort, use a verified setting on that same dedicated role only when it matches the intended effort. Otherwise report that the dispatch cannot express the choice. Never substitute a generic effort role. |
-| OpenCode | Keep the configured dedicated role, such as `ship-check--bug-checker`. Task has no per-call model or effort fields: read that role's configured model and supported variant, and label the effective controls. Report any requested override the role cannot realize; never invent Task parameters or replace the reviewer role. |
+| OpenCode | Keep the dedicated role, such as `ship-check--bug-checker`. Task has no per-call model or effort fields: read that role's configured model and supported variant. When the role has no configured model, verify the inherited parent model and variant. Label the effective controls and report any requested choice the role cannot realize; never invent Task parameters or replace the reviewer role. |
 
 For example, the Codex Phase 1 call is:
 

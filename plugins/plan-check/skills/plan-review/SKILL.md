@@ -53,8 +53,9 @@ starting"; it never relaunches itself or changes its model or effort.
    resolving the project pointer. If access or a result is absent, report the
    fallback and use `gpt-6.1-sol` in Codex or `opus` in Claude, at `xhigh`.
 2. Select guidance's **adversarial review** values. Explicit user choices override
-   guidance. Astra/Fable require an explicit model request; never escalate the
-   model silently.
+   guidance. Choose the initial model through guidance and its allowance
+   constraints, and record the reason. Do not silently switch models after
+   selection.
 
    | Controls | Model | Effort |
    |---|---|---|
@@ -84,7 +85,7 @@ starting"; it never relaunches itself or changes its model or effort.
    |---|---|
    | Codex | `agent_type: "plan-check:plan-reviewer"`, `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Put the label in the message when the tool has no description field. |
    | Claude | `subagent_type: "plan-check:plan-reviewer"`, supported `model` and `effort`. If the tool has no effort field, use a verified setting on that same dedicated role only when it matches the intended effort; otherwise report that the requested dispatch cannot be expressed. Never substitute a generic effort role. |
-   | OpenCode | Task selects `plan-check--plan-reviewer` without per-call model/effort fields. Read that role's configured model and supported variant, label the effective controls, and report any requested override it cannot realize. Never invent Task parameters or replace the reviewer role. |
+   | OpenCode | Task selects `plan-check--plan-reviewer` without per-call model/effort fields. Read that role's configured model and supported variant. When the role has no configured model, verify the inherited parent model and variant. Label the effective controls and report any requested choice the role cannot realize. Never invent Task parameters or replace the reviewer role. |
 
 For example, a Codex cold review uses:
 
