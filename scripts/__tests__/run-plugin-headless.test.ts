@@ -129,14 +129,15 @@ describe("command line", () => {
   mkdirSync(project)
   writeFileSync(promptPath, "Say hi")
 
-  // Stands in for the claude CLI: records its arguments, then prints a stream that echoes the prompt it read and the
-  // directory it ran in, and exits 3 so the test can see the exit status come through.
+  // Stands in for the claude CLI in every test here, so a broken script never starts a real session: records its
+  // arguments, then prints a stream that echoes the prompt it read and the directory it ran in, and exits 3 so the test
+  // can see the exit status come through.
   mkdirSync(stubBin)
   writeFileSync(
     join(stubBin, "claude"),
     [
       "#!/bin/sh",
-      'printf \'%s\\n\' "$@" > "$STUB_ARGS_FILE"',
+      'printf \'%s\\n\' "$@" > "${STUB_ARGS_FILE:-/dev/null}"',
       "prompt=$(cat)",
       'printf \'{"type":"system","subtype":"init","model":"stub-model","plugins":[{"name":"demo"}]}\\n\'',
       "printf 'not an event\\n'",
@@ -148,7 +149,9 @@ describe("command line", () => {
   )
   chmodSync(join(stubBin, "claude"), 0o755)
 
-  const runScript = (args: string[], env: NodeJS.ProcessEnv = process.env) => {
+  const stubEnv = { ...process.env, PATH: `${stubBin}:${process.env.PATH}` }
+
+  const runScript = (args: string[], env: NodeJS.ProcessEnv = stubEnv) => {
     const { status, stdout, stderr } = spawnSync(process.execPath, [SCRIPT_PATH, ...args], { encoding: "utf8", env })
     return { status, stdout, stderr }
   }
@@ -187,7 +190,7 @@ describe("command line", () => {
   it("runs claude in --cwd with the prompt on standard input, saves both streams, and prints the summary", () => {
     const out = join(directory, "run.jsonl")
     const argsFile = join(directory, "stub-args.txt")
-    const env = { ...process.env, PATH: `${stubBin}:${process.env.PATH}`, STUB_ARGS_FILE: argsFile }
+    const env = { ...stubEnv, STUB_ARGS_FILE: argsFile }
 
     const resolvedClaude = spawnSync("sh", ["-c", "command -v claude"], { encoding: "utf8", env }).stdout.trim()
     assert.equal(resolvedClaude, join(stubBin, "claude"))
