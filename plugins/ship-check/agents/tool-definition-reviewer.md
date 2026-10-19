@@ -4,8 +4,9 @@ description: >
   Use this agent to review MCP tool definitions as the client receives them: the
   tool list a server sends, saved to a file. It marks each changed tool against a
   quality rubric and compares the list with the one before the change, reporting
-  text changed in tools nobody meant to touch, facts the change dropped,
-  description prose that repeats the schema, a bullet filed under the wrong
+  text changed in tools nobody meant to touch, facts the change dropped, added
+  sentences that give the calling agent nothing to act on, description prose
+  that repeats the schema, a bullet filed under the wrong
   lead-in or a phrase with no named referent, and failures the code returns that
   the description never lists. It writes no file except its own report, to a temp
   path the dispatch names. Typical triggers include a user asking to "review the
@@ -117,9 +118,14 @@ Step 1 gave you `sequentialthinking`. Every trigger is in the diff read. Call
 the tool BEFORE you write the line it governs:
 
 - **Before you call a fact dropped.** Input: the old sentence, and the new
-  description and schemas. Output: which of four it is. The fact moved, the new
+  description and schemas. Output: which of five it is. The fact moved, the new
   text states it in other words, it names a failure the schema makes unreachable,
-  or it has no home in the new text. Only the last is a finding.
+  it passes none of the skill's three caller-use questions, or it has no home in
+  the new text. Only the last is a finding.
+- **Before you report a sentence or clause as having no caller use.** Input: the
+  sentence the change added or reworded, and the skill's three caller-use
+  questions. Output: for each question, the caller action it could change, and
+  whether this sentence changes it. A sentence that changes one stays.
 - **Before you write `MISSING`, or list an entry with no reachable failure.**
   Input: the path from the handler to the line that produces the failure, the
   schema rules on the inputs that reach it, and the description's error list.

@@ -4,8 +4,9 @@ description: >
   Review MCP tool definitions as the client receives them: read the tool list a
   server sends (name, description, input schema), mark each changed tool against
   a quality rubric, and compare it with the list before the change to find text
-  changed in tools nobody meant to touch, facts the change dropped, description
-  prose that repeats the schema, a bullet filed under the wrong lead-in or a
+  changed in tools nobody meant to touch, facts the change dropped, added
+  sentences that give the calling agent nothing to act on, description prose
+  that repeats the schema, a bullet filed under the wrong lead-in or a
   phrase with no named referent, and failures the code returns that the
   description never mentions. Report only; writes no file except its own report.
   Use when asked to "review tool definitions", "check the tool descriptions",
@@ -147,7 +148,7 @@ for this dispatch. Each stage has a check that can fail:
 |---|---|
 | Scope | `--names` ran, and you wrote down the number of tools in scope |
 | Cold read (not in a `Pass: diff` dispatch) | Every in-scope tool has six marks and a `Structure:` line, and every mark below 5 has its quoted text or its statement of what is absent |
-| Diff read (not in a `Pass: cold` dispatch) | Every tool you took through it has a `Facts:` count, one `Errors:` line for each failure traced, and a verdict on each candidate that is not pre-existing |
+| Diff read (not in a `Pass: cold` dispatch) | Every tool you took through it has a `Facts:` count, a `Caller use:` count, one `Errors:` line for each failure traced, and a verdict on each candidate that is not pre-existing |
 | Count | The `Unfinished entries:` number equals the entries you counted, and the `Status:` line follows from that number |
 
 When a stage fails its check, redo the work or mark the tools it left unfinished
@@ -158,8 +159,9 @@ Three fable-mode rules apply here in a particular way:
 - **The self-review runs before the last two lines, and it NEVER changes a
   cold-read mark.** Check the report against this skill: every `MISSING` line has
   a file and line, every `MISSING` line is a numbered defect, every fault on a
-  `Structure:` line is a numbered defect, every mark below 5 has evidence, and
-  no tool in scope lacks an entry. The cold-read marks are final once the diff
+  `Structure:` line is a numbered defect, every sentence or clause that failed
+  the caller-use check is a numbered defect, every mark below 5 has evidence,
+  and no tool in scope lacks an entry. The cold-read marks are final once the diff
   read starts. What the diff read finds goes under the diff check that found it.
 - **"Confirm before you flag" is satisfied by the trace.** fable-mode says never
   to report a problem you have not confirmed is present. A `MISSING` line is
@@ -171,10 +173,10 @@ Three fable-mode rules apply here in a particular way:
   mid-run. Write each concern into the report as a defect, a `Skipped:` line, or
   a `not traced` reason, and continue.
 
-Call `sequentialthinking` at the two points the diff read marks: before you call
-a fact dropped, and before you write `MISSING` or list an entry with no reachable
-failure. If the tool is not available, write the same reasoning as text and
-continue.
+Call `sequentialthinking` at the three points the diff read marks: before you call
+a fact dropped, before you report a sentence as having no caller use, and before
+you write `MISSING` or list an entry with no reachable failure. If the tool is not
+available, write the same reasoning as text and continue.
 
 ## Read 1: cold read
 
@@ -319,17 +321,22 @@ changed definitions afresh re-scores all of them.
   limit, error message and its remedy, and parameter interaction. Then find each
   fact in the NEW text. Report a fact with no home in the new text.
 - **Condition:** a base surface was supplied.
-- **Boundary:** a fact that moved between the description, the input schema, and
-  the output schema is preserved. List it as moved, not as a finding. A fact the
-  new text states in different words is preserved.
+- **Boundary:**
+  - A fact that moved between the description, the input schema, and the output
+    schema is preserved. List it as moved, not as a finding. A fact the new text
+    states in different words is preserved.
+  - A removed fact that passes none of the three questions under Caller use
+    below gave the caller nothing to act on, so cutting it is not a loss. List
+    it as `cut, no caller use`, not as a finding.
 - **Before you call a fact dropped,** call `sequentialthinking` with the old
-  sentence and the new description and schemas. Decide which of four it is: moved,
-  restated in other words, an entry for a failure the schema makes unreachable
-  (see Error entries below), or dropped. Only the last is a finding.
+  sentence and the new description and schemas. Decide which of five it is:
+  moved, restated in other words, an entry for a failure the schema makes
+  unreachable (see Error entries below), cut with no caller use (see Caller use
+  below), or dropped. Only the last is a finding.
 
-Write the count in the tool's entry (`Facts: 14 in the old text — 2 moved, 1
-dropped`). "The old text" is the old description and the old schemas together.
-The count is how a reader sees the check ran.
+Write the count in the tool's entry (`Facts: 14 in the old text — 2 moved, 1 cut
+with no caller use, 1 dropped`). "The old text" is the old description and the
+old schemas together. The count is how a reader sees the check ran.
 
 ### Duplicated fact
 
@@ -347,6 +354,65 @@ The count is how a reader sees the check ran.
   wins over this check. Candidates with `preExisting: true` were not introduced by
   this change: give their count for the tool and the parameters they sit on, with
   no verdict.
+
+### Caller use
+
+Every client loads every tool definition into every conversation. A sentence that
+is true but changes nothing the calling agent does still costs every client the
+tokens it takes up, and gives none of them anything to act on. How the server
+works inside belongs in the repository's own docs.
+
+- **Action:** for each sentence the change adds or rewords, ask the three
+  caller-use questions below. Report a sentence that passes none of them as a
+  numbered defect, and propose where it goes instead: the repository's
+  architecture or contributor doc, named by file when the repository has one
+  (`ARCHITECTURE.md`). When that doc already says it, propose cutting it.
+  1. **Send:** does it change what the caller sends — which tool it picks, which
+     parameters, which values?
+  2. **Expect:** does it change what the caller expects back or does next — a
+     result field, an error and its remedy, a limit it would otherwise hit?
+  3. **Assume:** does it stop the caller from acting on a wrong assumption it
+     would otherwise make?
+- **Condition:** a base surface was supplied. The text to judge is:
+  - for each changed tool, its `changes[].descriptionLines.added` and
+    `changes[].schemaSentences.added`, split into sentences;
+  - for each tool the script's top-level `added` list names (a tool new in this
+    change), every sentence of its description and schema descriptions.
+
+  A sentence that stands word for word in that tool's base text was moved, not
+  added: skip it.
+- **Boundary:**
+  - A sentence that passes one question stays, however much detail it carries.
+    NEVER flag a sentence for its length or for the number of facts in it.
+  - Judge what the caller can do with the sentence, not whether it is true. A
+    true sentence can fail this check. Accuracy belongs to the error-entry check
+    and to bug-check.
+  - One clause can fail inside a sentence that passes. A qualifier that names a
+    condition the caller can neither see nor change (a server-internal index, a
+    cache, a code path) fails all three questions, even inside an `Errors:` entry
+    whose failure and remedy pass question 2. Report that clause as the defect,
+    and keep the rest of the sentence.
+  - A rule in the project's own instructions that requires the text wins, as it
+    does for duplicated facts.
+  - Text the change did not add or reword is out of scope. This check NEVER
+    reopens a sentence the change left alone.
+- **Before you report a sentence or clause as having no caller use,** call
+  `sequentialthinking` with the sentence and the three questions. For each
+  question, name the caller action it could change, and decide whether this
+  sentence changes it.
+
+Write the count in the tool's entry (`Caller use: 6 sentences added or reworded —
+5 pass, 1 fails`). The count is how a reader sees the check ran.
+
+Example: a change adds two sentences to a folder-listing tool.
+
+- "A listing can be up to 30 seconds old, so a file created in the last 30
+  seconds may be missing." Passes question 2: the caller now knows to wait, or
+  to read the new file by its path.
+- "The server keeps each listing in an LRU map keyed by the folder's inode, and
+  evicts an entry when the watcher reports a rename." Passes none: the caller
+  sends, expects, and assumes nothing different. Proposed: move it to the
+  repository's architecture doc.
 
 ### Error entries, both directions
 
@@ -464,7 +530,8 @@ Per tool
     U4: "<quoted text>" — <what is missing or wrong>
     B3: no entry says what an empty result looks like
   Structure: <N> lists read — <no faults | K faults: <test> "<quoted text>"; <test> "<quoted text>">
-  Facts: <N> in the old text — <K> moved (<which>), <J> dropped (<which>)
+  Facts: <N> in the old text — <K> moved (<which>), <C> cut with no caller use (<which>), <J> dropped (<which>)
+  Caller use: <N> sentences added or reworded — <K> pass, <J> fail (<quoted sentence or clause>)
   Errors: handler <file:function>
     "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
     "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
@@ -493,12 +560,12 @@ Status: <complete | partial | failed>
 
 - In the Marks line, P is Purpose, U is Usage, B is Behaviour, Pa is Parameters,
   Co is Conciseness, and Cm is Completeness.
-- A `Pass: cold` report has Marks and a `Structure:` line, and no Facts, Errors,
-  or Candidates lines. A `Pass: diff` report has Facts, Errors, and Candidates
-  lines, and no Marks or `Structure:` line.
+- A `Pass: cold` report has Marks and a `Structure:` line, and no Facts, Caller
+  use, Errors, or Candidates lines. A `Pass: diff` report has Facts, Caller use,
+  Errors, and Candidates lines, and no Marks or `Structure:` line.
 - The `Errors:` block has one line for each failure traced. Every `MISSING` line
   is also a numbered item under Defects, and so is every fault on a `Structure:`
-  line.
+  line and every sentence or clause on a `Caller use:` line that failed.
 - When both reads ran but a check was skipped, keep its per-tool line and write
   `skipped` on it. Under a section whose check did not run, write
   `not run — <the missing input>`.
