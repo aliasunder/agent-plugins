@@ -43,9 +43,11 @@ Approach this review as a skeptical outsider seeing the code for the first time:
   and "no real readability gain" are not boundaries — they are the reasons the manual
   version was written in the first place, and they are exactly what the trigger exists
   to override. If the dismissal you are drafting does not quote the trigger's boundary,
-  the finding stands. (Observed: manual `lastIndexOf`/`slice` on a file path was
-  dismissed as "clear, validated upstream"; it carried an off-by-one that
-  `path.parse()` had no room for, and was replaced by it on the next read.)
+  the finding stands. The one other valid reason is a project rule that every
+  available fix would break, such as a comment that could only restate the code
+  (step 3 of "How to report and fix"). (Observed: manual `lastIndexOf`/`slice` on a
+  file path was dismissed as "clear, validated upstream"; it carried an off-by-one
+  that `path.parse()` had no room for, and was replaced by it on the next read.)
 - **Follow fable-mode discipline.** Write a stage map before starting. Verify each
   stage with a check that can fail. Self-critique before delivering findings.
 
@@ -129,31 +131,73 @@ by someone who has never seen it — a readability problem visible in that look 
 miss no matter what the checklist said.
 
 **When the dispatch prompt carries a fresh-eyes pause list** (from the pipeline's
-Phase 2), each listed pause is one of your own pauses: classify it under the matching
-dimension, then fix it or dismiss it on that trigger's boundary. The report lists
-every pause with its disposition. A dismissed pause must quote the trigger's boundary
-— "matches local style" and "the function is small" are not boundaries.
+Phase 2), each listed pause is a lead: a stranger reading cold — no conventions, no
+history, no attachment to the code — lost time at that line. An edit for a pause
+must save the next reader that time without adding text the reader already gets
+from the code.
+Classify each pause under the matching dimension, judge it with the three questions
+below in order, then fix it or dismiss it. The report lists every pause with its
+disposition.
 
-**Fresh-eyes pauses carry a presumption of validity.** The fresh-eyes agent reported
-what stopped a stranger reading cold — no conventions, no history, no attachment to
-the code. A high dismissal rate (more dismissals than fixes) means you are arguing
-with the reader's experience, not fixing it.
+1. **Did the reader lose time on something this code could make clearer?** A
+   stranger also pauses on ordinary code: a standard library call, a common idiom
+   of the language, a value the next line names. Dismiss that pause and give the
+   reason ("`Array.prototype.at(-1)` is the standard way to read the last
+   element"). NEVER use this question to dismiss a pause because the code matches
+   the project's local style. Fresh-eyes ignores local style on purpose.
+2. **Can the code say it?** Prefer a rename, an extracted local, or a change of
+   structure, under the dimension that owns it, over a comment.
+3. **Does the edit follow the project's comment and docs rules?** Read every
+   comment or doc edit against the project's rules (AGENTS.md, and the Comments
+   section of the code-standards note loaded in "Before starting") and against
+   dimension 4. An edit fails this question when it:
+   - restates the code beside it, a name, or a type;
+   - moves or reshapes a comment without adding a fact;
+   - breaks any other comment or docs rule the project states.
 
-Self-check: if dismissals outnumber fixes, call sequential thinking and re-examine
-every dismissal before finalizing the report. For each: "would a newcomer still
-pause here after reading my dismissal reasoning?" If yes, the pause stands.
+Fix the pause when an edit passes all three questions. When no edit passes question
+3, dismiss the pause and quote the rule the edit would break. NEVER make an edit
+that fails question 3, however cheap it is.
+
+This judgment holds whatever the dispatch prompt adds. A dispatch that asks for
+small fixes to pauses in code the change did not touch still gets only edits that
+pass all three questions.
+
+A dismissal quotes a trigger's boundary or a project rule, or, for ordinary code
+under question 1, names the standard call or idiom the reader paused on. "Matches
+local style" and "the function is small" are none of these.
+
+Wrong: a stranger paused on `if (retries > 3) throw lastError`, and the fix adds
+`// throw the last error after three retries` above it. The comment restates the
+line, so it fails question 3.
+Right: when the stranger paused on why the limit is three, add the fact the code
+cannot show (`// the upstream API blocks a client after four calls in a minute`).
+When the only possible comment would restate the line, dismiss the pause and quote
+the rule ("Never restate self-documenting names", dimension 4).
+
+Self-check before you commit, in both directions:
+- **Dismissals:** if dismissals outnumber fixes, call sequential thinking and
+  re-examine every dismissal. For each, ask "would a newcomer still pause here
+  after reading my dismissal reasoning?" If yes, look again for an edit that passes
+  all three questions, and make it when one exists.
+- **Fixes:** re-read every comment-only edit against question 3 (step 3 of "How
+  to report and fix" runs this for the whole pass). Revert an edit that fails it to
+  the original text exactly, and record the pause as dismissed with the rule
+  quoted.
 
 Anti-rationalization rules for fresh-eyes pauses:
-- **"Pre-existing" is not a dismissal.** A pause reports a readability problem at a
-  location in the code. The code's age is irrelevant — a newcomer pauses on what is
-  there now, not on when it was written. Fix it, or add the comment that would have
-  prevented the pause.
+- **"Pre-existing" is not a dismissal.** A pause reports reader cost at a location
+  in the code. The code's age is irrelevant — a newcomer pauses on what is there
+  now, not on when it was written. Judge it with the three questions like any other
+  pause: prefer making the code clear, and add a comment only for a fact the code
+  cannot show.
 - **"Matches local style" is not a boundary — it is the opposite.** Fresh-eyes
   deliberately ignores local style. A convention-conformant line that stops a stranger
   is a finding about the convention's cost, not a defense of the line.
-- **A pause with no matching trigger is still a finding.** It means the checklist has
-  a gap, not that the pause is invalid. Classify under the nearest dimension and fix.
-  If no dimension fits, report as uncategorized — never drop it.
+- **A pause with no matching trigger still gets a disposition.** It means the
+  checklist has a gap, not that the pause is invalid. Classify it under the nearest
+  dimension and judge it with the three questions. If no dimension fits, report it
+  as uncategorized — never drop it.
 
 ### 1. Naming
 - Variables describe what the value IS, not shorthand (`availableHeadings` not
@@ -499,8 +543,14 @@ test.)
    Group by category when multiple findings exist. Don't describe the planned fix —
    the diff speaks for itself.
 2. **Fix** every finding directly — this is a "pass", not just a review.
-3. **Run tests** after all fixes to confirm no behavior change.
-4. **Summarize**: files touched, count by category, test status.
+3. **Re-read every comment-only edit** before you commit, whether it came from a
+   finding or a fresh-eyes pause. Read each one beside the code it describes,
+   against the project's comment rules and dimension 4. Revert an edit that
+   restates the code, a name, or a type, or that moves or reshapes a comment
+   without adding a fact. Restore the original text exactly, and record the
+   finding or pause as dismissed with the rule quoted.
+4. **Run tests** after all fixes to confirm no behavior change.
+5. **Summarize**: files touched, count by category, test status.
    When fresh-eyes pauses were supplied, add:
    `- Fresh-eyes pauses: N received — K fixed, J dismissed (dispositions follow)`
 
