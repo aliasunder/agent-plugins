@@ -16,7 +16,7 @@ that bundle agents, skills, commands, and hooks as distributable packages.
   workflows/
     auto_release.yml          # v* tag push → validate versions, build artifacts, GitHub release
     manual_release.yml        # workflow_dispatch → bump version, tag, build, release
-    test.yml                  # push to main and PRs → run the bundled scripts' tests
+    test.yml                  # push to main and PRs → run the scripts' tests
     umm_review.yml            # PR review via umm-actually (configurable via repo variables)
   scripts/                    # Shared release-note and changelog helpers
 plugins/
@@ -50,6 +50,9 @@ plugins/
       plan-review/            # Premise audit, alternatives, guard arithmetic,
                               # concurrent-writer analysis, verification safety
     README.md
+scripts/                      # Repository tooling that ships in no plugin
+  run-plugin-headless.ts      # Runs Claude Code headless with a plugin loaded from a checkout
+  __tests__/
 README.md                    # Marketplace README
 CHANGELOG.md                 # Release history (updated by CI on release)
 package.json                 # Repo-level version + metadata (kept in lockstep by CI)
@@ -66,6 +69,33 @@ SECURITY.md                  # Vulnerability reporting policy
 5. Update the root `README.md` plugin table
 6. Commit and push
 
+## Testing a plugin change
+
+A running Claude Code session uses the installed copy of each plugin, read when
+the session started, so an edit in your checkout does not reach it. To try a
+change on a real project before it ships, run a headless session that loads the
+plugin from your checkout:
+
+```bash
+bun scripts/run-plugin-headless.ts --plugin ship-check --cwd <project> --prompt <prompt.md> \
+  --out <run.jsonl> --allow Agent --allow Read --allow Grep --allow Glob
+```
+
+- `--checkout <dir>` loads the plugin from another checkout, such as a
+  worktree. Without it, the script loads from its own checkout.
+- The run turns off the installed copy of the same plugin and every hook, and
+  leaves out the project's shared settings file (`.claude/settings.json`).
+- A headless run cannot answer a permission prompt, so it denies every tool
+  that neither `--allow` nor your own settings allow. Each `--allow` value takes
+  the form `--allowedTools` takes, such as `Bash(git *)`.
+- `--out` must name a new file. It receives the event stream, and
+  `<out>.stderr` receives the CLI's standard error. The script then prints a
+  summary, including the plugins the session loaded, the final result, and any
+  permission denials.
+- Point `--cwd` at a scratch clone of the project, because the run can edit and
+  commit whatever the prompt asks for. Turn off pushing in that clone first:
+  `git remote set-url --push origin no-push`.
+
 ## Conventions
 
 - **Kebab-case** for all directory and file names
@@ -76,9 +106,12 @@ SECURITY.md                  # Vulnerability reporting policy
 - Agent `skills:` preloads skill content from any installed plugin or `~/.claude/skills/`
 - **Bundled scripts** live in a skill's `scripts/` directory as TypeScript (`.ts`)
   with no npm dependencies, run with Bun. Their tests (`*.test.ts` files) live in
-  `scripts/__tests__/`; run them with `bun test plugins` (`plugins` is the directory
-  Bun searches). The release archives leave `__tests__` out, through the `-x`
-  patterns on the `zip` commands in both release workflows.
+  `scripts/__tests__/`. The release archives leave `__tests__` out, through the
+  `-x` patterns on the `zip` commands in both release workflows.
+- **Repository tooling** that ships in no plugin lives in the root `scripts/`
+  directory, under the same rules, with its tests in `scripts/__tests__/`.
+- **Run every script test** with `bun test plugins scripts`. Bun runs each test
+  file whose path contains one of those two words.
 
 ## Skill authoring
 
