@@ -113,9 +113,11 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 - **Before a comment-only edit, for a finding or a fresh-eyes pause.** For a
   fresh-eyes pause, run the code-quality skill's three pause questions first.
   Then think through: what fact does this comment give that the code, its names,
-  and its types do not already show? If the answer is none (it restates the code,
-  or it moves or reshapes an existing comment without adding a fact), do not make
-  the edit. Dismiss with the project's comment rule quoted.
+  and its types do not already show, and that the file does not already state?
+  If the answer is none (it restates the code, repeats a doc comment or
+  description in the same file, or moves or reshapes an existing comment without
+  adding a fact), do not make the edit. Dismiss with the project's comment rule
+  quoted.
 - **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
   think through: what error could occur here? What context would someone need in
   the log to diagnose it?
@@ -125,8 +127,8 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 - Fix every finding directly — this is a "pass", not just a review.
 - Before committing, re-read every comment-only edit beside the code it describes
   (step 3 of the code-quality skill's "How to report and fix"). Revert any that
-  restates the code, a name, or a type, or that moves or reshapes a comment
-  without adding a fact.
+  restates the code, a name, or a type, that repeats a fact the same file
+  already states, or that moves or reshapes a comment without adding a fact.
 - Run tests after all fixes: `npm test`
 - Stage, commit, and push when done.
 - Commit message: `style: <summary of readability/convention fixes>`

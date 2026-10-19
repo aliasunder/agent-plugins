@@ -152,6 +152,8 @@ disposition.
    section of the code-standards note loaded in "Before starting") and against
    dimension 4. An edit fails this question when it:
    - restates the code beside it, a name, or a type;
+   - repeats a fact the same file already states, such as a doc comment above it
+     or the `Returns:` line of a description string;
    - moves or reshapes a comment without adding a fact;
    - breaks any other comment or docs rule the project states.
 
@@ -546,9 +548,10 @@ test.)
 3. **Re-read every comment-only edit** before you commit, whether it came from a
    finding or a fresh-eyes pause. Read each one beside the code it describes,
    against the project's comment rules and dimension 4. Revert an edit that
-   restates the code, a name, or a type, or that moves or reshapes a comment
-   without adding a fact. Restore the original text exactly, and record the
-   finding or pause as dismissed with the rule quoted.
+   restates the code, a name, or a type, that repeats a fact the same file
+   already states, or that moves or reshapes a comment without adding a fact.
+   Restore the original text exactly, and record the finding or pause as
+   dismissed with the rule quoted.
 4. **Run tests** after all fixes to confirm no behavior change.
 5. **Summarize**: files touched, count by category, test status.
    When fresh-eyes pauses were supplied, add:
