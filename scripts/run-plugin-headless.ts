@@ -192,6 +192,22 @@ const openNewFile = (path: string): number => {
   }
 }
 
+/**
+ * Creates --out and <out>.stderr as new files. When <out>.stderr cannot be created, --out is closed and removed again:
+ * an empty --out left behind would make a retry with the same --out refuse to start.
+ */
+const openOutputFiles = (outPath: string, stderrPath: string): { outFile: number; stderrFile: number } => {
+  const outFile = openNewFile(outPath)
+
+  try {
+    return { outFile, stderrFile: openNewFile(stderrPath) }
+  } catch (error) {
+    closeSync(outFile)
+    rmSync(outPath)
+    throw error
+  }
+}
+
 const run = (argv: string[]): number => {
   const { plugin, cwd, prompt, out, allow = [], model = DEFAULT_MODEL, checkout = DEFAULT_CHECKOUT } = readArguments(argv)
   if (!plugin || !cwd || !prompt || !out) throw new InputError(USAGE)
@@ -216,13 +232,7 @@ const run = (argv: string[]): number => {
 
   const outPath = resolve(out)
   const stderrPath = `${outPath}.stderr`
-
-  // Checked before --out is created: refusing a taken <out>.stderr after that would leave an empty --out file, and a
-  // retry with the same --out would then refuse to start.
-  if (existsSync(stderrPath)) throw new InputError(`cannot create ${stderrPath}: it already exists`)
-
-  const outFile = openNewFile(outPath)
-  const stderrFile = openNewFile(stderrPath)
+  const { outFile, stderrFile } = openOutputFiles(outPath, stderrPath)
 
   try {
     const child = spawnSync("claude", claudeArgs, {

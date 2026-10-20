@@ -196,7 +196,30 @@ describe("command line", () => {
 
     assert.deepStrictEqual(
       { status, stdout, stderr, outCreated: existsSync(out) },
-      { status: 2, stdout: "", stderr: `cannot create ${out}.stderr: it already exists\n`, outCreated: false },
+      {
+        status: 2,
+        stdout: "",
+        stderr: `cannot create ${out}.stderr: EEXIST: file already exists, open '${out}.stderr'\n`,
+        outCreated: false,
+      },
+    )
+  })
+
+  it("removes --out again when <out>.stderr cannot be created for another reason", () => {
+    // A 249-byte name is one the filesystem accepts, and ".stderr" takes it to 256, past the 255-byte limit on a name,
+    // so only the second file fails, and it fails with ENAMETOOLONG rather than EEXIST.
+    const out = join(directory, `${"a".repeat(243)}.jsonl`)
+
+    const { status, stdout, stderr } = runScript(["--checkout", checkout, ...requiredArgs(out)])
+
+    assert.deepStrictEqual(
+      {
+        status,
+        stdout,
+        nameTooLong: stderr.startsWith(`cannot create ${out}.stderr: ENAMETOOLONG`),
+        outLeft: existsSync(out),
+      },
+      { status: 2, stdout: "", nameTooLong: true, outLeft: false },
     )
   })
 
