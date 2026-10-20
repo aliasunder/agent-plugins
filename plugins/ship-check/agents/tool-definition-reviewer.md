@@ -122,10 +122,11 @@ the tool BEFORE you write the line it governs:
   text states it in other words, it names a failure the schema makes unreachable,
   it passes none of the skill's three caller-use questions, or it has no home in
   the new text. Only the last is a finding.
-- **Before you report a sentence or clause as having no caller use.** Input: the
-  sentence the change added or reworded, and the skill's three caller-use
-  questions. Output: for each question, the caller action it could change, and
-  whether this sentence changes it. A sentence that changes one stays.
+- **Before you report a sentence or clause as having no caller use, and before
+  you pass one.** Input: the sentence the change added or reworded, the
+  definition without it, and the skill's three caller-use questions. Output: for
+  each question, the caller action that differs with and without the sentence.
+  A sentence with no such action fails.
 - **Before you write `MISSING`, or list an entry with no reachable failure.**
   Input: the path from the handler to the line that produces the failure, the
   schema rules on the inputs that reach it, and the description's error list.

@@ -174,8 +174,8 @@ Three fable-mode rules apply here in a particular way:
   a `not traced` reason, and continue.
 
 Call `sequentialthinking` at the three points the diff read marks: before you call
-a fact dropped, before you report a sentence as having no caller use, and before
-you write `MISSING` or list an entry with no reachable failure. If the tool is not
+a fact dropped, before you pass or fail a sentence on caller use, and before you
+write `MISSING` or list an entry with no reachable failure. If the tool is not
 available, write the same reasoning as text and continue.
 
 ## Read 1: cold read
@@ -362,17 +362,20 @@ is true but changes nothing the calling agent does still costs every client the
 tokens it takes up, and gives none of them anything to act on. How the server
 works inside belongs in the repository's own docs.
 
-- **Action:** for each sentence the change adds or rewords, ask the three
-  caller-use questions below. Report a sentence that passes none of them as a
-  numbered defect, and propose where it goes instead: the repository's
-  architecture or contributor doc, named by file when the repository has one
-  (`ARCHITECTURE.md`). When that doc already says it, propose cutting it.
-  1. **Send:** does it change what the caller sends — which tool it picks, which
-     parameters, which values?
-  2. **Expect:** does it change what the caller expects back or does next — a
-     result field, an error and its remedy, a limit it would otherwise hit?
-  3. **Assume:** does it stop the caller from acting on a wrong assumption it
-     would otherwise make?
+- **Action:** for each sentence the change adds or rewords, read the tool's
+  description and schemas without that sentence, then ask the three caller-use
+  questions below about the difference the sentence makes. Report a sentence
+  that passes none of them as a numbered defect, and propose where it goes
+  instead: the repository's architecture or contributor doc, named by file when
+  the repository has one (`ARCHITECTURE.md`). When that doc already says it,
+  propose cutting it.
+  1. **Send:** with the sentence, does the caller send something different —
+     another tool, another parameter, another value?
+  2. **Act:** with the sentence, does the caller do something different with the
+     result or after it — read a result field, handle an error with its remedy,
+     stay under a limit, make or skip a follow-up call?
+  3. **Assume:** does the sentence stop the caller from acting on a wrong
+     assumption that the rest of the definition leaves open?
 - **Condition:** a base surface was supplied. The text to judge is:
   - for each changed tool, its `changes[].descriptionLines.added` and
     `changes[].schemaSentences.added`, split into sentences;
@@ -384,6 +387,13 @@ works inside belongs in the repository's own docs.
 - **Boundary:**
   - A sentence that passes one question stays, however much detail it carries.
     NEVER flag a sentence for its length or for the number of facts in it.
+  - A sentence passes only when you can name the caller action it changes. How
+    the server carries out the operation (the form it writes, which code path
+    takes a case, what it indexes or caches) changes no caller action, however
+    accurate, unless the caller would act on it.
+  - A sentence that adds detail to an outcome the definition already states (in
+    a `Returns:` line or another sentence) passes only when the detail changes a
+    caller action by itself.
   - Judge what the caller can do with the sentence, not whether it is true. A
     true sentence can fail this check. Accuracy belongs to the error-entry check
     and to bug-check.
@@ -396,10 +406,11 @@ works inside belongs in the repository's own docs.
     does for duplicated facts.
   - Text the change did not add or reword is out of scope. This check NEVER
     reopens a sentence the change left alone.
-- **Before you report a sentence or clause as having no caller use,** call
-  `sequentialthinking` with the sentence and the three questions. For each
-  question, name the caller action it could change, and decide whether this
-  sentence changes it.
+- **Before you report a sentence or clause as having no caller use, and before
+  you pass one,** call `sequentialthinking` with the sentence, the definition
+  without it, and the three questions. For each question, name the caller
+  action that differs with and without the sentence. A sentence with no such
+  action fails.
 
 Write the count in the tool's entry (`Caller use: 6 sentences added or reworded —
 5 pass, 1 fails`). The count is how a reader sees the check ran.
@@ -411,8 +422,16 @@ Example: a change adds two sentences to a folder-listing tool.
   to read the new file by its path.
 - "The server keeps each listing in an LRU map keyed by the folder's inode, and
   evicts an entry when the watcher reports a rename." Passes none: the caller
-  sends, expects, and assumes nothing different. Proposed: move it to the
+  sends, does, and assumes nothing different. Proposed: move it to the
   repository's architecture doc.
+
+A second change adds a sentence to an invoice-sending tool whose `Returns:` line
+already says "sent_to lists every address the invoice went to":
+
+- "Addresses on the CC line get the PDF as a separate attachment, and addresses
+  on the To line get it inline." Passes none: without it, the caller already
+  knows every address received the invoice and reads `sent_to` the same way.
+  The sentence only says how the server builds each message.
 
 ### Error entries, both directions
 
