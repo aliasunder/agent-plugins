@@ -190,6 +190,7 @@ Code quality complete (comment mode):
 - Files reviewed: N
 - Reviewed at: <PR head SHA>
 - Functions read: N (M with pauses — every pause appears below as a finding)
+- Fresh-eyes pauses: N received — K commented, J dismissed (only when the dispatch carried a pause list; dispositions follow)
 - Findings: N total, all commented
 - Review posted: yes / no (0 findings)
 - By category:

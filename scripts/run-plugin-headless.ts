@@ -25,7 +25,7 @@ const DEFAULT_MODEL = "opus"
 // The user's own instructions may start a routine at session start (reading notes, messaging other sessions), which
 // a test run must not do.
 const HEADLESS_NOTE =
-  "This is a headless test run of a plugin from a scratch checkout. Do only what the prompt asks: do not start any routine your instructions run at session start, do not edit task boards or logs, and do not message other sessions."
+  "This is a headless test run of a plugin loaded from a local checkout. Do only what the prompt asks: do not start any routine your instructions run at session start, do not edit task boards or logs, and do not message other sessions."
 
 export type ClaudeRunOptions = {
   pluginDir: string
