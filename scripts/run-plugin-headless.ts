@@ -23,9 +23,10 @@ const DEFAULT_CHECKOUT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const DEFAULT_MODEL = "opus"
 
 // The user's own instructions may start a routine at session start (reading notes, messaging other sessions), which
-// a test run must not do.
+// a test run must not do. A headless session also ends with its reply, and an agent it left running in the background
+// is stopped then, so its result never reaches the run.
 const HEADLESS_NOTE =
-  "This is a headless test run of a plugin loaded from a local checkout. Do only what the prompt asks: do not start any routine your instructions run at session start, do not edit task boards or logs, and do not message other sessions."
+  "This is a headless test run of a plugin loaded from a local checkout. Do only what the prompt asks: do not start any routine your instructions run at session start, do not edit task boards or logs, and do not message other sessions. Wait for every agent or background task you start to finish, and use its result, before you end your reply."
 
 export type ClaudeRunOptions = {
   pluginDir: string
@@ -68,6 +69,9 @@ export const buildClaudeArgs = ({ pluginDir, installedPluginKey, model, allowedT
   ]
 }
 
+// `status` is the task's last reported status, such as "stopped", or "no notification" when it reported none.
+export type UnfinishedTask = { description: string | null; status: string }
+
 export type RunSummary = {
   model: string | null
   plugins: unknown
@@ -76,6 +80,7 @@ export type RunSummary = {
   turns: number | null
   costUsd: number | null
   permissionDenials: unknown
+  unfinishedTasks: UnfinishedTask[]
   unparsedLines: number
 }
 
@@ -113,15 +118,39 @@ const booleanField = (event: JsonObject | undefined, key: string): boolean | nul
   return typeof value === "boolean" ? value : null
 }
 
+const isSystemEvent = (event: JsonObject, subtype: string): boolean => event.type === "system" && event.subtype === subtype
+
 /**
- * What a run's event stream says: the session's model and plugins from its init event, and the outcome from its last
- * result event. A run that was stopped early has no result event, so its outcome fields are null.
+ * The agents and background tasks the session started that did not report "completed". Each reports its end in a
+ * task_notification event, and a later one replaces an earlier one. A task with no notification at all was still
+ * running when the session ended.
+ */
+const findUnfinishedTasks = (events: readonly JsonObject[]): UnfinishedTask[] => {
+  const lastStatusByTask = new Map(
+    events
+      .filter((event) => isSystemEvent(event, "task_notification"))
+      .map((event) => [event.task_id, stringField(event, "status") ?? "unknown"]),
+  )
+
+  return events
+    .filter((event) => isSystemEvent(event, "task_started"))
+    .map((event) => ({
+      description: stringField(event, "description"),
+      status: lastStatusByTask.get(event.task_id) ?? "no notification",
+    }))
+    .filter((task) => task.status !== "completed")
+}
+
+/**
+ * What a run's event stream says: the session's model and plugins from its init event, the outcome from its last
+ * result event, and any agent or background task that did not finish. A run that was stopped early has no result
+ * event, so its outcome fields are null.
  */
 export const summarizeEvents = (stream: string): RunSummary => {
   const lines = stream.split("\n").filter((line) => line.trim() !== "")
   const events = lines.map(parseEventLine).filter((event) => event !== null)
 
-  const init = events.find((event) => event.type === "system" && event.subtype === "init")
+  const init = events.find((event) => isSystemEvent(event, "init"))
   const result = events.findLast((event) => event.type === "result")
 
   return {
@@ -132,6 +161,7 @@ export const summarizeEvents = (stream: string): RunSummary => {
     turns: numberField(result, "num_turns"),
     costUsd: numberField(result, "total_cost_usd"),
     permissionDenials: result?.permission_denials ?? null,
+    unfinishedTasks: findUnfinishedTasks(events),
     unparsedLines: lines.length - events.length,
   }
 }

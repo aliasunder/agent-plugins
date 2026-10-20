@@ -95,7 +95,9 @@ tool the prompt needs.
 - `--out` names the file that receives the event stream, and `<out>.stderr`
   receives the CLI's standard error. Neither file may exist yet. The script then
   prints a summary, including the plugins the session loaded, the final result,
-  and any permission denials.
+  any permission denials, and any agent or background task that did not finish.
+- The session is told to wait for every agent or background task it starts:
+  a headless session stops them when it ends, and their results are lost.
 - Point `--cwd` at a scratch clone of the project. A run allowed `Edit`, `Write`,
   or `Bash`, by `--allow` or by your own settings, can edit and commit whatever
   the prompt asks for. Turn off pushing in that clone first:

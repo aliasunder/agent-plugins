@@ -16,7 +16,7 @@ const USAGE = [
 ].join("\n")
 
 const HEADLESS_NOTE =
-  "This is a headless test run of a plugin loaded from a local checkout. Do only what the prompt asks: do not start any routine your instructions run at session start, do not edit task boards or logs, and do not message other sessions."
+  "This is a headless test run of a plugin loaded from a local checkout. Do only what the prompt asks: do not start any routine your instructions run at session start, do not edit task boards or logs, and do not message other sessions. Wait for every agent or background task you start to finish, and use its result, before you end your reply."
 
 const expectedClaudeArgs = ({
   pluginDir,
@@ -104,6 +104,7 @@ describe("summarizeEvents", () => {
       turns: 4,
       costUsd: 1.25,
       permissionDenials: [{ tool_name: "Write" }],
+      unfinishedTasks: [],
       unparsedLines: 1,
     })
   })
@@ -119,8 +120,27 @@ describe("summarizeEvents", () => {
       turns: null,
       costUsd: null,
       permissionDenials: null,
+      unfinishedTasks: [],
       unparsedLines: 0,
     })
+  })
+
+  it("lists each agent or background task that did not report completed", () => {
+    const stream = [
+      '{"type":"system","subtype":"init","model":"claude-opus-5-5","plugins":[]}',
+      '{"type":"system","subtype":"task_started","task_id":"t1","description":"Review A"}',
+      '{"type":"system","subtype":"task_started","task_id":"t2","description":"Review B"}',
+      '{"type":"system","subtype":"task_started","task_id":"t3","description":"Review C"}',
+      '{"type":"system","subtype":"task_notification","task_id":"t1","status":"stopped"}',
+      '{"type":"system","subtype":"task_notification","task_id":"t1","status":"completed"}',
+      '{"type":"system","subtype":"task_notification","task_id":"t2","status":"stopped"}',
+      '{"type":"result","is_error":false,"result":"still running in the background","num_turns":1}',
+    ].join("\n")
+
+    assert.deepStrictEqual(summarizeEvents(stream).unfinishedTasks, [
+      { description: "Review B", status: "stopped" },
+      { description: "Review C", status: "no notification" },
+    ])
   })
 
   it("counts a JSON line that is not an object as unparsed", () => {
@@ -140,6 +160,7 @@ describe("summarizeEvents", () => {
       turns: null,
       costUsd: null,
       permissionDenials: null,
+      unfinishedTasks: [],
       unparsedLines: 4,
     })
   })
@@ -158,6 +179,7 @@ describe("summarizeEvents", () => {
       turns: null,
       costUsd: null,
       permissionDenials: [],
+      unfinishedTasks: [],
       unparsedLines: 0,
     })
   })
@@ -412,6 +434,7 @@ describe("command line", () => {
           turns: 2,
           costUsd: 0.5,
           permissionDenials: [],
+          unfinishedTasks: [],
           unparsedLines: 1,
         },
       },
@@ -475,6 +498,7 @@ describe("command line", () => {
           turns: null,
           costUsd: null,
           permissionDenials: null,
+          unfinishedTasks: [],
           unparsedLines: 0,
         },
       },
