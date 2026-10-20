@@ -116,8 +116,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   and its types do not already show, and that the file does not already state?
   If the answer is none (it restates the code, repeats a doc comment or
   description in the same file, or moves or reshapes an existing comment without
-  adding a fact or meeting a project format rule), do not make the edit. Dismiss
-  with the project's comment rule quoted.
+  adding a fact when neither a project rule nor the skill's comment dimension
+  calls for the new place or shape), do not make the edit. Dismiss with the
+  project's comment rule quoted.
 - **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
   think through: what error could occur here? What context would someone need in
   the log to diagnose it?
@@ -129,7 +130,8 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   (step 3 of the code-quality skill's "How to report and fix"). Revert any that
   restates the code, a name, or a type, that repeats a fact the same file
   already states, or that moves or reshapes a comment without adding a fact
-  when no project format rule calls for the new shape.
+  when neither a project rule nor the skill's comment dimension calls for the
+  new place or shape.
 - Run tests after all fixes: `npm test`
 - Stage, commit, and push when done.
 - Commit message: `style: <summary of readability/convention fixes>`

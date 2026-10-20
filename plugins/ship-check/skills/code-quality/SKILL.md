@@ -154,9 +154,10 @@ disposition.
    - restates the code beside it, a name, or a type;
    - repeats a fact the same file already states, such as a doc comment above it
      or the `Returns:` line of a description string;
-   - moves or reshapes a comment without adding a fact, unless a project
-     format rule calls for the new shape (such as bullets for a comment longer
-     than two lines);
+   - moves or reshapes a comment without adding a fact, unless a project rule
+     or dimension 4 calls for the new place or shape (such as bullets for a
+     comment longer than two lines, or detail moved out of a JSDoc to sit above
+     the line it explains);
    - breaks any other comment or docs rule the project states.
 
 Fix the pause when an edit passes all three questions. When no edit passes question
@@ -552,7 +553,8 @@ test.)
    against the project's comment rules and dimension 4. Revert an edit that
    restates the code, a name, or a type, that repeats a fact the same file
    already states, or that moves or reshapes a comment without adding a fact
-   when no project format rule calls for the new shape. Restore the original
+   when neither a project rule nor dimension 4 calls for the new place or
+   shape. Restore the original
    text exactly, and record the finding or pause as dismissed with the rule
    quoted.
 4. **Run tests** after all fixes to confirm no behavior change.
