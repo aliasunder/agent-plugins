@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { after, describe, it } from "node:test"
@@ -129,9 +129,10 @@ describe("command line", () => {
   mkdirSync(project)
   writeFileSync(promptPath, "Say hi")
 
-  // Stands in for the claude CLI in every test here, so a broken script never starts a real session: records its
-  // arguments, then prints a stream that echoes the prompt it read and the directory it ran in, and exits 3 so the test
-  // can see the exit status come through.
+  // Stands in for the claude CLI, so a broken script never starts a real session:
+  // - It records its arguments, prints a stream that echoes the prompt it read and the directory it ran in, and exits 3
+  //   so the test can see the exit status come through.
+  // - The one test that leaves it off PATH gives the script a PATH holding only an empty directory instead.
   mkdirSync(stubBin)
   writeFileSync(
     join(stubBin, "claude"),
@@ -184,6 +185,38 @@ describe("command line", () => {
     assert.deepStrictEqual(
       { status, stdout, stderr, kept: readFileSync(out, "utf8") },
       { status: 2, stdout: "", stderr: `cannot create ${out}: EEXIST: file already exists, open '${out}'\n`, kept: "earlier run\n" },
+    )
+  })
+
+  it("exits 2 without creating --out when <out>.stderr already exists", () => {
+    const out = join(directory, "stderr-taken.jsonl")
+    writeFileSync(`${out}.stderr`, "earlier run\n")
+
+    const { status, stdout, stderr } = runScript(["--checkout", checkout, ...requiredArgs(out)])
+
+    assert.deepStrictEqual(
+      { status, stdout, stderr, outCreated: existsSync(out) },
+      { status: 2, stdout: "", stderr: `cannot create ${out}.stderr: it already exists\n`, outCreated: false },
+    )
+  })
+
+  it("exits 2 and removes both empty files when claude cannot start", () => {
+    const out = join(directory, "no-claude.jsonl")
+    const emptyBin = mkdtempSync(join(directory, "empty-bin-"))
+
+    const env = { ...process.env, PATH: emptyBin }
+
+    const { status, stdout, stderr } = runScript(["--checkout", checkout, ...requiredArgs(out)], env)
+
+    assert.deepStrictEqual(
+      {
+        status,
+        stdout,
+        startError: stderr.startsWith("claude did not start: "),
+        outLeft: existsSync(out),
+        stderrLeft: existsSync(`${out}.stderr`),
+      },
+      { status: 2, stdout: "", startError: true, outLeft: false, stderrLeft: false },
     )
   })
 

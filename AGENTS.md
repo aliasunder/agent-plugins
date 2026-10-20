@@ -88,10 +88,10 @@ bun scripts/run-plugin-headless.ts --plugin ship-check --cwd <project> --prompt 
 - A headless run cannot answer a permission prompt, so it denies every tool
   that neither `--allow` nor your own settings allow. Each `--allow` value takes
   the form `--allowedTools` takes, such as `Bash(git *)`.
-- `--out` must name a new file. It receives the event stream, and
-  `<out>.stderr` receives the CLI's standard error. The script then prints a
-  summary, including the plugins the session loaded, the final result, and any
-  permission denials.
+- `--out` names the file that receives the event stream, and `<out>.stderr`
+  receives the CLI's standard error. Neither file may exist yet. The script then
+  prints a summary, including the plugins the session loaded, the final result,
+  and any permission denials.
 - Point `--cwd` at a scratch clone of the project, because the run can edit and
   commit whatever the prompt asks for. Turn off pushing in that clone first:
   `git remote set-url --push origin no-push`.

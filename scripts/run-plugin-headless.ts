@@ -4,7 +4,7 @@
  * this run reads the checkout's files when it starts.
  */
 import { spawnSync } from "node:child_process"
-import { closeSync, existsSync, openSync, readFileSync, realpathSync, statSync } from "node:fs"
+import { closeSync, existsSync, openSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { parseArgs } from "node:util"
@@ -208,6 +208,11 @@ const run = (argv: string[]): number => {
 
   const outPath = resolve(out)
   const stderrPath = `${outPath}.stderr`
+
+  // An empty file left by a run that never reached claude would make the retry with the same --out refuse to start, so
+  // this refusal comes before --out is created.
+  if (existsSync(stderrPath)) throw new InputError(`cannot create ${stderrPath}: it already exists`)
+
   const outFile = openNewFile(outPath)
   const stderrFile = openNewFile(stderrPath)
 
@@ -217,7 +222,12 @@ const run = (argv: string[]): number => {
       input: promptText,
       stdio: ["pipe", outFile, stderrFile],
     })
-    if (child.error) throw new InputError(`claude did not start: ${child.error.message}`)
+    // claude never ran, so both files are empty; removing them lets the retry use the same --out.
+    if (child.error) {
+      rmSync(outPath)
+      rmSync(stderrPath)
+      throw new InputError(`claude did not start: ${child.error.message}`)
+    }
 
     const summary = summarizeEvents(readFileSync(outPath, "utf8"))
     console.log(JSON.stringify({ exitCode: child.status, out: outPath, stderr: stderrPath, ...summary }, null, 2))
