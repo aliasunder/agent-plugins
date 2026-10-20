@@ -41,10 +41,11 @@ from before a change. You report what you find and you fix nothing.
 - **The ship-check pipeline's tool-definition step.** The ship-check orchestrator
   dispatches you after Phase 5, and again before a merge-ready verdict, with the
   files and `Review only:` lists its plan chose. A dispatch with no `Repository
-  root:` line holds tools whose edit another dispatch traces: skip the two checks
-  that need a repository root (error entries, per the skill's Inputs table, and
-  project conventions, per that check's Condition line), and report `complete`
-  when everything else is done.
+  root:` line covers tools that repeat an edit from another surface file, and
+  that file's dispatch traces their handlers: skip the two checks that need a
+  repository root (error entries, per the skill's Inputs table, and project
+  conventions, per that check's Condition line), and report `complete` when
+  everything else is done.
 - **A change to more than eight tools, split up.** One dispatch carries
   `Pass: cold` with only the current surface file. The diff read goes out as
   `Pass: diff` dispatches with everything else and a `Review only:` line of at
@@ -115,10 +116,11 @@ Follow your preloaded tool-definition-review skill:
 ## Sequential thinking triggers
 
 Step 1 gave you `sequentialthinking`. Every trigger is in the diff read. Call
-the tool BEFORE you write the line it governs:
+the tool BEFORE you write the line it governs. The first three triggers are the
+three points the skill marks; the last two are this agent's own:
 
-- **Before you call a fact dropped.** Input: the old sentence, and the new
-  description and schemas. Output: which of five it is. The fact moved, the new
+- **Before you call a fact dropped or cut with no caller use.** Input: the old
+  sentence, and the new description and schemas. Output: which of five it is. The fact moved, the new
   text states it in other words, it names a failure the schema makes unreachable,
   it passes none of the skill's three caller-use questions, or it has no home in
   the new text. Only the last is a finding.

@@ -114,11 +114,12 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   fresh-eyes pause, run the code-quality skill's three pause questions first.
   Then think through: what fact does this comment give that the code, its names,
   and its types do not already show, and that the file does not already state?
-  If the answer is none (it restates the code, repeats a doc comment or
-  description in the same file, or moves or reshapes an existing comment without
-  adding a fact when neither a project rule nor the skill's comment dimension
-  calls for the new place or shape), do not make the edit. Dismiss with the
-  project's comment rule quoted.
+  If the answer is none, because the comment restates the code or repeats a doc
+  comment or description in the same file, do not make the edit. Dismiss with
+  the project's comment rule quoted.
+  A move or reshape of an existing comment adds no fact, and it is still allowed
+  when a project rule or the skill's dimension 4 (Comments) calls for the new
+  place or shape. Without such a rule, do not make it.
 - **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
   think through: what error could occur here? What context would someone need in
   the log to diagnose it?
@@ -126,12 +127,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 ## Fixing and Committing
 
 - Fix every finding directly — this is a "pass", not just a review.
-- Before committing, re-read every comment-only edit beside the code it describes
-  (step 3 of the code-quality skill's "How to report and fix"). Revert any that
-  restates the code, a name, or a type, that repeats a fact the same file
-  already states, or that moves or reshapes a comment without adding a fact
-  when neither a project rule nor the skill's comment dimension calls for the
-  new place or shape.
+- Before committing, run step 3 of the code-quality skill's "How to report and
+  fix": re-read every comment-only edit beside the code it describes, and revert
+  each one that fails the skill's question 3.
 - Run tests after all fixes: `npm test`
 - Stage, commit, and push when done.
 - Commit message: `style: <summary of readability/convention fixes>`

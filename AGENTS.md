@@ -81,19 +81,24 @@ bun scripts/run-plugin-headless.ts --plugin ship-check --cwd <project> --prompt 
   --out <run.jsonl> --allow Agent --allow Read --allow Grep --allow Glob
 ```
 
+The example allows `Agent`, so the session can dispatch the plugin's agents, and
+the read-only tools `Read`, `Grep`, and `Glob`. Add an `--allow` for each other
+tool the prompt needs.
+
 - `--checkout <dir>` loads the plugin from another checkout, such as a
   worktree. Without it, the script loads from its own checkout.
 - The run turns off the installed copy of the same plugin and every hook, and
   leaves out the project's shared settings file (`.claude/settings.json`).
 - A headless run cannot answer a permission prompt, so it denies every tool
   that neither `--allow` nor your own settings allow. Each `--allow` value takes
-  the form `--allowedTools` takes, such as `Bash(git *)`.
+  the form of the claude CLI's `--allowedTools` flag, such as `Bash(git *)`.
 - `--out` names the file that receives the event stream, and `<out>.stderr`
   receives the CLI's standard error. Neither file may exist yet. The script then
   prints a summary, including the plugins the session loaded, the final result,
   and any permission denials.
-- Point `--cwd` at a scratch clone of the project, because the run can edit and
-  commit whatever the prompt asks for. Turn off pushing in that clone first:
+- Point `--cwd` at a scratch clone of the project. A run allowed `Edit`, `Write`,
+  or `Bash`, by `--allow` or by your own settings, can edit and commit whatever
+  the prompt asks for. Turn off pushing in that clone first:
   `git remote set-url --push origin no-push`.
 
 ## Conventions
@@ -109,9 +114,11 @@ bun scripts/run-plugin-headless.ts --plugin ship-check --cwd <project> --prompt 
   `scripts/__tests__/`. The release archives leave `__tests__` out, through the
   `-x` patterns on the `zip` commands in both release workflows.
 - **Repository tooling** that ships in no plugin lives in the root `scripts/`
-  directory, under the same rules, with its tests in `scripts/__tests__/`.
-- **Run every script test** with `bun test plugins scripts`. Bun runs each test
-  file whose path contains one of those two words.
+  directory, also as TypeScript with no npm dependencies, run with Bun. Its
+  tests live in `scripts/__tests__/`.
+- **Run every script test** with `bun test plugins scripts`. Each argument is a
+  path filter: Bun runs every test file whose path contains `plugins` or
+  `scripts`.
 
 ## Skill authoring
 

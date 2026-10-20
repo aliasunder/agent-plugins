@@ -146,7 +146,9 @@ disposition.
    element"). NEVER use this question to dismiss a pause because the code matches
    the project's local style. Fresh-eyes ignores local style on purpose.
 2. **Can the code say it?** Prefer a rename, an extracted local, or a change of
-   structure, under the dimension that owns it, over a comment.
+   structure, under the dimension that owns it, over a comment. When one of
+   those removes the pause, make it. When none does, the edit is a comment or
+   doc change, and question 3 decides whether to make it.
 3. **Does the edit follow the project's comment and docs rules?** Read every
    comment or doc edit against the project's rules (AGENTS.md, and the Comments
    section of the code-standards note loaded in "Before starting") and against
@@ -155,9 +157,10 @@ disposition.
    - repeats a fact the same file already states, such as a doc comment above it
      or the `Returns:` line of a description string;
    - moves or reshapes a comment without adding a fact, unless a project rule
-     or dimension 4 calls for the new place or shape (such as bullets for a
-     comment longer than two lines, or detail moved out of a JSDoc to sit above
-     the line it explains);
+     or dimension 4 calls for the new place or shape. Examples: bullets for a
+     comment longer than two lines, which the code-standards note's Comments
+     section calls for, and detail moved out of a JSDoc to sit above the line
+     it explains, which dimension 4 calls for;
    - breaks any other comment or docs rule the project states.
 
 Fix the pause when an edit passes all three questions. When no edit passes question
@@ -178,7 +181,8 @@ line, so it fails question 3.
 Right: when the stranger paused on why the limit is three, add the fact the code
 cannot show (`// the upstream API blocks a client after four calls in a minute`).
 When the only possible comment would restate the line, dismiss the pause and quote
-the rule ("Never restate self-documenting names", dimension 4).
+the rule ("Comments earn their place by clarifying non-obvious domain context",
+dimension 4).
 
 Self-check before you commit, in both directions:
 - **Dismissals:** if dismissals outnumber fixes, call sequential thinking and
@@ -550,13 +554,13 @@ test.)
 2. **Fix** every finding directly — this is a "pass", not just a review.
 3. **Re-read every comment-only edit** before you commit, whether it came from a
    finding or a fresh-eyes pause. Read each one beside the code it describes,
-   against the project's comment rules and dimension 4. Revert an edit that
-   restates the code, a name, or a type, that repeats a fact the same file
-   already states, or that moves or reshapes a comment without adding a fact
-   when neither a project rule nor dimension 4 calls for the new place or
-   shape. Restore the original
-   text exactly, and record the finding or pause as dismissed with the rule
-   quoted.
+   and revert it when it fails question 3 of the stranger read (dimension 0):
+   it restates the code, a name, or a type; it repeats a fact the same file
+   already states; it moves or reshapes a comment without adding a fact, and
+   neither a project rule nor dimension 4 calls for the new place or shape; or
+   it breaks another comment or docs rule the project states. Restore the
+   original text exactly. Record the finding or pause as dismissed with the
+   rule quoted, and count it under `Dismissed`, not `Findings`.
 4. **Run tests** after all fixes to confirm no behavior change.
 5. **Summarize**: files touched, count by category, test status.
    When fresh-eyes pauses were supplied, add:

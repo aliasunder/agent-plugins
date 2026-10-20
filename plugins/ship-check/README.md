@@ -70,7 +70,7 @@ guidance cannot be read or found, it reports the fallback and uses these default
 
 Guidance overrides the portable defaults. The selected model stays fixed through
 the run, including fresh-eyes, delta reviews and tool-definition continuations.
-The dispatcher never escalates to Astra or Fable without an explicit model choice.
+The dispatcher never escalates to the Astra or Fable models without an explicit model choice.
 
 | Option | Effect |
 |---|---|

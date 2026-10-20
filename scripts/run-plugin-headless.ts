@@ -37,9 +37,12 @@ export type ClaudeRunOptions = {
 
 /** The claude arguments for one headless run. The prompt goes in on standard input. */
 export const buildClaudeArgs = ({ pluginDir, installedPluginKey, model, allowedTools }: ClaudeRunOptions): string[] => {
-  // The installed copy of the plugin would load beside the checkout's copy, with agents of the same names. Hooks are
-  // off so a guard hook written for interactive sessions cannot block or rewrite the run's tool calls.
-  const settings = JSON.stringify({ enabledPlugins: { [installedPluginKey]: false }, disableAllHooks: true })
+  const settings = JSON.stringify({
+    // Left on, the installed copy would load beside the checkout's copy, with agents of the same names.
+    enabledPlugins: { [installedPluginKey]: false },
+    // A guard hook written for interactive sessions could block or rewrite the run's tool calls.
+    disableAllHooks: true,
+  })
 
   // A headless run has nobody to answer a permission prompt, so it denies a tool that neither this list nor the
   // user's settings allow.
@@ -85,11 +88,12 @@ const isJsonObject = (value: unknown): value is JsonObject => {
 const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 const parseEventLine = (line: string): JsonObject | null => {
+  // A line that is not a JSON object, whether it fails to parse or holds an array or a number, gives null.
+  // summarizeEvents counts those lines in unparsedLines, so they are reported rather than lost.
   try {
     const parsed: unknown = JSON.parse(line)
     return isJsonObject(parsed) ? parsed : null
   } catch {
-    // A line that is not JSON is counted in the summary's unparsedLines, so it is reported rather than lost.
     return null
   }
 }
@@ -104,6 +108,11 @@ const numberField = (event: JsonObject | undefined, key: string): number | null 
   return typeof value === "number" ? value : null
 }
 
+const booleanField = (event: JsonObject | undefined, key: string): boolean | null => {
+  const value = event?.[key]
+  return typeof value === "boolean" ? value : null
+}
+
 /**
  * What a run's event stream says: the session's model and plugins from its init event, and the outcome from its last
  * result event. A run that was stopped early has no result event, so its outcome fields are null.
@@ -114,13 +123,12 @@ export const summarizeEvents = (stream: string): RunSummary => {
 
   const init = events.find((event) => event.type === "system" && event.subtype === "init")
   const result = events.findLast((event) => event.type === "result")
-  const isError = result?.is_error
 
   return {
     model: stringField(init, "model"),
     plugins: init?.plugins ?? null,
     result: stringField(result, "result"),
-    isError: typeof isError === "boolean" ? isError : null,
+    isError: booleanField(result, "is_error"),
     turns: numberField(result, "num_turns"),
     costUsd: numberField(result, "total_cost_usd"),
     permissionDenials: result?.permission_denials ?? null,
@@ -209,8 +217,8 @@ const run = (argv: string[]): number => {
   const outPath = resolve(out)
   const stderrPath = `${outPath}.stderr`
 
-  // An empty file left by a run that never reached claude would make the retry with the same --out refuse to start, so
-  // this refusal comes before --out is created.
+  // Checked before --out is created: refusing a taken <out>.stderr after that would leave an empty --out file, and a
+  // retry with the same --out would then refuse to start.
   if (existsSync(stderrPath)) throw new InputError(`cannot create ${stderrPath}: it already exists`)
 
   const outFile = openNewFile(outPath)
@@ -222,6 +230,7 @@ const run = (argv: string[]): number => {
       input: promptText,
       stdio: ["pipe", outFile, stderrFile],
     })
+
     // claude never ran, so both files are empty; removing them lets the retry use the same --out.
     if (child.error) {
       rmSync(outPath)

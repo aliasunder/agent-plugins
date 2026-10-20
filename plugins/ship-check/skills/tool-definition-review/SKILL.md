@@ -87,7 +87,7 @@ bun "${CLAUDE_SKILL_DIR}/scripts/surface-diff.ts" --current <file> --show '<tool
 | `changed`, `added`, `removed`, `unchanged` | Tool names. `changed` means the description, a schema, the title, or the annotations differ |
 | `orderOnly` | Tools whose schemas or annotations differ only in key order. Not a text change |
 | `inScope` | The tools to review: changed and added ones, or every tool when there is no base |
-| `changes[]` | For each changed tool: which parts changed, its size before and after, and the lines and schema sentences added and removed |
+| `changes[]` | For each changed tool: which parts changed, its size before and after, and the description lines and schema sentences added and removed, in `descriptionLines` and `schemaSentences`, each with `added` and `removed`. A reworded line or sentence appears twice: the old wording under `removed`, the new wording under `added` |
 | `sharedEdits[]` | One line or schema sentence added to, or removed from, two or more tools, with the tools |
 | `sections[]` | Whether the file's server `instructions` or `prompts` changed. `changed` is `null` when there is no base: report that as "no base to compare", never as unchanged. Empty when the file carries neither |
 | `duplicationCandidates[]` | A stretch of 40 or more characters that a parameter's schema description shares with the tool description. `preExisting: true` means the base already had it |
@@ -174,9 +174,10 @@ Three fable-mode rules apply here in a particular way:
   a `not traced` reason, and continue.
 
 Call `sequentialthinking` at the three points the diff read marks: before you call
-a fact dropped, before you pass or fail a sentence on caller use, and before you
-write `MISSING` or list an entry with no reachable failure. If the tool is not
-available, write the same reasoning as text and continue.
+a fact dropped or cut with no caller use, before you pass or fail a sentence on
+caller use, and before you write `MISSING` or list an entry with no reachable
+failure. If the tool is not available, write the same reasoning as text and
+continue.
 
 ## Read 1: cold read
 
@@ -327,16 +328,20 @@ changed definitions afresh re-scores all of them.
     states in different words is preserved.
   - A removed fact that passes none of the three questions under Caller use
     below gave the caller nothing to act on, so cutting it is not a loss. List
-    it as cut with no caller use, not as a finding.
-- **Before you call a fact dropped,** call `sequentialthinking` with the old
-  sentence and the new description and schemas. Decide which of five it is:
-  moved, restated in other words, an entry for a failure the schema makes
-  unreachable (see Error entries below), cut with no caller use (see Caller use
-  below), or dropped. Only the last is a finding.
+    it as cut with no caller use, not as a finding. Ask the questions of the
+    old text: with the fact, did the caller send, do, or assume something
+    different from what it does without it?
+- **Before you call a fact dropped or cut with no caller use,** call
+  `sequentialthinking` with the old sentence and the new description and
+  schemas. Decide which of five it is: moved, restated in other words, an entry
+  for a failure the schema makes unreachable (see Error entries below), cut with
+  no caller use (see Caller use below), or dropped. Only the last is a finding.
 
-Write the count in the tool's entry (`Facts: 14 in the old text — 2 moved, 1 cut
-with no caller use, 1 dropped`). "The old text" is the old description and the
-old schemas together. The count is how a reader sees the check ran.
+Write the count in the tool's entry (`Facts: 14 in the old text — 2 moved or
+restated, 1 unreachable entry removed, 1 cut with no caller use, 1 dropped`).
+Count a fact restated in other words with the moved ones. "The old text" is the
+old description and the old schemas together. The count is how a reader sees
+the check ran.
 
 ### Duplicated fact
 
@@ -366,9 +371,10 @@ works inside belongs in the repository's own docs.
   description and schemas without that sentence, then ask the three caller-use
   questions below about the difference the sentence makes. Report a sentence
   that passes none of them as a numbered defect, and propose where it goes
-  instead: the repository's architecture or contributor doc, named by file when
-  the repository has one (`ARCHITECTURE.md`). When that doc already says it,
-  propose cutting it.
+  instead. With a repository root, name the repository's architecture or
+  contributor doc (`ARCHITECTURE.md`), or propose cutting the sentence when
+  that doc already says it. Without a repository root, propose the
+  repository's own docs and name no file.
   1. **Send:** with the sentence, does the caller send something different —
      another tool, another parameter, another value?
   2. **Act:** with the sentence, does the caller do something different with the
@@ -378,7 +384,8 @@ works inside belongs in the repository's own docs.
      assumption that the rest of the definition leaves open?
 - **Condition:** a base surface was supplied. The text to judge is:
   - for each changed tool, its `changes[].descriptionLines.added` and
-    `changes[].schemaSentences.added`, split into sentences;
+    `changes[].schemaSentences.added`, split into sentences (a reworded
+    sentence is in `added` in its new wording);
   - for each tool the script's top-level `added` list names (a tool new in this
     change), every sentence of its description and schema descriptions.
 
@@ -387,10 +394,11 @@ works inside belongs in the repository's own docs.
 - **Boundary:**
   - A sentence that passes one question stays, however much detail it carries.
     NEVER flag a sentence for its length or for the number of facts in it.
-  - A sentence passes only when you can name the caller action it changes. How
-    the server carries out the operation (the form it writes, which code path
-    takes a case, what it indexes or caches) changes no caller action, however
-    accurate, unless the caller would act on it.
+  - A sentence passes only when you can name the caller action it changes. A
+    sentence about how the server carries out the operation (the form it
+    writes, which code path takes a case, what it indexes or caches) fails,
+    however accurate, unless one of the three questions names something the
+    caller sends, does, or assumes differently because of it.
   - A sentence that adds detail to an outcome the definition already states (in
     a `Returns:` line or another sentence) passes only when the detail changes a
     caller action by itself.
@@ -401,7 +409,8 @@ works inside belongs in the repository's own docs.
     condition the caller can neither see nor change (a server-internal index, a
     cache, a code path) fails all three questions, even inside an `Errors:` entry
     whose failure and remedy pass question 2. Report that clause as the defect,
-    and keep the rest of the sentence.
+    and keep the rest of the sentence. Count the sentence under fail on the
+    `Caller use:` line, and quote the clause.
   - A rule in the project's own instructions that requires the text wins, as it
     does for duplicated facts.
   - Text the change did not add or reword is out of scope. This check NEVER
@@ -426,12 +435,13 @@ Example: a change adds two sentences to a folder-listing tool.
   repository's architecture doc.
 
 A second change adds a sentence to an invoice-sending tool whose `Returns:` line
-already says "sent_to lists every address the invoice went to":
+already says "sent_to lists every address the invoice went to, each with the
+invoice PDF attached":
 
-- "Addresses on the CC line get the PDF as a separate attachment, and addresses
-  on the To line get it inline." Passes none: without it, the caller already
-  knows every address received the invoice and reads `sent_to` the same way.
-  The sentence only says how the server builds each message.
+- "The server renders the PDF once and attaches the same file to every
+  message." Passes none: the caller sends the same addresses, reads `sent_to`
+  the same way, and has no action that depends on how many times the PDF is
+  rendered. The sentence only says how the server builds each message.
 
 ### Error entries, both directions
 
@@ -549,7 +559,7 @@ Per tool
     U4: "<quoted text>" — <what is missing or wrong>
     B3: no entry says what an empty result looks like
   Structure: <N> lists read — <no faults | K faults: <test> "<quoted text>"; <test> "<quoted text>">
-  Facts: <N> in the old text — <K> moved (<which>), <C> cut with no caller use (<which>), <J> dropped (<which>)
+  Facts: <N> in the old text — <K> moved or restated (<which>), <U> unreachable entries removed (<which>), <C> cut with no caller use (<which>), <J> dropped (<which>)
   Caller use: <N> sentences added or reworded — <K> pass, <J> fail (<quoted sentence or clause>)
   Errors: handler <file:function>
     "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
