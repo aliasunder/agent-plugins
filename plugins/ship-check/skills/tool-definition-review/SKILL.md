@@ -327,7 +327,7 @@ changed definitions afresh re-scores all of them.
     states in different words is preserved.
   - A removed fact that passes none of the three questions under Caller use
     below gave the caller nothing to act on, so cutting it is not a loss. List
-    it as `cut, no caller use`, not as a finding.
+    it as cut with no caller use, not as a finding.
 - **Before you call a fact dropped,** call `sequentialthinking` with the old
   sentence and the new description and schemas. Decide which of five it is:
   moved, restated in other words, an entry for a failure the schema makes
