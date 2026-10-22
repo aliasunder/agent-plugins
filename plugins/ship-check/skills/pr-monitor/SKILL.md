@@ -525,6 +525,23 @@ PR #<number> status:
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
 
+**Pipeline context only: post a merge-ready verdict to the user's inbox.** When the
+verdict is merge-ready and the pre-merge delta review covers the current head, run
+the user's local helper if it exists, and put its output line in the report:
+
+```sh
+bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> --pr <number> --sha <head SHA>
+```
+
+- A lane worker adds `--lead <address>` with the lead's address from its kickoff;
+  the helper posts nothing while that lead is live, because the lead posts READY.
+- With only known-flaky or unrelated CI failures, add
+  `--unrelated-failures "<check names>"`.
+- Run it on every merge-ready pass: it posts once per commit and prints
+  `already posted` afterwards, and a pass after an uncertain send settles it.
+- Codex runs it outside its sandbox, as it does `cmux`.
+- pr-monitor run on its own, outside ship-check, posts nothing.
+
 After reporting, **continue monitoring** — do not stop. "Merge-ready" is a status
 report, not a termination signal. The user will say stop when they're done. If the
 user doesn't respond, keep the monitoring loop running.
