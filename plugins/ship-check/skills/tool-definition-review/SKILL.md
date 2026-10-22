@@ -119,7 +119,7 @@ them for their own review.
 1. Run the script with `--names`. `inScope` is your list.
 2. If the dispatch has a `Review only:` line, those names are your whole scope.
    Review each of them, whether or not it is in the intended-tools list, and
-   review no other tool. The eight-tool cap in rule 4 still applies. The
+   review no other tool. The caps in rules 4 and 5 still apply. The
    intended-tools list never changes your scope; it only decides which changes
    the report calls unintended.
 3. Every tool in scope gets an entry in the report. A tool you did not reach is
@@ -139,6 +139,11 @@ them for their own review.
 
    The dispatcher sends the rest as `Pass: diff` with a `Review only:` line of at
    most eight names.
+5. **A `Sweep: caller use` dispatch takes at most four tools.** Judging every
+   sentence of seven tools runs long enough for the API's safeguards to cut
+   the run short before the report is written; sweeps of three tools finish.
+   With more than four names in scope, sweep the first four, write
+   `not reviewed` on the rest, and report `partial`.
 
 ## Stages and their checks
 
@@ -177,7 +182,7 @@ Three fable-mode rules apply here in a particular way:
 Call `sequentialthinking` at the three points the diff read marks: before you call
 a fact dropped or cut with no caller use, before you pass or fail a sentence on
 caller use, and before you write `MISSING` or list an entry with no reachable
-failure. If the tool is not available, write the same reasoning as text and
+failure. If the tool is not available, write the same notes as text and
 continue.
 
 ## Read 1: cold read
@@ -404,6 +409,12 @@ works inside belongs in the repository's own docs.
 - **Boundary:**
   - A sentence that passes one question stays, however much detail it carries.
     NEVER flag a sentence for its length or for the number of facts in it.
+  - A sentence that names the route the caller would otherwise take (another
+    tool, or reading the data note by note) and says this tool replaces it
+    passes question 1, even when the opening sentence already states the
+    purpose. "Lets you see the vault's property keys without reading
+    individual notes" stays; so does "unlike vault_list_notes, which returns
+    paths only". Do NOT count such a sentence as a restated purpose.
   - A sentence passes only when you can name the caller action it changes. A
     sentence about how the server carries out the operation (the form it
     writes, which code path takes a case, what it indexes or caches) fails,

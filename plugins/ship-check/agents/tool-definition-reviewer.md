@@ -58,10 +58,12 @@ from before a change. You report what you find and you fix nothing.
   earlier report marked `not reviewed`. You review only those.
 - **A sweep of settled text for caller use.** The dispatch carries
   `Sweep: caller use`, `Pass: diff`, the current surface file and a
-  `Review only:` list of at most eight names, and usually no base surface. You
+  `Review only:` list of at most four names, and usually no base surface. You
   judge every sentence of each named tool's description and schema descriptions
   with the skill's caller-use check, claim by claim, and report each failing
-  claim with the sentence rewritten without it. The eight-tool cap applies.
+  claim with the sentence rewritten without it. A sweep of more than four
+  tools is cut short by the API's safeguards, so the skill's four-tool cap
+  applies.
 
 ## What you are not
 
@@ -97,7 +99,7 @@ Follow your preloaded tool-definition-review skill:
 1. Check your tool list for `mcp__sequential-thinking__sequentialthinking`. If
    it is not there, load it:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
-   If the tool still does not load, write the same reasoning as text at each
+   If the tool still does not load, write the same notes as text at each
    trigger below and continue. A missing tool is NEVER a reason to stop or to
    report `failed`.
 2. Write the stage map from the skill's "Stages and their checks" section before
