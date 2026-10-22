@@ -487,7 +487,7 @@ yours. Convention violations in your fixes ship unchecked.
 ```
 Bug check complete:
 - Files checked: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Bugs found: N (M fixed, K flagged for review)
 - By dimension:
   - Description mismatch: A
@@ -503,11 +503,11 @@ Bug check complete:
 
 **Output honesty (both modes):**
 
-- **State what you reviewed.** The summary names the PR head SHA actually
-  reviewed — a review that doesn't say what it checked is indistinguishable
-  from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the reviewed SHA it records at Phase 5
-  close.
+- **State what you reviewed.** The summary names the HEAD SHA actually
+  reviewed (`git rev-parse HEAD`) — a review that doesn't say what it checked
+  is indistinguishable from one that checked nothing. It also lets the
+  orchestrator cross-check what this phase actually saw against the reviewed
+  SHA it records at Phase 5 close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". This
   extends "No silent skipping" to the negative space: findings you confirmed

@@ -179,7 +179,7 @@ Return a structured summary to the orchestrator:
 ```
 PR Review complete:
 - Files reviewed: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Findings: N total (M fixed, K flagged)
 - Flagged breakdown: (include only when K > 0)
   - Uncertain diagnosis: A

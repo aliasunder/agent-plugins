@@ -372,11 +372,11 @@ This proves the test is load-bearing, not decorative.
 
 **Output honesty (both modes):**
 
-- **State what you reviewed.** The summary names the PR head SHA actually
-  reviewed — a review that doesn't say what it checked is indistinguishable
-  from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the reviewed SHA it records at Phase 5
-  close.
+- **State what you reviewed.** The summary names the HEAD SHA actually
+  reviewed (`git rev-parse HEAD`) — a review that doesn't say what it checked
+  is indistinguishable from one that checked nothing. It also lets the
+  orchestrator cross-check what this phase actually saw against the reviewed
+  SHA it records at Phase 5 close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could

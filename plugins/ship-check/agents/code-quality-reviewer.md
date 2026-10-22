@@ -189,7 +189,7 @@ Return a structured summary to the orchestrator:
 ```
 Code quality complete:
 - Files reviewed: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Functions read: N (M with pauses — every pause appears below as a finding)
 - Fresh-eyes pauses: N received — K fixed, J dismissed (only when the dispatch carried a pause list; dispositions follow)
 - Findings: N total, all fixed

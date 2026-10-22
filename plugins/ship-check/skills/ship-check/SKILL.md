@@ -927,7 +927,9 @@ fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
 
 1. Count the commits not pushed yet: `git rev-list --count @{upstream}..HEAD`.
 2. When the count is above 0, run `git push`, check its exit code, and note the
-   pushed head SHA for the summary.
+   pushed head SHA for the summary. When the push fails (for example, rejected
+   because the remote branch moved), stop before Phase 6 and show the user the
+   error and the unpushed commits. Never force-push or rebase on your own.
 3. Skip the push, and say why in the summary, when:
    - the run is in comment mode or `--report`, or is local mode on `main` or a
      detached HEAD: nothing was committed;
@@ -936,7 +938,8 @@ fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
      the fixes stay committed locally, and the summary says they are not pushed.
 
 Phase 6 starts from this push: pr-monitor's checks and bot rounds read the head it
-pushed.
+pushed. Treat it as a push made during pr-monitor's run: Phase 6 completes
+pr-monitor's Step 4 follow-up check for it before any Step 5 report.
 
 ### Phase 6: PR Monitor (inline — does not end)
 
@@ -1061,9 +1064,10 @@ The user can customize the pipeline:
   still dispatches nothing when no tool-list file changed
 - `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
   reported to the orchestrator). Alias: `--no-fix`.
-- `/ship-check --local` — run without a PR. Reviews the commits `origin` does not
-  have yet, or the commits since the last tag when every commit is pushed (see
-  "Before starting" step 2). Implies `--report` on main or a detached HEAD.
+- `/ship-check --local` — run without a PR. Reviews the commits the default branch
+  on `origin` (usually `origin/main`) does not have yet, or the commits since the
+  last tag when it has them all (see "Before starting" step 2). Implies `--report`
+  on main or a detached HEAD.
 - `/ship-check --diff <base>` — set the review range explicitly (e.g. `--diff HEAD~3`,
   `--diff abc1234`). Implies `--local`.
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.

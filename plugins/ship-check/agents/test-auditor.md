@@ -161,7 +161,7 @@ Return a structured summary to the orchestrator:
 ```
 Test audit complete:
 - Test files audited: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Findings: N total (M fixed)
 - By category:
   - Two-bar violations: A

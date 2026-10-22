@@ -189,7 +189,7 @@ Return a structured summary to the orchestrator:
 ```
 Bug check complete:
 - Files checked: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Bugs found: N (M fixed, K flagged)
 - Flagged breakdown: (include only when K > 0)
   - Uncertain diagnosis: A

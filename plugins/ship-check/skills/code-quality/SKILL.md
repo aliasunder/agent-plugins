@@ -312,7 +312,8 @@ Anti-rationalization rules for fresh-eyes pauses:
   `nearestHeading === undefined ? null : nearestHeading.text`
 - **Redundant `.filter()` type predicate trigger**: when a `.filter()` callback
   annotates its predicate (`(x): x is T => x !== undefined`) and its body is one
-  comparison against `undefined` or `null`, flag the annotation for removal.
+  comparison of the parameter itself (not one of its properties) against
+  `undefined` or `null`, flag the annotation for removal.
   TypeScript 5.5 and later infer the predicate from that comparison, so
   `items.filter((x) => x !== undefined)` already narrows the result. Boundary:
   keep the annotation when the project's `typescript` version is below 5.5, or
@@ -320,7 +321,10 @@ Anti-rationalization rules for fresh-eyes pauses:
   callback, do NOT apply the verbose null/undefined guards trigger above: the
   bare comparison is what narrows, and `.filter(Boolean)` does not narrow. Flag
   a `.filter(Boolean)` only when code after it works around the un-narrowed type
-  with `!`, `as` or an extra guard; the fix is `.filter((x) => x !== undefined)`
+  with `!`, `as` or an extra guard; the fix is `.filter((x) => x !== undefined)`,
+  or `!== null` when `null` marks the missing entries. Keep the `.filter(Boolean)`
+  when entries can also be `0`, `""` or `false`: it drops those, and the
+  comparison would keep them
 - **Plain values over thunks trigger**: when a callback parameter (`() => T`)
   wraps a trivially cheap, side-effect-free computation that every call site
   has ready, flag: accept `T` directly. If every call site passes
@@ -586,11 +590,11 @@ test.)
 
 **Output honesty (both modes):**
 
-- **State what you reviewed.** The summary names the PR head SHA actually
-  reviewed — a review that doesn't say what it checked is indistinguishable
-  from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the reviewed SHA it records at Phase 5
-  close.
+- **State what you reviewed.** The summary names the HEAD SHA actually
+  reviewed (`git rev-parse HEAD`) — a review that doesn't say what it checked
+  is indistinguishable from one that checked nothing. It also lets the
+  orchestrator cross-check what this phase actually saw against the reviewed
+  SHA it records at Phase 5 close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could
