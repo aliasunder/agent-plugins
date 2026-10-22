@@ -285,9 +285,9 @@ Anti-rationalization rules for fresh-eyes pauses:
   `items.map(formatItem).join("\n")`. Concrete signs it needs extraction: the
   callback (a) builds multiple named intermediates then combines them, (b) contains
   its own `.filter().map()` pipeline, or (c) has ternaries inside `${}`
-  template interpolation. Related smell: conditional spreads
-  (`...(cond ? [item] : [])`) — prefer building the full array with conditional
-  entries and calling `.filter(Boolean)`
+  template interpolation. Conditional spreads (`...(cond ? [item] : [])`) and
+  array assembly with `.filter()` are both fine: never flag one to convert it to
+  the other
 - **Named params trigger**: functions with >2 args, or with adjacent same-typed
   args that could be silently transposed, should use a named-params object. Two
   adjacent `string` roots or two adjacent `number` limits are a swap hazard —
@@ -310,11 +310,17 @@ Anti-rationalization rules for fresh-eyes pauses:
   ternary access patterns:
   `nearestHeading?.text ?? null` over
   `nearestHeading === undefined ? null : nearestHeading.text`
-- **Type predicates on `.filter()` trigger**: when `.filter()` removes
-  `undefined` or `null` from a typed array, use a type predicate
-  (`(x): x is T => x !== undefined`) so TypeScript narrows the downstream type.
-  Without it, the filtered array retains `| undefined` and forces unnecessary
-  guards or assertions downstream
+- **Redundant `.filter()` type predicate trigger**: when a `.filter()` callback
+  annotates its predicate (`(x): x is T => x !== undefined`) and its body is one
+  comparison against `undefined` or `null`, flag the annotation for removal.
+  TypeScript 5.5 and later infer the predicate from that comparison, so
+  `items.filter((x) => x !== undefined)` already narrows the result. Boundary:
+  keep the annotation when the project's `typescript` version is below 5.5, or
+  when the body is anything other than that one comparison. Inside a `.filter()`
+  callback, do NOT apply the verbose null/undefined guards trigger above: the
+  bare comparison is what narrows, and `.filter(Boolean)` does not narrow. Flag
+  a `.filter(Boolean)` only when code after it works around the un-narrowed type
+  with `!`, `as` or an extra guard; the fix is `.filter((x) => x !== undefined)`
 - **Plain values over thunks trigger**: when a callback parameter (`() => T`)
   wraps a trivially cheap, side-effect-free computation that every call site
   has ready, flag: accept `T` directly. If every call site passes
