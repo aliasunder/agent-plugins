@@ -120,13 +120,20 @@ dispatching session's.
      git merge-base origin/<base-branch> HEAD
      ```
    - **Local mode with `--diff <base>`:** `git merge-base <base> HEAD`.
-   - **Local mode on a branch, without `--diff`:** the same two commands as PR mode,
-     with the default branch (usually `main`) as `<base-branch>`.
-   - **Local mode on `main` itself, without `--diff`:** `git merge-base <tag> HEAD`,
-     with `<tag>` the last tag, which `git describe --tags --abbrev=0` prints. When
-     the repository has no tag, ask the user for a base. Do not take the
-     `origin/main` merge base here: once main's commits are pushed, that merge base
-     is HEAD itself and the range is empty.
+   - **Local mode without `--diff`** (on a branch, on `main`, or on a detached
+     HEAD): run these in order and stop at the first one that returns a commit
+     other than HEAD itself. HEAD itself means an empty range.
+     1. The same two commands as PR mode, with the default branch (usually `main`)
+        as `<base-branch>`. On a branch this is where it left the default branch.
+        On `main`, it is the last commit `origin/main` and HEAD share, so the range
+        holds exactly the commits not pushed yet.
+     2. `git merge-base <tag> HEAD`, with `<tag>` the last tag, which
+        `git describe --tags --abbrev=0` prints. This covers `main` once every
+        commit is pushed, the case where step 1 returns HEAD.
+     3. Neither gives a range (no tag, or HEAD is the tag): ask the user for a base.
+
+     Wrong: on `main` with three unpushed commits, reviewing every commit since the
+     last tag. Right: reviewing the three unpushed commits.
 
    Given a base that HEAD already contains, `git merge-base` returns that base (for a
    tag, the commit the tag points to); given any other base, it returns the last
@@ -134,8 +141,8 @@ dispatching session's.
    the review range `REVIEW_BASE...HEAD` holds exactly the commits HEAD added after
    it. With `--inline`, run each skill as if its dispatch named this `Base:` line;
    with `--fork`, put the line in each fork's prompt.
-3. Get the branch name (or "main" when reviewing main directly) — agents need this
-   context in their briefing.
+3. Get the branch name (or "main" when reviewing main directly, or "detached HEAD
+   at <short SHA>") — agents need this context in their briefing.
 
 ## Comment mode (`--comment`)
 
@@ -256,9 +263,9 @@ accepted.
 | Dispatch prompts | Reference PR number and branch | Reference commit range and branch |
 | Phase 6 (pr-monitor) | Runs | Skipped — no PR to monitor |
 | Comment mode | Posts inline PR review comments | Not available (no PR) |
-| Findings | Edit/commit/push (default) or PR comments | On main: report only (implies `--report`). On a branch: edit/commit/push unless `--report` is set. |
+| Findings | Edit/commit/push (default) or PR comments | On `main` or a detached HEAD: report only (implies `--report`). On a branch: edit and commit, pushed by "Push the fixes", unless `--report` is set. |
 | Delta review | Tracks PR head | Not applicable |
-| Tool-definition re-review | Before each merge-ready verdict | On a branch, once before the summary when triage fixed tool text; none on `main` |
+| Tool-definition re-review | Before each merge-ready verdict | On a branch, once before the summary when triage fixed tool text; none on `main` or a detached HEAD |
 
 ### Dispatch prompt changes
 
@@ -266,14 +273,15 @@ Replace PR references in each phase dispatch:
 
 - `PR #<number>` → `commits <review-base-short>..<head-short>`, the short SHAs of
   REVIEW_BASE and HEAD
-- `branch <branch>` → `branch <branch>` (unchanged if on a branch) or `main` (if reviewing main directly)
+- `branch <branch>` → `branch <branch>` (unchanged if on a branch), `main` (if reviewing main directly), or `detached HEAD at <short SHA>`
 - Add: `LOCAL MODE: Report all findings to the orchestrator. Do not post PR comments.`
 - Keep the `Base: <REVIEW_BASE>` line. Agents take their diff from it; the
   `commits` range only labels the review.
 
 When `--report` is NOT set and the changes are on a feature branch, agents still fix
 and commit normally — local mode only implies `--report` when reviewing main directly
-(fixes on main require explicit intent).
+or a detached HEAD (fixes there require explicit intent, and commits on a detached
+HEAD belong to no branch).
 
 ## Phase discipline
 
@@ -1053,8 +1061,9 @@ The user can customize the pipeline:
   still dispatches nothing when no tool-list file changed
 - `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
   reported to the orchestrator). Alias: `--no-fix`.
-- `/ship-check --local` — run without a PR. Reviews the commit range on the current
-  branch (see Local review mode). Implies `--report` when on main.
+- `/ship-check --local` — run without a PR. Reviews the commits `origin` does not
+  have yet, or the commits since the last tag when every commit is pushed (see
+  "Before starting" step 2). Implies `--report` on main or a detached HEAD.
 - `/ship-check --diff <base>` — set the review range explicitly (e.g. `--diff HEAD~3`,
   `--diff abc1234`). Implies `--local`.
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
