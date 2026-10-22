@@ -120,11 +120,14 @@ dispatching session's.
      ```
    - **Local mode on a branch:** the same two commands, with the default branch
      (usually `main`) as `<base-branch>`.
-   - **Local mode with `--diff <base>`:** `git rev-parse <base>`.
-   - **Local mode on `main` itself:** `git rev-parse` of the last tag, or of a base the
-     user supplies.
+   - **Local mode with `--diff <base>`:** `git merge-base <base> HEAD`.
+   - **Local mode on `main` itself:** `git merge-base <ref> HEAD`, where `<ref>` is the
+     last tag or a base the user supplies.
 
-   The review range is `REVIEW_BASE...HEAD`.
+   `git merge-base` returns an ancestor base unchanged and turns a tag into its commit,
+   so REVIEW_BASE is always a commit HEAD contains. The review range is
+   `REVIEW_BASE...HEAD`. With `--inline`, run each skill as if its dispatch named this
+   `Base:` line; with `--fork`, put the line in each fork's prompt.
 3. Get the branch name (or "main" in local mode) — agents need this context in their
    briefing.
 
@@ -644,8 +647,8 @@ the gates in step 2 pass, and only `--skip tool-definitions` or an `--only` list
 without `tool-definitions` turns it off.
 
 1. **Resolve the base.** In PR mode, fetch the base branch and take the merge base;
-   in local mode, use the base of the review range. Call the result MERGE_BASE and
-   the head commit HEAD_SHA. Write both as full commit SHAs (`git rev-parse <ref>`),
+   in local mode, use REVIEW_BASE. Call the result MERGE_BASE and the head commit
+   HEAD_SHA. Write both as full commit SHAs (`git rev-parse <ref>`),
    never as a symbolic ref such as `main~1`, because step 9 records them for a later
    re-review.
    ```
