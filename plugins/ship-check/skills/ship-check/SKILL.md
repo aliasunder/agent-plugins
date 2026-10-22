@@ -109,10 +109,10 @@ dispatching session's.
    - **No PR, no flag**: offer two options — create a PR first, or proceed in local
      review mode.
 2. **Resolve the review base once.** Every phase diffs the same base. Record it as
-   REVIEW_BASE, a full commit SHA, and put it in every phase dispatch as a
-   `Base: <REVIEW_BASE>` line. NEVER use local `main` as the base: it can sit behind
-   `origin/main` or already hold this branch's commits, and then every phase reviews
-   the wrong files.
+   REVIEW_BASE, a full commit SHA, and put it in the dispatches for phases 1 and 3-5
+   as a `Base: <REVIEW_BASE>` line; Phase 2 gets the file list built from it. NEVER
+   use local `main` as the base: it can sit behind `origin/main` or already hold
+   this branch's commits, and then every phase reviews the wrong files.
    - **PR mode:** fetch the PR's base branch and take the merge base.
      ```
      git fetch origin <base-branch>
@@ -127,9 +127,9 @@ dispatching session's.
      `origin/main` merge base here: once main's commits are pushed, that merge base
      is HEAD itself and the range is empty.
 
-   Given a base that HEAD already contains, `git merge-base` returns that base; given
-   any other base, it returns the last commit the two share; given a tag, it returns
-   the tag's commit. So REVIEW_BASE is always a commit SHA that HEAD contains, and
+   Given a base that HEAD already contains, `git merge-base` returns that base (for a
+   tag, the commit the tag points to); given any other base, it returns the last
+   commit the two share. So REVIEW_BASE is always a commit SHA that HEAD contains, and
    the review range `REVIEW_BASE...HEAD` holds exactly the commits HEAD added after
    it. With `--inline`, run each skill as if its dispatch named this `Base:` line;
    with `--fork`, put the line in each fork's prompt.
@@ -401,9 +401,12 @@ the pipeline pushes nothing).
    commit range.
 3. **Dispatch a delta review when the delta is substantive** — any new or changed
    logic, API shape, config/CI behavior, or restructured docs. Scope the dispatch to
-   the delta diff only: in place of the `Base:` line, name the commits under review
-   as `Range: <reviewed-sha>..<head-sha>`, both full SHAs, with `<head-sha>` the
-   HEAD that step 2 diffed. The agent then lists only the delta's files. Dispatch
+   the delta diff only. In the phase template:
+   - replace "against the base commit below" with "on the commits below";
+   - replace the `Base:` line with `Range: <reviewed-sha>..<head-sha>`, both full
+     SHAs, with `<head-sha>` the HEAD that step 2 diffed.
+
+   The agent then lists only the delta's files. Dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
    when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
@@ -751,8 +754,8 @@ without `tool-definitions` turns it off.
    - Number the report files with one counter across the whole step:
      `report-1.md`, `report-2.md`, … in the parent folder. The `batch <n>` in each
      description counts within its file.
-   - In local mode, replace `branch <branch> (PR #<number>)` in the prompt the way
-     "Dispatch prompt changes" under Local review mode says: `commits <short-sha>..<short-sha>`.
+   - In local mode, change the prompt's `branch <branch>` and `PR #<number>` the way
+     "Dispatch prompt changes" under Local review mode says.
 
    The two parenthesized `(only when …)` notes in this template are instructions
    to you, not prompt text: keep the line, without the note, when its condition

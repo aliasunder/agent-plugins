@@ -58,7 +58,9 @@ Load these sources fresh every time — do not rely on what is already in contex
    - Neither line → `git fetch origin <base-branch>`, then
      `git diff origin/<base-branch>...HEAD`, with `<base-branch>` the PR's base
      branch (`gh pr view --json baseRefName --jq .baseRefName`), or the default
-     branch, usually `main`, when there is no PR.
+     branch, usually `main`, when there is no PR. On the default branch itself,
+     the diff is empty once that branch's commits are pushed: ask the user for a
+     base instead of reporting 0 files.
 
    NEVER diff against local `main`: it can sit behind `origin/main` or hold this
    branch's commits, and then you review the wrong files.

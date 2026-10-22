@@ -94,7 +94,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
      `git diff --name-only origin/<base-branch>...HEAD`. `<base-branch>` is the
      PR's base branch, which `gh pr view --json baseRefName --jq .baseRefName`
-     prints; with no PR, use the default branch, usually `main`.
+     prints; with no PR, use the default branch, usually `main`. On the default
+     branch itself, the diff is empty once that branch's commits are pushed: ask
+     the user for a base instead of reporting 0 files.
 
    NEVER diff against local `main`: it can sit behind `origin/main` or hold this
    branch's commits, and then you review the wrong files.
