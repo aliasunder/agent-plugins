@@ -185,6 +185,17 @@ unanswered non-thread bot findings, conflicts.
 > skill is running — re-read this line before the first reply of every
 > monitoring cycle.
 
+### Findings this PR won't fix, when `triage-finding` is available
+
+If a `triage-finding` skill is available, evaluate every finding in this round first
+(item 1 under "Bot threads"), then run it once with every finding you will not fix in
+this PR, false positives included, and every finding a person raised. Pass each
+finding's author (bot, Claude-authored, or person) and what this run may do: edit,
+push, reply, resolve. Act on its result for each finding, and do not fix, reply,
+resolve or ask again on your own. A pending finding is not routed again until it
+settles. Where the steps below say to ask the user, its result replaces that ask.
+Without the skill, continue as below.
+
 ### Bot threads (qodo, CodeRabbit, etc.)
 
 For each unresolved bot thread, do ALL of these in order:
@@ -210,7 +221,8 @@ For each unresolved bot thread, do ALL of these in order:
    - **"Out of scope" is not yours to declare.** Only the user decides scope. If a
      finding is valid and the fix is reasonable effort, fix it. If it's genuinely high
      lift (major refactor, new async boundary, architectural change), describe the effort
-     and ask the user — don't defer it unilaterally.
+     and ask the user — don't defer it unilaterally. (With `triage-finding`, its result
+     settles this instead.)
    - **"Cross-cutting" requires a count.** Before dispositioning a valid finding as a
      cross-cutting refactor or too large, grep the actual sites and state the numbers:
      files touched, import sites, net line change. A contained, net-neutral move — a
@@ -218,7 +230,8 @@ For each unresolved bot thread, do ALL of these in order:
      now. (A fixture-consolidation finding dispositioned "valid but out of scope" was
      implemented by the author 4 minutes later: 4 import sites, net-neutral diff.)
    - **"Belongs in a separate PR" is not a valid disposition.** Assess the lift. If
-     it's a few lines, fix it now. If it's large, present the tradeoff to the user.
+     it's a few lines, fix it now. If it's large, present the tradeoff to the user, or
+     follow `triage-finding`'s result when it ran.
 
 2. **Report as a one-liner** before acting:
    ```
@@ -230,7 +243,7 @@ For each unresolved bot thread, do ALL of these in order:
 3. If valid: **make the code fix**. If the lift is unclear, assess it first (how many
    lines? does it need tests? does it change an interface?) and state it in the one-liner.
    Fix anything that's reasonable effort; only escalate to the user when the fix is
-   genuinely high lift.
+   genuinely high lift, through `triage-finding` when it is available.
 
 4. **Sweep the class repo-wide, before you commit.** A bot flags instances; the next
    pass flags the sibling you left, and the point-fix loop is how a PR ends up with
@@ -266,7 +279,8 @@ For each unresolved bot thread, do ALL of these in order:
    output reports "Sweep "<old value>": 3 hits repo-wide — fixed in README, .env.example, server.json".
 
    A class-wide fix converges the review; a point fix buys another full bot cycle for
-   each sibling.
+   each sibling. The sweep never reopens or fixes a finding `triage-finding` logged, or
+   one the user deferred or dismissed.
 
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
@@ -292,6 +306,12 @@ For each unresolved bot thread, do ALL of these in order:
      *"Fixed -- [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+   - **Result from `triage-finding`** -- post the reply it gives, with the same footer:
+     *"Not changing this: [the deciding evidence]."* for a finding it logged,
+     *"Already handled in [PR or commit]."*, *"The maintainer approved deferring this to
+     a follow-up change."* for a deferral the user approved, or *"The maintainer decided
+     not to change this: [reason]."* for a valid finding the user dismissed. A pending
+     finding gets no reply and stays unresolved.
 
    **Keep the reply call plain.** A sandboxed session (a Claude Code worktree
    session, for one) refuses a command it cannot analyze, and each refusal costs
@@ -350,7 +370,8 @@ a reply instead: post one `gh pr comment` covering the body-only findings
 you handled — name each finding by its review ID and description, state
 fixed/intentional with the reasoning, include the same attribution footer.
 A finding answered nowhere on the PR is indistinguishable from one that was
-never read.
+never read. When `triage-finding` ran, state each outcome it returned, leave
+pending findings out, and resolve nothing.
 
 The plain-call rule from the bot-thread reply step (item 5 under "Bot threads")
 applies to this comment too: never build the
@@ -362,6 +383,9 @@ the runtime has no scratchpad.
 
 ### Human findings without a thread (issue comments from 2d classified as Human)
 
+If `triage-finding` is available, pass these to it with the round's other findings,
+as "Human threads" below says. Otherwise:
+
 Present each to the user — the same way you handle human review threads.
 Quote the comment text and author. Do NOT auto-resolve, auto-reply, or
 dismiss human issue comments without explicit user approval. If the user
@@ -369,6 +393,11 @@ provides a response, reply on their behalf via `gh pr comment` (with the
 attribution footer).
 
 ### Human threads
+
+If `triage-finding` is available, pass these to it with the round's other findings
+(the first section of this step). It fixes and answers only a cheap defect, asks the
+user about anything else, and never resolves a person's thread before the user has
+responded. Otherwise:
 
 Present each to the user. Do NOT auto-resolve human comments without explicit approval.
 If the user provides a response, reply on their behalf and resolve.
@@ -381,7 +410,9 @@ searches the whole repo for one corrected claim; this pass is the same kind of
 search across the union of classes, not a diff review. Each push triggers a
 complete re-review, so any instance the per-finding sweeps missed comes back as a
 review bot comment on the next pass. The target is convergence in one or two
-cycles, not a comment-per-instance conversation.
+cycles, not a comment-per-instance conversation. Like item 4's sweep, this pass
+never reopens or fixes a finding `triage-finding` logged, or one the user
+deferred or dismissed.
 
 If you fixed any code: stage, commit, push. Then **go to Step 4** -- this is mandatory.
 
@@ -460,7 +491,8 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 
 **Prerequisites -- ALL must be true before you may report:**
 - All CI checks passing (or only known-flaky / unrelated failures)
-- All bot threads resolved (each one replied to before resolving)
+- All bot threads resolved (each one replied to before resolving), except findings
+  `triage-finding` left pending, which stay unresolved and are listed as blockers
 - **Every fix in this run reports its sweep receipt.** A fix with no
   `Sweep "<term>": N hits repo-wide` line means the Step 3 item-4 sweep never ran —
   go back to Step 3 and run the repo-wide search.

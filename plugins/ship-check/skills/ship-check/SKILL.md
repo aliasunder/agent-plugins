@@ -968,8 +968,13 @@ Ship check complete:
 ```
 
 If any findings remain deferred at the end of Phases 1-5 and the tool-definition
-review, present them to the user with their flag category and ask for a decision
-before declaring the verdict.
+review, and a `triage-finding` skill is available, run it once with them first,
+passing this run's mode (PR, `--report`, local on main, or local on a branch) and
+what the run may do. Count each `Fix` it returns as fixed once applied (a
+`Recommended fix` when the run may not edit), each logged dismissal under
+Dismissed with its evidence, and each finding it leaves for the user under
+Deferred. Then present the findings still deferred to the user with their flag
+category and ask for a decision before declaring the verdict.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
@@ -996,8 +1001,10 @@ Ship check complete (comment mode):
 - Reviews posted: N (one per phase with findings)
 ```
 
-Present deferred findings to the user with their flag category. The pipeline ends here
-— no Phase 6 monitoring loop.
+If a `triage-finding` skill is available, run it once with the deferred findings
+first, passing comment mode; it asks nothing, and each result lands in this run's
+comments or this report. Present the findings still deferred to the user with their
+flag category. The pipeline ends here — no Phase 6 monitoring loop.
 
 ## Options
 
