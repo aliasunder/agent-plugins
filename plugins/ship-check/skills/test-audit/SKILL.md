@@ -65,7 +65,11 @@ Load these sources fresh:
 
   NEVER diff against local `main`: it can sit behind `origin/main` or hold this
   branch's commits, and then you review the wrong files.
-- **If the user specifies files or "all tests"**: use that scope instead.
+- **If the user specifies files or "all tests"**: audit those test files instead.
+  Coverage gap analysis still takes its changed files from the Default range
+  above, because it asks whether what changed has tests. When that range is
+  empty (on the default branch with every commit pushed), skip gap analysis and
+  say so in the summary instead of asking for a base.
 - **Production files are read-only for this phase.** A production bug discovered
   while auditing is reported as a finding, proven by the failing test you write
   for it — never fixed here. This phase's edits are confined to test files.
@@ -285,7 +289,8 @@ Always runs alongside the audit dimensions above. When no test files were change
 is the primary audit. It answers: "should there be tests for what changed?"
 
 1. **List all changed files**: `git diff --name-only <range>`, where `<range>` is the
-   range Scope chose: `<REVIEW_BASE>...HEAD`, `<reviewed-sha>..<head-sha>`, or
+   range Scope's Default chose, also when the user named the test files to audit:
+   `<REVIEW_BASE>...HEAD`, `<reviewed-sha>..<head-sha>`, or
    `origin/<base-branch>...HEAD`.
    Separate into two lists: test files (`.test.ts` / `.spec.ts`) and non-test files. Exclude docs (`.md`)
    and generated files from the non-test list. Don't categorically exclude config files

@@ -96,8 +96,11 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    NEVER diff against local `main`: it can sit behind `origin/main` or hold this
    branch's commits, and then you review the wrong files.
 
-   Separate into test files (`.test.ts` / `.spec.ts`) and production files.
-   If 0 of both, report "0 files in scope" and exit.
+   Separate into test files (`.test.ts` / `.spec.ts`) and production files. Then
+   apply the test-audit skill's Fast exit: when there are 0 test files AND 0
+   testable files (CI/CD workflows, IaC, Dockerfiles, pure config and docs are not
+   testable), report "0 test files, 0 testable files changed — nothing to audit"
+   and exit.
 
 ## Sequential thinking triggers
 
