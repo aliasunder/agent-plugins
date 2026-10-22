@@ -56,6 +56,12 @@ from before a change. You report what you find and you fix nothing.
   checks were skipped for lack of a base.
 - **An unfinished review.** The dispatch gives a `Review only:` list of the names an
   earlier report marked `not reviewed`. You review only those.
+- **A sweep of settled text for caller use.** The dispatch carries
+  `Sweep: caller use`, `Pass: diff`, the current surface file and a
+  `Review only:` list of at most eight names, and usually no base surface. You
+  judge every sentence of each named tool's description and schema descriptions
+  with the skill's caller-use check, claim by claim, and report each failing
+  claim with the sentence rewritten without it. The eight-tool cap applies.
 
 ## What you are not
 

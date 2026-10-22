@@ -48,6 +48,7 @@ whose input is missing is **skipped and listed as skipped**, never guessed at.
 | Grader results | no | A file of scores and written reasons from an outside service that grades tool definitions, such as Glama's Tool Definition Quality Score | Noise section skipped |
 | `Review only:` list | no | Names that limit which tools you review in this dispatch. It is NOT the intended-tools list | Scope comes from the script |
 | `Pass:` line | no | `cold` or `diff` | Do both reads, cold first |
+| `Sweep:` line | no | `caller use`. The caller-use check judges every sentence of each in-scope tool, changed or not. A sweep dispatch is `Pass: diff` with no base surface, so its diff read is the caller-use and duplicated-fact checks, plus the error-entry check when it names a repository root | The caller-use check judges only the sentences a change added or reworded |
 
 A surface file is an object with a `tools` array, a bare array of tools, or a
 JSON-RPC response whose `result` holds `tools`. It must hold the whole list.
@@ -369,12 +370,15 @@ works inside belongs in the repository's own docs.
 
 - **Action:** for each sentence the change adds or rewords, read the tool's
   description and schemas without that sentence, then ask the three caller-use
-  questions below about the difference the sentence makes. Report a sentence
-  that passes none of them as a numbered defect, and propose where it goes
-  instead. With a repository root, name the repository's architecture or
-  contributor doc (`ARCHITECTURE.md`), or propose cutting the sentence when
-  that doc already says it. Without a repository root, propose the
-  repository's own docs and name no file.
+  questions below about the difference the sentence makes. When a sentence
+  makes more than one claim, ask them of each claim in turn, reading the
+  definition without that claim. Report a sentence whose claims all fail as a
+  numbered defect, and propose where it goes instead: with a repository root,
+  name the repository's architecture or contributor doc (`ARCHITECTURE.md`),
+  or propose cutting the sentence when that doc already says it; without one,
+  propose the repository's own docs and name no file. Report a sentence with
+  a passing claim and a failing one as the failing claim, and propose the
+  sentence rewritten with only its passing claims.
   1. **Send:** with the sentence, does the caller send something different —
      another tool, another parameter, another value?
   2. **Act:** with the sentence, does the caller do something different with the
@@ -382,7 +386,8 @@ works inside belongs in the repository's own docs.
      stay under a limit, make or skip a follow-up call?
   3. **Assume:** does the sentence stop the caller from acting on a wrong
      assumption that the rest of the definition leaves open?
-- **Condition:** a base surface was supplied. The text to judge is:
+- **Condition:** a base surface was supplied, or the dispatch carries
+  `Sweep: caller use`. With a base and no `Sweep:` line, the text to judge is:
   - for each changed tool, its `changes[].descriptionLines.added` and
     `changes[].schemaSentences.added`, split into sentences (a reworded
     sentence is in `added` in its new wording);
@@ -391,6 +396,11 @@ works inside belongs in the repository's own docs.
 
   A sentence that stands word for word in that tool's base text was moved, not
   added: skip it.
+
+  With `Sweep: caller use`, the text to judge is every sentence of each
+  in-scope tool's description and schema descriptions, as `--show` prints
+  them, whether or not any change touched it. A base surface, when supplied,
+  still feeds the other checks; it does not narrow this one.
 - **Boundary:**
   - A sentence that passes one question stays, however much detail it carries.
     NEVER flag a sentence for its length or for the number of facts in it.
@@ -405,24 +415,34 @@ works inside belongs in the repository's own docs.
   - Judge what the caller can do with the sentence, not whether it is true. A
     true sentence can fail this check. Accuracy belongs to the error-entry check
     and to bug-check.
-  - One clause can fail inside a sentence that passes. A qualifier that names a
+  - One claim can fail inside a sentence that passes. A qualifier that names a
     condition the caller can neither see nor change (a server-internal index, a
     cache, a code path) fails all three questions, even inside an `Errors:` entry
-    whose failure and remedy pass question 2. Report that clause as the defect,
-    and keep the rest of the sentence. Count the sentence under fail on the
-    `Caller use:` line, and quote the clause.
+    whose failure and remedy pass question 2. So does a clause that says how an
+    outcome comes about beside a claim that states the outcome ("Canvas files'
+    links are updated too, by rewriting each file card's path" keeps its first
+    claim). Report the failing claim as the defect, and propose the sentence
+    with only its passing claims. Count the sentence under fail on the
+    `Caller use:` line, and quote the claim.
   - A rule in the project's own instructions that requires the text wins, as it
     does for duplicated facts.
-  - Text the change did not add or reword is out of scope. This check NEVER
-    reopens a sentence the change left alone.
-- **Before you report a sentence or clause as having no caller use, and before
-  you pass one,** call `sequentialthinking` with the sentence, the definition
-  without it, and the three questions. For each question, name the caller
-  action that differs with and without the sentence. A sentence with no such
-  action fails.
+  - A schema description that states only the parameter's plain meaning (what
+    it is, its format, its default) passes. Clients show it beside the
+    parameter, and a parameter with none reads as undocumented. Do NOT propose
+    cutting it; judge only what a schema description says beyond that.
+  - Without `Sweep: caller use`, text the change did not add or reword is out
+    of scope, and this check NEVER reopens a sentence the change left alone.
+    With it, every sentence in scope is judged once, and a sentence that
+    passes is listed in the count, not in the report's defects.
+- **Before you report a sentence or claim as having no caller use, and before
+  you pass one,** call `sequentialthinking` with the sentence or claim, the
+  definition without it, and the three questions. For each question, name the
+  caller action that differs with and without it. A sentence or claim with no
+  such action fails.
 
 Write the count in the tool's entry (`Caller use: 6 sentences added or reworded —
-5 pass, 1 fails`). The count is how a reader sees the check ran.
+5 pass, 1 fails`; under a sweep, `Caller use (sweep): 41 sentences — 38 pass,
+3 fail`). The count is how a reader sees the check ran.
 
 Example: a change adds two sentences to a folder-listing tool.
 
@@ -560,7 +580,7 @@ Per tool
     B3: no entry says what an empty result looks like
   Structure: <N> lists read — <no faults | K faults: <test> "<quoted text>"; <test> "<quoted text>">
   Facts: <N> in the old text — <K> moved or restated (<which>), <U> unreachable entries removed (<which>), <C> cut with no caller use (<which>), <J> dropped (<which>)
-  Caller use: <N> sentences added or reworded — <K> pass, <J> fail (<quoted sentence or clause>)
+  Caller use: <N> sentences added or reworded — <K> pass, <J> fail (<quoted sentence or claim>)   (under a sweep: Caller use (sweep): <N> sentences — <K> pass, <J> fail)
   Errors: handler <file:function>
     "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
     "<failure message>" (<file:line>) — <listed | MISSING | unreachable (schema rejects first: <rule>)>
