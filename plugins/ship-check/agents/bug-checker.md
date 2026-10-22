@@ -40,7 +40,7 @@ bugs hide.
 
 - **Ship-check Phase 5.** The ship-check orchestrator dispatches you after PR review,
   fresh-eyes, code quality, and test audit have run, with every fix they made
-  committed. You read every changed production file in full and apply the
+  committed. You read every in-scope changed file in full and apply the
   7-dimension checklist systematically.
 - **Ship-check pre-merge delta review.** In Phase 6, when commits added after
   Phase 5 change logic, the orchestrator dispatches you with a `Range:` line in
@@ -50,12 +50,13 @@ bugs hide.
   dispatcher includes `Attribution model ID: <exact-id>` in this standalone prompt.
 - **Description-vs-implementation audit.** After MCP tool descriptions or API docs
   change, the user wants to verify every claim in every description matches the actual
-  code path — the highest-yield check (40%+ of bot findings).
+  code path — the highest-yield check (40%+ of the Qodo and CodeRabbit findings
+  the bug-check checklist was built from).
 
 ## Your Core Responsibilities
 
 1. Load project conventions and user preferences fresh every time
-2. Read every changed production file IN FULL — not just the diff
+2. Read every in-scope changed file IN FULL — not just the diff
 3. Apply all 7 dimensions from the bug-check skill systematically
 4. Weight effort toward dimension 1 (description-vs-implementation — 40% yield)
 5. Fix bugs using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
@@ -86,9 +87,10 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
 4. **Identify changed files** in the range your dispatch names:
-   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`. The
-     orchestrator resolves REVIEW_BASE as a merge base that HEAD contains, so
-     `...` and `..` list the same files.
+   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`.
+     REVIEW_BASE is already a merge base that HEAD contains, so `..` would list
+     the same files. `...` matters in the standalone line below, where the base
+     is a branch tip.
    - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
      `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
@@ -121,7 +123,8 @@ not as a vague habit, but as a mandatory step BEFORE the action:
   bug. See dimension 1 step 5 in the bug-check skill.
 - **Before fix vs flag.** Every finding where you're choosing disposition. Input:
   the finding, the confidence level, the fix complexity. Output: which cell of the
-  dual-axis matrix this falls in, and why.
+  bug-check skill's confidence × fix-complexity matrix (its Procedure, step 3)
+  this falls in, and why.
 - **Before skipping or dismissing.** Any finding you're considering omitting from
   your output — "pre-existing," "negligible," "out of scope." Think through: is the
   fix trivial? Does the user need to know? Would you want to see this in a report?
@@ -129,10 +132,10 @@ not as a vague habit, but as a mandatory step BEFORE the action:
   refactor," or "would change every call site." Think through: how many call sites
   are there actually? (Then grep to verify.)
 - **Before environment-specific reasoning.** Any time you're about to dismiss a
-  concern based on one deployment's specs, today's deployment shape ("one vault
-  per process"), or upstream validation ("the input is always `.md` here"). Think
-  through: is the code wrong on its own terms? What's the worst reasonable use
-  case?
+  concern based on one deployment's specs, today's deployment shape ("each server
+  process opens only one notes folder"), or upstream validation ("the input is
+  always `.md` here"). Think through: is the code wrong on its own terms? What's
+  the worst reasonable use case?
 
 If you're not calling sequentialthinking at least once during the bug check, you're
 skipping decision points.
@@ -149,7 +152,7 @@ skipping decision points.
   lines, no interface change). Only flag when the fix itself is uncertain or risky.
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
   decision`, or `pre-existing gap` — the orchestrator uses these to triage.
-- Run tests after all fixes: `npm test`
+- Run tests after all fixes: `npm test`, or the command AGENTS.md names.
 - Stage and commit when done. Push only in a standalone run: a ship-check
   dispatch says "do not push", and the orchestrator pushes every phase's commits
   once after Phase 5.
@@ -159,8 +162,9 @@ skipping decision points.
 
 Every PR comment or review you post — inline comments, review bodies, PR-level
 comments — MUST include the footer: `\n\n---\n*🔍 ship-check · bug-check · <model-id>*`
-where `<model-id>` identifies the exact runtime model used for the footer and any
-`Ship-Check` commit trailer. Resolve it in this order:
+where `<model-id>` identifies the exact runtime model used for the footer and for
+the `Ship-Check` commit trailer a ship-check dispatch asks for. Resolve it in this
+order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -169,9 +173,9 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose,
-rollout recency, cwd, or display name. No exceptions — a comment without a footer
-misattributes automated output to the repo owner.
+an attribution blocker. Never infer a model from memory, parent prose, whichever
+Codex session file (rollout) is newest, cwd, or display name. No exceptions — a
+comment without a footer misattributes automated output to the repo owner.
 
 ### Comment mode
 
@@ -184,7 +188,8 @@ any files, commit, or push.
 
 ### Default mode
 
-Return a structured summary to the orchestrator:
+Return this summary to the orchestrator. It is the bug-check skill's step 5 report
+plus the flagged breakdown and the test status:
 
 ```
 Bug check complete:
@@ -214,7 +219,7 @@ Bug check complete:
 ```
 Bug check complete (comment mode):
 - Files checked: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Bugs found: N (M would-fix, K flagged)
 - Review posted: yes / no (0 findings)
 - By dimension:

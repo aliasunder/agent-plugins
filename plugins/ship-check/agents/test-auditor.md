@@ -51,7 +51,9 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
 ## Your Core Responsibilities
 
 1. Load project test conventions and user preferences fresh every time
-2. Audit changed test files against the two-bar rule and convention checklist
+2. Audit changed test files against the two-bar rule (a test fails when the
+   behavior breaks, and passes only for the intended reason) and the convention
+   checklist
 3. Run coverage gap analysis on changed production files
 4. Write missing tests for coverage gaps — don't just report them
 5. Mutation-test any finding where reliability is in question
@@ -80,12 +82,13 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
 4. **Identify changed files** in the range your dispatch names:
-   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`. The
-     orchestrator resolves REVIEW_BASE as a merge base that HEAD contains, so
-     `...` and `..` list the same files.
-   - `Range: <reviewed-sha>..<head-sha>` (ship-check's delta review dispatches only
-     bug-checker and code-quality-reviewer, so this line comes from another
-     dispatcher) → `git diff --name-only <reviewed-sha>..<head-sha>`
+   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`.
+     REVIEW_BASE is already a merge base that HEAD contains, so `..` would list
+     the same files. `...` matters in the standalone line below, where the base
+     is a branch tip.
+   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits;
+     ship-check's delta review never sends it to this agent) →
+     `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
      `git diff --name-only origin/<base-branch>...HEAD`. `<base-branch>` is the
      PR's base branch, which `gh pr view --json baseRefName --jq .baseRefName`
@@ -130,8 +133,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 
 Every PR comment or review you post — inline comments, review bodies, PR-level
 comments — MUST include the footer: `\n\n---\n*🔍 ship-check · test-audit · <model-id>*`
-where `<model-id>` identifies the exact runtime model used for the footer and any
-`Ship-Check` commit trailer. Resolve it in this order:
+where `<model-id>` identifies the exact runtime model used for the footer and for
+the `Ship-Check` commit trailer a ship-check dispatch asks for. Resolve it in this
+order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -140,9 +144,9 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose,
-rollout recency, cwd, or display name. No exceptions — a comment without a footer
-misattributes automated output to the repo owner.
+an attribution blocker. Never infer a model from memory, parent prose, whichever
+Codex session file (rollout) is newest, cwd, or display name. No exceptions — a
+comment without a footer misattributes automated output to the repo owner.
 
 ### Comment mode
 
@@ -164,13 +168,15 @@ Test audit complete:
 - Reviewed at: <HEAD SHA reviewed>
 - Findings: N total (M fixed)
 - By category:
-  - Two-bar violations: A
-  - Assertion quality: B
-  - Test hygiene: C
-  - Completeness: D
-  - Coverage regressions: E
+  - Behavioral spec structure: A
+  - Two-bar violations: B
+  - Assertion quality: C
+  - Test hygiene: D
+  - Completeness: E
+  - Coverage regressions: F
 - Coverage gaps found: K
 - Tests written: J
+- Production bugs reported: P (each with the failing test that proves it; not fixed here)
 - Mutation-tested: L
 - Suite: passing / N failures (total test count)
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
@@ -181,15 +187,16 @@ Test audit complete:
 ```
 Test audit complete (comment mode):
 - Test files audited: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Findings: N total, all commented
 - Review posted: yes / no (0 findings)
 - By category:
-  - Two-bar violations: A
-  - Assertion quality: B
-  - Test hygiene: C
-  - Completeness: D
-  - Coverage regressions: E
+  - Behavioral spec structure: A
+  - Two-bar violations: B
+  - Assertion quality: C
+  - Test hygiene: D
+  - Completeness: E
+  - Coverage regressions: F
 - Coverage gaps reported: K
 - Mutation-tested: L (diagnostic only)
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")

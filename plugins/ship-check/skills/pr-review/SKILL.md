@@ -29,8 +29,9 @@ Approach this review as a skeptical outsider seeing the code for the first time:
   is not assumed correct. Every line in the diff is under review.
 - **Default to thorough.** No shortcuts, no skimming. If you'd need to pause to
   verify something, verify it.
-- **Follow fable-mode discipline.** Write a stage map before starting. Verify each
-  stage with a check that can fail. Self-critique before delivering findings.
+- **Follow fable-mode discipline.** Write a stage map (numbered stages, each
+  with its expected output) before starting. Verify each stage with a check that
+  can fail. Self-critique before delivering findings.
 
 ## Before reviewing
 
@@ -112,12 +113,15 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 - Scan for obvious convention violations — naming, structure, module layering
 - Focus on what /code-quality won't catch: module boundary violations (wrong
   dependency direction), logging convention mismatches (info vs debug boundary,
-  two-arg pattern), API wire format issues (snake_case vs camelCase)
+  the logger as a required second argument, `(params, logger)`), API wire format
+  issues (snake_case vs camelCase)
 - **For thorough convention review, follow up with /code-quality**
 
 ### 3. Test quality (high-level scan)
 - Confirm tests exist for new behavior and error paths
-- Spot-check for obvious two-bar violations (silent no-op, wrong-error pass)
+- Spot-check for obvious two-bar violations, such as a silent no-op or a
+  wrong-error pass. The test-audit skill's two-bar rule says a test fails when
+  the behavior breaks, and passes only for the intended reason
 - Check test naming matches what tests actually assert
 - **For thorough test audit, follow up with /test-audit**
 
@@ -186,13 +190,13 @@ Structure the review by dimension. Use sequential thinking to organize findings.
   is any of: new exported function/class, new tool or API endpoint, new env var or
   config option, new search mode or query capability, changed behavior of an existing
   feature (not just refactoring internals). If the PR summary or commit messages use
-  words like "add", "feat", "new", "support", "enable", or "hybrid" — it's likely a
+  words like "add", "feat", "new", "support", or "enable" — it's likely a
   feature surface change.
 - **Step 1 — identify which docs track feature surface.** Check AGENTS.md for a
   "Files that track feature surface" list. If one exists, use it. If not, check for
   these common doc files in the repo root: `README.md`, `ARCHITECTURE.md`, `DEPLOY.md`,
-  `.env.example`, `AGENTS.md` (structure tree section), `.devin/wiki.json`,
-  `CHANGELOG.md`, `docs/`. Also check for deploy-specific env files
+  `.env.example`, `AGENTS.md` (structure tree section), `.devin/wiki.json` (the
+  file that steers Devin's generated repository wiki), `CHANGELOG.md`, `docs/`. Also check for deploy-specific env files
   (`deploy/*/.env.example`).
 - **Step 2 — for each doc file that exists**, grep for terms related to the changed
   feature area (the module name, function names, env var names). If the doc describes
@@ -276,9 +280,10 @@ comments.
    difference is the output path.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, dimension tag, and description.
-3. **Categorize each finding** the same way as default mode: `fixed` becomes `would fix`
-   (trivial, high confidence), and flagged findings keep their category (`uncertain
-   diagnosis`, `complex fix`, `needs design decision`, `pre-existing gap`).
+3. **Categorize each finding** the same way as default mode: a finding default mode
+   would fix ("How to report and fix", step 2) becomes `would fix`, and flagged
+   findings keep their category (`uncertain diagnosis`, `complex fix`,
+   `needs design decision`, `pre-existing gap`).
 4. **Post a single PR review** with all findings as inline comments. Use this template:
 
 ```bash
@@ -298,8 +303,9 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
-`MODEL_ID` with the exact runtime model:
+Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
+with the number in its `PR #<number>`. Replace `MODEL_ID` with the exact runtime
+model:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -308,8 +314,8 @@ Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Repla
 3. An inline standalone run may use the current session's verified exact model source.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose, rollout recency,
-cwd, or display name.
+an attribution blocker. Never infer a model from memory, parent prose, whichever Codex
+session file (rollout) is newest, cwd, or display name.
 
 5. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a
@@ -324,5 +330,5 @@ cwd, or display name.
    - Bold dimension tag: `**[D1]**`, `**[D4]**`, etc.
    - One-line description of the issue
    - Suggested fix (code snippet or description)
-   - Disposition: `Would fix (trivial)` or `Flagged: <category>`
+   - Disposition: `Would fix (<confidence>)` or `Flagged: <category>`
    - Footer (see above)

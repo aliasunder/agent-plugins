@@ -30,8 +30,9 @@ Approach each test as potentially wrong — not as a passing artifact to skim:
   block gets its own evaluation against the audit dimensions below.
 - **Default to thorough.** No shortcuts, no skimming, no "the rest look fine."
   If a test's reliability is in question, mutation-test it.
-- **Follow fable-mode discipline.** Write a stage map before starting. Verify each
-  stage with a check that can fail. Self-critique before delivering findings.
+- **Follow fable-mode discipline.** Write a stage map (numbered stages, each
+  with its expected output) before starting. Verify each stage with a check that
+  can fail. Self-critique before delivering findings.
 
 ## Before starting
 
@@ -95,9 +96,9 @@ Load these sources fresh:
   tests, and changed test files need review for coverage regressions (removed tests,
   weakened assertions, deleted branches). When no test files were changed, gap analysis
   on production files is the primary audit. Do NOT short-circuit with "0 findings."
-- **Fast exit**: After identifying changed files, if there are 0 test files AND 0
-  testable files in scope, report "0 test files, 0 testable files changed — nothing
-  to audit" and exit. CI/CD workflows (`.yml`), IaC, Dockerfiles, and pure config
+- **Fast exit** (the one exception to the rule above): After identifying changed
+  files, if there are 0 test files AND 0 testable files in scope, report "0 test
+  files, 0 testable files changed — nothing to audit" and exit. CI/CD workflows (`.yml`), IaC, Dockerfiles, and pure config
   files are not testable in the unit-test sense — a PR that only changes these is a
   valid fast exit. Do not report "0 findings" — report that nothing was in scope.
   This keeps the ship-check pipeline summary accurate (the phase ran and assessed the
@@ -250,7 +251,7 @@ Every test must satisfy BOTH bars:
 - `const` per test over `let` + `beforeEach` when possible
 - `beforeEach` justified only for shared setup all tests in a `describe` need
 - Explicit callback parameter names (`orphan` not `o`, `entry` not `e`)
-- No `!` non-null assertions — banned in production AND test code. Use a guard
+- No `!` non-null assertions, in test code as in production code. Use a guard
   (`if (!x) throw`) or restructure the assertion (`toEqual([expect.objectContaining(...)])`)
   instead of `results[0]!.path`
 - **`?.` is not `!` — don't conflate them.** The `!` ban targets non-null assertions
@@ -266,7 +267,7 @@ Every test must satisfy BOTH bars:
   index bounds, not silently skipping the operation under test. The two-bar "silent
   no-op" rule targets tests where the *tested behavior* never executed — not TypeScript
   narrowing guards on loop indices. Don't convert these to `throw`.
-- Use vitest helpers (`onTestFinished`, `vi.mocked`, `vi.each`) before hand-rolling
+- Use vitest helpers (`onTestFinished`, `vi.mocked`, `it.each`) before hand-rolling
 - **No trailing cleanup that gets skipped on failure.** When a test creates
   resources (temp directories, files, servers, connections), cleanup code at the
   END of the test body is skipped if any assertion or `await` throws.
@@ -315,7 +316,9 @@ is the primary audit. It answers: "should there be tests for what changed?"
    that cover it (`grep -rn "functionName\|describe.*ModuleName" --include="*.test.ts"`).
    A function may already be tested even if its test file wasn't changed.
 
-4. **Report each gap as a one-liner, then write the test:**
+4. **Report each gap as a one-liner, then write the test.** A `hard gap` is code no
+   test exercises at all; a `soft gap` is code whose function has tests that miss
+   the changed branch or path:
 
    ```
    [hard gap] file.ts:42 newFunction — no coverage → wrote file.test.ts: "does X when Y"
@@ -363,6 +366,9 @@ This proves the test is load-bearing, not decorative.
 [mutation] file.test.ts:42 — verified: broke behavior, test catches it
 ```
 
+- **Tag each finding with its dimension**: `[spec]` (1), `[two-bar]` (2),
+  `[assertion]` (3), `[hygiene]` (4), `[completeness]` (5). A `[mutation]` line
+  records a verification, not a finding.
 - **Fix** directly — rewrite the test to meet conventions.
 - **Run the test suite** after fixes to confirm all tests still pass.
 - Coverage gap reporting uses the one-liner format in the gap analysis section above
@@ -428,8 +434,9 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
-`MODEL_ID` with the exact runtime model:
+Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
+with the number in its `PR #<number>`. Replace `MODEL_ID` with the exact runtime
+model:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -438,8 +445,8 @@ Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Repla
 3. An inline standalone run may use the current session's verified exact model source.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose, rollout recency,
-cwd, or display name.
+an attribution blocker. Never infer a model from memory, parent prose, whichever Codex
+session file (rollout) is newest, cwd, or display name.
 
 4. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a

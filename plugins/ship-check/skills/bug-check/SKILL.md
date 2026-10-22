@@ -62,7 +62,8 @@ to every changed file. It is systematic where pr-review is intuitive.
    says "no external communication" when the system has an outbound sync service is a
    D1 bug, not a style issue. Structural changes (reordering sections, changing which
    method leads, folding content into asides) are NOT out of scope: they trigger the
-   D1 structural self-reference check and the D5 alternative-command-path check.
+   structural self-reference check in dimension 1 and the alternative-command-path
+   check (dimension 5, item 6).
    Only report "docs only — nothing to check" when no factual claims about the
    system are present AND no doc was restructured.
 5. Skip test files — test-audit handles those.
@@ -71,8 +72,9 @@ to every changed file. It is systematic where pr-review is intuitive.
 
 ## Dimensions
 
-Run each dimension against every changed production file. Dimension 1 gets the most
-time — it is the highest-yield check (40%+ of bot findings fall here).
+Run each dimension against every changed file the scope check (step 4 above) keeps.
+Dimension 1 gets the most time — it is the highest-yield check (40%+ of the Qodo and
+CodeRabbit findings behind this skill fall here).
 
 ### 1. Description-vs-implementation verification
 
@@ -200,8 +202,9 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
    If the function's contract implies stable ordering, this is a bug.
 4. **WHERE completeness**: Could rows leak through that shouldn't? Check that all
    documented filter conditions appear in the query.
-5. **GROUP BY correctness**: Every non-aggregated SELECT column must be in GROUP BY
-   (SQLite is lenient here, but the results are undefined for missing columns).
+5. **GROUP BY correctness**: Every non-aggregated SELECT column must be in GROUP BY.
+   Some engines, SQLite among them, accept a missing column and return its value
+   from an arbitrary row of each group; others reject the query.
 
 ### 3. Type safety and coercion
 
@@ -209,6 +212,8 @@ an `if:` scoping bug is a description-vs-implementation mismatch. Also check:
 
 - **Truthiness bugs**: `if (!x)` where `x` could legitimately be `0`, `""`, or
   `false`. Replace with `x === undefined` or `x === null` for absence checks.
+  Code-quality's verbose null/undefined guards trigger keeps these checks
+  explicit too.
 - **Loose equality**: `== 0` or `== ""` almost always wants strict `===`.
 - **Type assertions**: `as` casts and `!` non-null assertions bypass the compiler.
   Verify each is safe, or replace with a runtime guard.
@@ -268,10 +273,11 @@ each comparison against a sentinel or a bound:**
    level), `trim()` silently destroys structure. Flag `trim()` on any string
    where leading whitespace encodes hierarchy or formatting.
 3. **Shared helpers not used**: Before accepting a language primitive or stdlib
-   call in new code, grep `src/utils/` and nearby modules for an existing helper
-   that does the same job. This includes bounded alternatives to unbounded
-   primitives — if `mapWithConcurrency` exists and new code uses bare
-   `Promise.all` for the same fan-out pattern, that's a miss even though
+   call in new code, grep the project's shared helper modules (such as
+   `src/utils/`) and nearby modules for an existing helper that does the same
+   job. This includes bounded alternatives to unbounded primitives — if a helper
+   that caps concurrency (such as `mapWithConcurrency`) exists and new code uses
+   bare `Promise.all` for the same fan-out pattern, that's a miss even though
    `Promise.all` isn't "reimplementing" the helper. The trigger is: new code does
    concurrent work, file manipulation, error formatting, or string processing →
    grep for helpers first, then justify why the primitive is correct if one exists.
@@ -412,14 +418,15 @@ The orchestrator decides scope; you decide what to report.
 ### No environment-specific dismissals
 
 Don't use one deployment's specs to dismiss resource, performance, or scaling
-concerns. "On Lightsail with 4GB RAM and 772 notes, this is negligible" is not a
-valid dismissal for an OSS project where users may have 10x the data on half the
-RAM. Evaluate concerns against the worst reasonable use case for the project's
-audience — not the maintainer's current setup.
+concerns. "On the maintainer's server with 4GB RAM and 772 notes, this is
+negligible" is not a valid dismissal for an OSS project where users may have 10x
+the data on half the RAM. Evaluate concerns against the worst reasonable use case
+for the project's audience — not the maintainer's current setup.
 
-The same rule covers deployment shape and upstream validation. "One vault per
-process", "the input is always `.md` because it was validated earlier", and "this
-can't happen in practice" describe today's callers, not the code. A guard that is
+The same rule covers deployment shape and upstream validation. "Each server
+process opens only one notes folder", "the input is always `.md` because it was
+validated earlier", and "this can't happen in practice" describe today's callers,
+not the code. A guard that is
 wrong on its own terms, a module-level cache that is not keyed by the thing it
 caches for, or a fallback that picks the destructive branch is a finding whether
 or not the current deployment can reach it. Report it, categorize the reach as
@@ -446,7 +453,7 @@ yours. Convention violations in your fixes ship unchecked.
 
 ## Procedure
 
-1. **For each changed production file**, read the full file content (not just the
+1. **For each in-scope changed file**, read the full file content (not just the
    diff). Log that you read it — cite what you checked as proof of work:
    ```
    vault-crud-tools.ts (650 lines) — 3 tool defs, 5 cross-refs, 0 SQL, 2 guards
@@ -460,7 +467,7 @@ yours. Convention violations in your fixes ship unchecked.
    Dimensions 6-7 are quicker but still require reading the code.
 3. **One line per finding, then fix it:**
    ```
-   [D1] file.ts:612 — description refs vault_find_orphans, should be vault_get_backlinks → description fixed (code matches intent)
+   [D1] file.ts:612 — description refs vault_find_orphans, should be vault_get_outgoing_links → description fixed (code matches intent)
    [D1] file.ts:940 — description says setting is honored, code skips it when an env var is set → code fixed (env var was a proxy for state)
    [D4] file.ts:88 — off-by-one in LIMIT, fetches N not N+1 for truncation → fixed (low confidence, trivial fix)
    [D5] file.ts:200 — async init race if called concurrently → flagged (complex fix — needs mutex or queue)
@@ -527,9 +534,9 @@ comments.
    sequential thinking for disposition decisions. The only difference is the output path.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, dimension tag, confidence level, and description.
-3. **Still categorize on two axes** — confidence × complexity. In comment mode, `fixed`
-   becomes `would fix` (high/medium confidence, trivial change) and flagged findings keep
-   their category.
+3. **Still categorize on two axes** — confidence × complexity. In comment mode, a
+   finding default mode would fix (Procedure, step 3) is labeled `would fix`, and
+   flagged findings keep their category.
 4. **Post a single PR review** with all findings as inline comments:
 
 ```bash
@@ -542,15 +549,16 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
     {
       "path": "src/file.ts",
       "line": 612,
-      "body": "**[D1]** Description refs `vault_find_orphans`, should be `vault_get_backlinks`\n\nThe description says \"find notes with broken links\" but `vault_find_orphans` finds notes with no *incoming* links. `vault_get_backlinks` is the correct tool for outgoing link validation.\n\n*Would fix (trivial, high confidence)*\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*"
+      "body": "**[D1]** Description refs `vault_find_orphans`, should be `vault_get_outgoing_links`\n\nThe description says \"find notes with broken links\" but `vault_find_orphans` finds notes with no *incoming* links. Broken links are *outgoing* links, so `vault_get_outgoing_links` is the correct tool.\n\n*Would fix (high confidence)*\n\n---\n*🔍 ship-check · bug-check · MODEL_ID*"
     }
   ]
 }
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
-`MODEL_ID` with the exact runtime model:
+Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
+with the number in its `PR #<number>`. Replace `MODEL_ID` with the exact runtime
+model:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -559,8 +567,8 @@ Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Repla
 3. An inline standalone run may use the current session's verified exact model source.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose, rollout recency,
-cwd, or display name.
+an attribution blocker. Never infer a model from memory, parent prose, whichever Codex
+session file (rollout) is newest, cwd, or display name.
 
 5. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a
@@ -573,5 +581,5 @@ cwd, or display name.
    - One-line description of the bug
    - Evidence: quote the description sentence, trace the code path, explain the mismatch
    - Suggested fix (code snippet when possible)
-   - Disposition: `Would fix (trivial, <confidence>)` or `Flagged: <category>`
+   - Disposition: `Would fix (<confidence>)` or `Flagged: <category>`
    - Footer (see above)

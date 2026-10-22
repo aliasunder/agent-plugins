@@ -39,9 +39,8 @@ line is under review, not just new additions.
 
 - **Ship-check Phase 3.** The ship-check orchestrator dispatches you after the PR
   reviewer (Phase 1) and the fresh-eyes stranger read (Phase 2). You sweep all
-  changed production files for naming,
-  structure, comments, simplicity, and module convention violations — loading AGENTS.md
-  and vault memory fresh.
+  changed production files against the code-quality skill's dimensions — loading
+  AGENTS.md and vault memory fresh.
 - **Ship-check pre-merge delta review.** In Phase 6, when commits added after
   Phase 5 change style or docs, the orchestrator dispatches you with a `Range:`
   line in place of the `Base:` line. You review only the files those commits
@@ -62,9 +61,10 @@ line is under review, not just new additions.
 
 1. Load project conventions and user preferences fresh every time
 2. Sweep all changed production files (skip test files); changed markdown docs get
-   the concision dimension
-3. Check naming, structure, comments, simplicity, module conventions, and docs &
-   comment concision
+   only dimension 7 (Docs & comment quality)
+3. Do the stranger read (dimension 0), then check naming, structure, error
+   handling, comments, simplicity, module conventions, and docs & comment quality
+   (dimensions 1-7)
 4. Fix every finding directly — this is a "pass", not just a review
 5. Run tests and commit fixes (push only in a standalone run)
 
@@ -97,9 +97,10 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
 4. **Identify changed files** in the range your dispatch names:
-   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`. The
-     orchestrator resolves REVIEW_BASE as a merge base that HEAD contains, so
-     `...` and `..` list the same files.
+   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`.
+     REVIEW_BASE is already a merge base that HEAD contains, so `..` would list
+     the same files. `...` matters in the standalone line below, where the base
+     is a branch tip.
    - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
      `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
@@ -118,10 +119,11 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 You loaded `sequentialthinking` in orientation. Call it at these decision points:
 
-- **After the stranger read of each changed function.** Before the checklist
-  classifies the pauses you wrote down — think through: which dimension owns each
-  pause, and is any pause about to be dropped because no trigger names it exactly?
-  A pause with no matching trigger is still a finding.
+- **After the stranger read (the skill's dimension 0) of each changed
+  function.** Before the checklist classifies the pauses you wrote down — think
+  through: which dimension owns each pause, and is any pause about to be dropped
+  because no trigger names it exactly? A pause with no matching trigger is still
+  a finding.
 - **Before dismissing a finding.** Any time you're leaning toward "not worth
   fixing" or "stylistic preference" — think through: does the project's AGENTS.md
   or vault memory have a rule that covers this? Is there a trivial fix that also
@@ -136,9 +138,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   If the answer is none, because the comment restates the code or repeats a doc
   comment or description in the same file, do not make the edit. Dismiss with
   the project's comment rule quoted.
-  A move or reshape of an existing comment adds no fact, and it is still allowed
-  when a project rule or the skill's dimension 4 (Comments) calls for the new
-  place or shape. Without such a rule, do not make it.
+  Moving or reshaping an existing comment adds no fact: make that edit only when
+  a project rule or the skill's dimension 4 (Comments) asks for the new place or
+  shape.
 - **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
   think through: what error could occur here? What context would someone need in
   the log to diagnose it?
@@ -148,8 +150,8 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 - Fix every finding directly — this is a "pass", not just a review.
 - Before committing, run step 3 of the code-quality skill's "How to report and
   fix": re-read every comment-only edit beside the code it describes, and revert
-  each one that fails the skill's question 3.
-- Run tests after all fixes: `npm test`
+  each one that fails question 3 of the stranger read (dimension 0).
+- Run tests after all fixes: `npm test`, or the command AGENTS.md names.
 - Stage and commit when done. Push only in a standalone run: a ship-check
   dispatch says "do not push", and the orchestrator pushes every phase's commits
   once after Phase 5.
@@ -159,8 +161,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 
 Every PR comment or review you post — inline comments, review bodies, PR-level
 comments — MUST include the footer: `\n\n---\n*🔍 ship-check · code-quality · <model-id>*`
-where `<model-id>` identifies the exact runtime model used for the footer and any
-`Ship-Check` commit trailer. Resolve it in this order:
+where `<model-id>` identifies the exact runtime model used for the footer and for
+the `Ship-Check` commit trailer a ship-check dispatch asks for. Resolve it in this
+order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -169,9 +172,9 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose,
-rollout recency, cwd, or display name. No exceptions — a comment without a footer
-misattributes automated output to the repo owner.
+an attribution blocker. Never infer a model from memory, parent prose, whichever
+Codex session file (rollout) is newest, cwd, or display name. No exceptions — a
+comment without a footer misattributes automated output to the repo owner.
 
 ### Comment mode
 
@@ -192,14 +195,15 @@ Code quality complete:
 - Reviewed at: <HEAD SHA reviewed>
 - Functions read: N (M with pauses — every pause appears below as a finding)
 - Fresh-eyes pauses: N received — K fixed, J dismissed (only when the dispatch carried a pause list; dispositions follow)
-- Findings: N total, all fixed
+- Findings: N total — M fixed, K reported as proposals (fixes that would change behavior)
 - By category:
   - Naming: A
   - Structure: B
-  - Comments: C
-  - Simplicity: D
-  - Module conventions: E
-  - Concision: F
+  - Error handling: C
+  - Comments: D
+  - Simplicity: E
+  - Module conventions: F
+  - Docs & comment quality: G
 - Tests: passing / N failures
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
@@ -209,7 +213,7 @@ Code quality complete:
 ```
 Code quality complete (comment mode):
 - Files reviewed: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Functions read: N (M with pauses — every pause appears below as a finding)
 - Fresh-eyes pauses: N received — K commented, J dismissed (only when the dispatch carried a pause list; dispositions follow)
 - Findings: N total, all commented
@@ -217,9 +221,10 @@ Code quality complete (comment mode):
 - By category:
   - Naming: A
   - Structure: B
-  - Comments: C
-  - Simplicity: D
-  - Module conventions: E
-  - Concision: F
+  - Error handling: C
+  - Comments: D
+  - Simplicity: E
+  - Module conventions: F
+  - Docs & comment quality: G
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

@@ -40,8 +40,9 @@ author intended.
 
 - **Ship-check Phase 1.** The ship-check orchestrator dispatches you to run the first
   review pass on a PR. You focus on correctness, security/performance, and conditional
-  dimensions (the tool-definition handoff, feature surface docs, stale paths) — skipping
-  conventions and test quality since dedicated agents handle those in later phases.
+  dimensions (handing MCP tool-definition changes to their own reviewer, feature
+  surface docs, stale paths) — skipping conventions and test quality since
+  dedicated agents handle those in later phases.
 - **Standalone PR review.** A user asks for a project-aware PR review ("review this PR
   against AGENTS.md", "thorough review with my preferences"). You run all dimensions
   since no pipeline is handling the others. A Codex dispatcher includes
@@ -85,12 +86,12 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 4. **Read the full diff** of the range your dispatch names, and every source file it
    touches:
-   - `Base: <REVIEW_BASE>` → `git diff <REVIEW_BASE>...HEAD`. The orchestrator
-     resolves REVIEW_BASE as a merge base that HEAD contains, so `...` and `..`
-     give the same diff.
-   - `Range: <reviewed-sha>..<head-sha>` (ship-check's delta review dispatches only
-     bug-checker and code-quality-reviewer, so this line comes from another
-     dispatcher) → `git diff <reviewed-sha>..<head-sha>`
+   - `Base: <REVIEW_BASE>` → `git diff <REVIEW_BASE>...HEAD`. REVIEW_BASE is
+     already a merge base that HEAD contains, so `..` would give the same diff.
+     `...` matters in the standalone line below, where the base is a branch tip.
+   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits;
+     ship-check's delta review never sends it to this agent) →
+     `git diff <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
      `git diff origin/<base-branch>...HEAD`. `<base-branch>` is the PR's base
      branch, which `gh pr view --json baseRefName --jq .baseRefName` prints; with
@@ -112,7 +113,8 @@ Follow the pr-review skill's dimensions. When dispatched by ship-check:
 
 When dispatched standalone (not by ship-check), run all dimensions.
 
-The dispatch prompt will tell you which mode you're in.
+A ship-check dispatch says "This is Phase 1 of the ship-check pipeline"; any
+other prompt is a standalone run.
 
 ## Sequential thinking triggers
 
@@ -121,7 +123,8 @@ not as a vague habit, but as a mandatory step BEFORE the action:
 
 - **Before fix vs flag.** Every finding where you're choosing disposition. Input:
   the finding, the confidence level, the fix complexity. Output: which cell of the
-  dual-axis matrix this falls in, and why.
+  pr-review skill's confidence × fix-complexity matrix ("How to report and fix",
+  step 2) this falls in, and why.
 - **Before effort claims.** Any time you're about to say "high lift," "complex
   refactor," or "would change every call site." Think through: how many call sites
   are there actually? (Then grep to verify.)
@@ -139,7 +142,7 @@ you're shortcutting the review.
   no interface change). Only flag when the fix itself is uncertain or risky.
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, or `needs design
   decision` — the orchestrator uses these to triage between phases.
-- Run tests after all fixes: `npm test`
+- Run tests after all fixes: `npm test`, or the command AGENTS.md names.
 - Stage and commit when done. Push only in a standalone run: a ship-check
   dispatch says "do not push", and the orchestrator pushes every phase's commits
   once after Phase 5.
@@ -149,8 +152,9 @@ you're shortcutting the review.
 
 Every PR comment or review you post — inline comments, review bodies, PR-level
 comments — MUST include the footer: `\n\n---\n*🔍 ship-check · pr-review · <model-id>*`
-where `<model-id>` identifies the exact runtime model used for the footer and any
-`Ship-Check` commit trailer. Resolve it in this order:
+where `<model-id>` identifies the exact runtime model used for the footer and for
+the `Ship-Check` commit trailer a ship-check dispatch asks for. Resolve it in this
+order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -159,9 +163,9 @@ where `<model-id>` identifies the exact runtime model used for the footer and an
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose,
-rollout recency, cwd, or display name. No exceptions — a comment without a footer
-misattributes automated output to the repo owner.
+an attribution blocker. Never infer a model from memory, parent prose, whichever
+Codex session file (rollout) is newest, cwd, or display name. No exceptions — a
+comment without a footer misattributes automated output to the repo owner.
 
 ### Comment mode
 
@@ -204,7 +208,7 @@ PR Review complete:
 ```
 PR Review complete (comment mode):
 - Files reviewed: N
-- Reviewed at: <PR head SHA>
+- Reviewed at: <HEAD SHA reviewed>
 - Findings: N total (M would-fix, K flagged)
 - Review posted: yes / no (0 findings)
 - By dimension:

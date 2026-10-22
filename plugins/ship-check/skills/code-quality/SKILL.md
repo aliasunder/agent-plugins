@@ -37,9 +37,10 @@ Approach this review as a skeptical outsider seeing the code for the first time:
 - **Report everything.** Flag every finding, even marginal ones. Mark uncertain findings
   with "Uncertain:" so the user can decide. Missing a genuine issue is worse than
   flagging a borderline one.
-- **A trigger is dismissed only on its own boundary.** Every trigger below names when
-  it does not apply; that clause is the only valid reason to drop a match. "The
-  function is small", "the input is validated upstream", "it matches the local style",
+- **A trigger is dismissed only on its own boundary.** Every trigger below is a rule
+  with an action, a condition, and a boundary that names when it does not apply;
+  the boundary is the only valid reason to drop a match. "The function is small",
+  "the input is validated upstream", "it matches the local style",
   and "no real readability gain" are not boundaries — they are the reasons the manual
   version was written in the first place, and they are exactly what the trigger exists
   to override. If the dismissal you are drafting does not quote the trigger's boundary,
@@ -48,8 +49,9 @@ Approach this review as a skeptical outsider seeing the code for the first time:
   (step 3 of "How to report and fix"). (Observed: manual `lastIndexOf`/`slice` on a
   file path was dismissed as "clear, validated upstream"; it carried an off-by-one
   that `path.parse()` had no room for, and was replaced by it on the next read.)
-- **Follow fable-mode discipline.** Write a stage map before starting. Verify each
-  stage with a check that can fail. Self-critique before delivering findings.
+- **Follow fable-mode discipline.** Write a stage map (numbered stages, each
+  with its expected output) before starting. Verify each stage with a check that
+  can fail. Self-critique before delivering findings.
 
 ## Before starting
 
@@ -60,9 +62,10 @@ Load these sources fresh — do not rely on what is already in context:
    philosophy, module layering, export style.
 
 2. **Style core**: `vault_read_note({ path: "Reference/style-core.md" })` — the
-   cross-audience invariants (referents, SVO, compression, mechanism over
-   adjective, fragments, format). They apply to doc comments, tool descriptions,
-   and any prose in changed code — and they bind the prose this pass writes, so
+   cross-audience invariants (every referent resolves, subject-verb-object
+   sentences, no stacked compression, mechanism over adjective, no verbless
+   fragments, format follows content shape, among others). They apply to doc
+   comments, tool descriptions, and any prose in changed code — and they bind the prose this pass writes, so
    every comment added under dimension 4 and every doc rewrite under dimension 7
    must comply. Committed code comments' own rules live in
    `Reference/code-standards-typescript` → Comments, loaded in the next step.
@@ -105,7 +108,8 @@ Load these sources fresh — do not rely on what is already in context:
   check layer ordering, naming, and simplicity. If the applicable dimensions produce
   0 findings, report "0 findings" — that is a valid result, not a reason to skip.
 - **Markdown docs are in scope for dimension 7 only** — changed `.md` files (README,
-  guides, ARCHITECTURE, env templates) get the concision pass, not the code dimensions.
+  guides, ARCHITECTURE, env templates) get dimension 7 (Docs & comment quality), not
+  the code dimensions.
 - **Same-pattern sweep**: when a trigger fires on changed code, scan the rest of the
   file — and grep for sibling call sites — for other instances of the same pattern,
   including pre-existing ones. Copy-paste inheritance and partial manual cleanups both
@@ -163,16 +167,16 @@ disposition.
    doc change, and question 3 decides whether to make it.
 3. **Does the edit follow the project's comment and docs rules?** Read every
    comment or doc edit against the project's rules (AGENTS.md, and the Comments
-   section of the code-standards note loaded in "Before starting") and against
-   dimension 4. An edit fails this question when it:
+   section of `Reference/code-standards-typescript`, loaded in "Before starting")
+   and against dimension 4. An edit fails this question when it:
    - restates the code beside it, a name, or a type;
    - repeats a fact the same file already states, such as a doc comment above it
      or the `Returns:` line of a description string;
    - moves or reshapes a comment without adding a fact, unless a project rule
      or dimension 4 calls for the new place or shape. Examples: bullets for a
-     comment longer than two lines, which the code-standards note's Comments
-     section calls for, and detail moved out of a JSDoc to sit above the line
-     it explains, which dimension 4 calls for;
+     comment longer than two lines, which that note's Comments section calls
+     for, and detail moved out of a JSDoc to sit above the line it explains,
+     which dimension 4 calls for;
    - breaks any other comment or docs rule the project states.
 
 Fix the pause when an edit passes all three questions. When no edit passes question
@@ -242,9 +246,11 @@ Anti-rationalization rules for fresh-eyes pauses:
 
 ### 2. Structure
 - **Early returns over nested if/else** — and over a "unified" loop that absorbs the
-  simple case as a special first iteration (`suffix === 0 ? base : suffixed`). When
-  the simple case can return before the general search starts, keep that shape even
-  though the value is then built in two places; unify the construction with a small
+  simple case as a special first iteration: a loop counting `suffix` up from 0
+  whose body builds each candidate with `suffix === 0 ? base : suffixed`, so the
+  plain `base` is only the loop's first try. When the simple case can return
+  before the general search starts, keep that shape even though the value is then
+  built in two places; unify the construction with a small
   helper, never by deleting the early return. Boundary: unification wins only when the
   early-return branch duplicates real logic (several lines), not a value construction
 - Immutable by default — no unjustified `let`
@@ -315,16 +321,17 @@ Anti-rationalization rules for fresh-eyes pauses:
   comparison of the parameter itself (not one of its properties) against
   `undefined` or `null`, flag the annotation for removal.
   TypeScript 5.5 and later infer the predicate from that comparison, so
-  `items.filter((x) => x !== undefined)` already narrows the result. Boundary:
-  keep the annotation when the project's `typescript` version is below 5.5, or
-  when the body is anything other than that one comparison. Inside a `.filter()`
-  callback, do NOT apply the verbose null/undefined guards trigger above: the
-  bare comparison is what narrows, and `.filter(Boolean)` does not narrow. Flag
-  a `.filter(Boolean)` only when code after it works around the un-narrowed type
-  with `!`, `as` or an extra guard; the fix is `.filter((x) => x !== undefined)`,
-  or `!== null` when `null` marks the missing entries. Keep the `.filter(Boolean)`
-  when entries can also be `0`, `""` or `false`: it drops those, and the
-  comparison would keep them
+  `items.filter((x) => x !== undefined)` already narrows the result.
+  - Boundary: keep the annotation when the project's `typescript` version is
+    below 5.5, or when the body is anything other than that one comparison.
+  - Inside a `.filter()` callback, do NOT apply the verbose null/undefined guards
+    trigger above: the bare comparison is what narrows, and `.filter(Boolean)`
+    does not narrow.
+  - Flag a `.filter(Boolean)` only when code after it works around the
+    un-narrowed type with `!`, `as` or an extra guard; the fix is
+    `.filter((x) => x !== undefined)`, or `!== null` when `null` marks the
+    missing entries. Boundary: keep the `.filter(Boolean)` when entries can also
+    be `0`, `""` or `false`: it drops those, and the comparison would keep them
 - **Plain values over thunks trigger**: when a callback parameter (`() => T`)
   wraps a trivially cheap, side-effect-free computation that every call site
   has ready, flag: accept `T` directly. If every call site passes
@@ -381,8 +388,8 @@ Anti-rationalization rules for fresh-eyes pauses:
   alternation, or quoting semantics sitting inline in a function body gets hoisted
   to a module-level named constant with a doc comment stating what it matches
   (e.g. `/for="?([^";,]+)"?/i` inline → `FORWARDED_FOR_CLIENT` with a comment on
-  its capture-stop semantics). Boundary: trivial single-use patterns (`/^\d+$/`)
-  stay inline
+  what it captures and which characters end the capture). Boundary: trivial
+  single-use patterns (`/^\d+$/`) stay inline
 - Comments sit directly above the line they explain and lead with the claim about
   that line, mechanism second
 - **Self-contradictory claim trigger.** A doc comment, tool description, or inline
@@ -484,7 +491,8 @@ Anti-rationalization rules for fresh-eyes pauses:
 ### 6. Module conventions (if project has module layering rules)
 - Dependency direction respected
 - Exports match the project's style (namespace objects vs named exports)
-- Utils/ admission bars met
+- Code added to a shared utils folder meets the admission rules the project
+  states for that folder
 
 ### 7. Docs & comment quality
 
@@ -570,9 +578,10 @@ test.)
 [structure] file.ts:88 — nested if/else, should early-return → fixed
 ```
 
-1. **Report each finding** as a one-liner: `[category] file:line — what's wrong → fixed`.
-   Group by category when multiple findings exist. Don't describe the planned fix —
-   the diff speaks for itself.
+1. **Report each finding** as a one-liner: `[category] file:line — what's wrong → fixed`,
+   or `→ proposal` when the contract above stops the fix because it would change
+   behavior. Group by category when multiple findings exist. Don't describe the
+   planned fix — the diff speaks for itself.
 2. **Fix** every finding directly — this is a "pass", not just a review.
 3. **Re-read every comment-only edit** before you commit, whether it came from a
    finding or a fresh-eyes pause. Read each one beside the code it describes,
@@ -584,7 +593,7 @@ test.)
    original text exactly. Record the finding or pause as dismissed with the
    rule quoted, and count it under `Dismissed`, not `Findings`.
 4. **Run tests** after all fixes to confirm no behavior change.
-5. **Summarize**: files touched, count by category, test status.
+5. **Summarize**: files touched, count by category, each proposal, test status.
    When fresh-eyes pauses were supplied, add:
    `- Fresh-eyes pauses: N received — K fixed, J dismissed (dispositions follow)`
 
@@ -609,7 +618,7 @@ comments.
 ### Procedure
 
 1. **Review normally** — check all dimensions (naming, structure, error handling,
-   comments, simplicity, module conventions, docs & comment concision). The only
+   comments, simplicity, module conventions, docs & comment quality). The only
    difference is the output path.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, category tag, and description with the suggested fix.
@@ -632,8 +641,9 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
 REVIEW
 ```
 
-Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Replace
-`MODEL_ID` with the exact runtime model:
+Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
+with the number in its `PR #<number>`. Replace `MODEL_ID` with the exact runtime
+model:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
@@ -642,8 +652,8 @@ Replace `OWNER_REPO` and `PR_NUMBER` with values from the dispatch prompt. Repla
 3. An inline standalone run may use the current session's verified exact model source.
 
 A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose, rollout recency,
-cwd, or display name.
+an attribution blocker. Never infer a model from memory, parent prose, whichever Codex
+session file (rollout) is newest, cwd, or display name.
 
 4. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a
