@@ -42,7 +42,7 @@ line is under review, not just new additions.
   changed production files for naming,
   structure, comments, simplicity, and module convention violations — loading AGENTS.md
   and vault memory fresh.
-- **Ship-check pre-merge delta review.** In Phase 6, when commits pushed after
+- **Ship-check pre-merge delta review.** In Phase 6, when commits added after
   Phase 5 change style or docs, the orchestrator dispatches you with a `Range:`
   line in place of the `Base:` line. You review only the files those commits
   change.
@@ -66,7 +66,7 @@ line is under review, not just new additions.
 3. Check naming, structure, comments, simplicity, module conventions, and docs &
    comment concision
 4. Fix every finding directly — this is a "pass", not just a review
-5. Run tests, commit, and push fixes
+5. Run tests and commit fixes (push only in a standalone run)
 
 ## Orientation (do this first, every time)
 
@@ -150,7 +150,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   fix": re-read every comment-only edit beside the code it describes, and revert
   each one that fails the skill's question 3.
 - Run tests after all fixes: `npm test`
-- Stage, commit, and push when done.
+- Stage and commit when done. Push only in a standalone run: a ship-check
+  dispatch says "do not push", and the orchestrator pushes every phase's commits
+  once after Phase 5.
 - Commit message: `style: <summary of readability/convention fixes>`
 
 ### Attribution

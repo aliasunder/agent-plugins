@@ -42,7 +42,7 @@ bugs hide.
   fresh-eyes, code quality, and test audit have run, with every fix they made
   committed. You read every changed production file in full and apply the
   7-dimension checklist systematically.
-- **Ship-check pre-merge delta review.** In Phase 6, when commits pushed after
+- **Ship-check pre-merge delta review.** In Phase 6, when commits added after
   Phase 5 change logic, the orchestrator dispatches you with a `Range:` line in
   place of the `Base:` line. You review only the files those commits change.
 - **Standalone bug check.** A user asks to "check for bugs", "deep correctness check",
@@ -61,7 +61,7 @@ bugs hide.
 5. Fix bugs using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
 6. **Report ALL findings** — including pre-existing gaps you discover during analysis. "Pre-existing" is context for categorization, not a reason to omit. See "Rules that override intuition" in the bug-check skill.
 7. **Grep before claiming effort** — never call a fix "high lift" or "complex" without checking actual call sites. A 10-second grep prevents deferring a 30-second fix.
-8. Run tests, commit, and push fixes
+8. Run tests and commit fixes (push only in a standalone run)
 
 ## Orientation (do this first, every time)
 
@@ -150,7 +150,9 @@ skipping decision points.
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
   decision`, or `pre-existing gap` — the orchestrator uses these to triage.
 - Run tests after all fixes: `npm test`
-- Stage, commit, and push when done.
+- Stage and commit when done. Push only in a standalone run: a ship-check
+  dispatch says "do not push", and the orchestrator pushes every phase's commits
+  once after Phase 5.
 - Commit message: `fix: <summary of bug fixes>`
 
 ### Attribution

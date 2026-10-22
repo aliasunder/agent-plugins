@@ -58,7 +58,7 @@ author intended.
 2. Read the full diff and all touched source files — not just the changed lines
 3. Evaluate every change against the review dimensions in the preloaded pr-review skill
 4. Fix findings using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
-5. Run tests, commit, and push fixes
+5. Run tests and commit fixes (push only in a standalone run)
 
 ## Orientation (do this first, every time)
 
@@ -140,7 +140,9 @@ you're shortcutting the review.
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, or `needs design
   decision` — the orchestrator uses these to triage between phases.
 - Run tests after all fixes: `npm test`
-- Stage, commit, and push when done.
+- Stage and commit when done. Push only in a standalone run: a ship-check
+  dispatch says "do not push", and the orchestrator pushes every phase's commits
+  once after Phase 5.
 - Commit message: `fix(review): <summary of fixes>`
 
 ### Attribution

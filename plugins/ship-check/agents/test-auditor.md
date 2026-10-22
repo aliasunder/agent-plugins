@@ -55,7 +55,7 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
 3. Run coverage gap analysis on changed production files
 4. Write missing tests for coverage gaps — don't just report them
 5. Mutation-test any finding where reliability is in question
-6. Run the full test suite, commit, and push fixes
+6. Run the full test suite and commit fixes (push only in a standalone run)
 
 ## Orientation (do this first, every time)
 
@@ -111,6 +111,17 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   cases covered by existing tests?
 
 ## Fixing and Committing
+
+- Fix every test-quality finding directly, and write the missing test for each
+  coverage gap. Edit test files only: a production bug you find is reported as a
+  finding, proven by the failing test you write for it (the test-audit skill's
+  Scope).
+- Run the full test suite after all fixes: `npm test`, or the command AGENTS.md
+  names.
+- Stage and commit when done. Push only in a standalone run: a ship-check
+  dispatch says "do not push", and the orchestrator pushes every phase's commits
+  once after Phase 5.
+- Commit message: `test: <summary of test fixes and new tests>`
 
 ### Attribution
 

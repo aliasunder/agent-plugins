@@ -478,7 +478,10 @@ yours. Convention violations in your fixes ship unchecked.
    When flagging, categorize as: `uncertain diagnosis`, `complex fix`,
    `needs design decision`, or `pre-existing gap`. The orchestrator uses
    these categories to triage.
-4. Stage, commit, and push all fixes.
+4. Stage and commit all fixes. Push only in a standalone run. In a ship-check run
+   (the dispatch says "do not push", or you run inline in the orchestrator's
+   context), commit only: the orchestrator pushes every phase's commits once after
+   Phase 5.
 5. Report:
 
 ```

@@ -35,6 +35,7 @@ Phase 4: ship-check:test-auditor          -> test design, assertion quality, cov
 Phase 5: ship-check:bug-checker           -> description-vs-code, SQL, type coercion, boundary
 Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (report only)
+Push the fixes (orchestrator)             -> one push carrying every phase's commits
 Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until ready
 ```
 
@@ -294,11 +295,18 @@ and commit normally — local mode only implies `--report` when reviewing main d
    it is never a reason to have skipped the dispatch.
 
 3. **Phases run sequentially.** Each phase reviews the code *after* the previous phase's
-   fixes are committed and pushed. Never parallelize review phases. Phase 2 (fresh-eyes)
+   fixes are committed. Never parallelize review phases. Phase 2 (fresh-eyes)
    writes nothing, but it runs before Phase 3 (code-quality) so the pause list exists
    when code-quality starts.
 
-4. **The orchestrator never parrots sub-agent labels.** When a phase returns flagged
+4. **Phases commit; only the orchestrator pushes.** Every phase dispatch, delta
+   review dispatch and triage fix commits without pushing. The orchestrator pushes
+   once, in "Push the fixes" after the tool-definition review, and pr-monitor
+   pushes the fixes it makes in Phase 6. Each push to a PR branch starts CI and
+   every review bot (the `synchronize` event), so a push per phase would start up
+   to four bot rounds on code the next phase is about to change.
+
+5. **The orchestrator never parrots sub-agent labels.** When a phase returns flagged
    findings, evaluate each one independently using inter-phase triage (below). A
    sub-agent's "low-risk" or "low-confidence" label is input to your assessment, not
    a disposition you relay.
@@ -335,7 +343,9 @@ sequential thinking forces you to deliberate instead of relaying.
    | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
    | Any | Needs design decision | Always defer to user |
 
-4. **For fixes**: read the relevant code, apply the edit, run tests, commit and push.
+4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. Do
+   not push: "Push the fixes" pushes after Phase 5, and in Phase 6 pr-monitor's
+   next push carries the commit.
    **In comment mode**: instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
@@ -418,8 +428,11 @@ the pipeline pushes nothing).
    reviewed"; a monitoring-cycle fix has replaced byte-exact truncation with
    character-count truncation on a confidently wrong invariant claim, and no phase
    ever saw it.
-5. **Advance the reviewed SHA** once a delta review (and its fixes) completes, then
-   repeat step 2 on subsequent passes. Deltas shrink, so this converges.
+5. **Push the delta review's fixes, then advance the reviewed SHA.** The delta
+   agents commit without pushing, as the phase template tells them. Once the delta
+   review and its triage fixes are committed, push them in one `git push` and run
+   pr-monitor's follow-up check for that push. Then set the reviewed SHA to the new
+   head and repeat step 2 on later passes. Deltas shrink, so this converges.
 6. **Re-review tool text before every merge-ready verdict**, after steps 3-5 and
    their fixes: run the re-review in "Tool-definition review (conditional)". Run it
    even when step 2 of this section found the delta trivial — the re-review's own
@@ -534,7 +547,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "PR review — <resolved model> / <resolved phase effort>",
-  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push."
+  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
 })
 ```
 
@@ -599,7 +612,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Code quality — <resolved model> / <resolved phase effort>",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding and commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 
@@ -621,7 +634,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
 })
 ```
 
@@ -638,7 +651,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Bug check — <resolved model> / <resolved phase effort>",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 
@@ -873,7 +886,7 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
 
 | Mode | When it runs | What happens to findings |
 |---|---|---|
-| Default | After Phase 5; re-review before each merge-ready verdict | First review: triage, fixes committed and pushed. Re-review: to the user |
+| Default | After Phase 5; re-review before each merge-ready verdict | First review: triage, fixes committed and pushed by "Push the fixes". Re-review: to the user |
 | `--comment` | After Phase 5; no re-review (Phase 6 is skipped) | One PR-level comment holding each report's Defects and Unintended text changes, posted under "Non-inline findings still land on the PR" with component `tool-definitions`; nothing edited |
 | `--report` | After Phase 5; re-review whenever a merge-ready verdict is checked or ship-check runs again in the session | To the user only; `--report` wins over every other mode's fixing rule |
 | `--local`, `--diff` on a branch | On the range; then, when triage committed a tool-text fix, one re-review before the summary | First review: triage, fixes committed. Re-review: to the user |
@@ -897,6 +910,25 @@ until the user accepts the missing coverage in words when the step:
 
 Deferred findings already hold the verdict: Reporting says to put them to the user
 for a decision before any verdict.
+
+### Push the fixes
+
+Run this once, after Phase 5, its triage and the tool-definition review's triage
+fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
+(Phase discipline item 4).
+
+1. Count the commits not pushed yet: `git rev-list --count @{upstream}..HEAD`.
+2. When the count is above 0, run `git push`, check its exit code, and note the
+   pushed head SHA for the summary.
+3. Skip the push, and say why in the summary, when:
+   - the run is in comment mode or `--report`, or is local mode on `main` or a
+     detached HEAD: nothing was committed;
+   - the count is 0: no phase committed anything;
+   - local mode on a branch with no upstream (step 1 fails with `no upstream`):
+     the fixes stay committed locally, and the summary says they are not pushed.
+
+Phase 6 starts from this push: pr-monitor's checks and bot rounds read the head it
+pushed.
 
 ### Phase 6: PR Monitor (inline — does not end)
 
@@ -961,6 +993,7 @@ Ship check complete:
 - Bug Check:    N findings, M fixed (by dimension)
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
+- Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
 - Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")
