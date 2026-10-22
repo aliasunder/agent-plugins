@@ -80,11 +80,18 @@ Load these sources fresh — do not rely on what is already in context:
 
 ## Scope
 
-- **Default**: sweep all files changed on the current branch. List them from the
-  range the dispatch names: `git diff --name-only <Base>...HEAD`, or the `Range:`
-  commits of a delta review. When no dispatch names a range, run
-  `git fetch origin <base-branch>` and use `origin/<base-branch>...HEAD`. NEVER
-  diff against local `main`, which can be stale.
+- **Default**: sweep all files changed on the current branch, in the range the
+  dispatch names:
+  - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
+  - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
+    `git diff --name-only <reviewed-sha>..<head-sha>`
+  - Neither line → `git fetch origin <base-branch>`, then
+    `git diff --name-only origin/<base-branch>...HEAD`, with `<base-branch>` the
+    PR's base branch (`gh pr view --json baseRefName --jq .baseRefName`), or the
+    default branch, usually `main`, when there is no PR.
+
+  NEVER diff against local `main`: it can sit behind `origin/main` or hold this
+  branch's commits, and then you review the wrong files.
 - **If the user specifies files or a scope**: use that instead.
 - **Skip test files** — those have their own skill (/test-audit).
 - **All code file types are in scope** — TypeScript, JavaScript, YAML, Dockerfile,
@@ -574,8 +581,8 @@ test.)
 - **State what you reviewed.** The summary names the PR head SHA actually
   reviewed — a review that doesn't say what it checked is indistinguishable
   from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the delta-review baseline it records
-  itself at Phase 5 close.
+  what this phase actually saw against the reviewed SHA it records at Phase 5
+  close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could

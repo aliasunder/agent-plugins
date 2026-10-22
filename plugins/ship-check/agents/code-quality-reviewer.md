@@ -42,6 +42,10 @@ line is under review, not just new additions.
   changed production files for naming,
   structure, comments, simplicity, and module convention violations — loading AGENTS.md
   and vault memory fresh.
+- **Ship-check pre-merge delta review.** In Phase 6, when commits pushed after
+  Phase 5 change style or docs, the orchestrator dispatches you with a `Range:`
+  line in place of the `Base:` line. You review only the files those commits
+  change.
 - **Standalone code quality pass.** A user asks to "clean up against conventions",
   "do a readability pass", or "review against AGENTS.md". You run the full code-quality
   skill procedure. A Codex dispatcher includes `Attribution model ID: <exact-id>` in
@@ -93,11 +97,15 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
 4. **Identify changed files** in the range your dispatch names:
-   - `Base: <sha>` → `git diff --name-only <sha>...HEAD`
-   - `Range: <a>..<b>` (a delta review) → `git diff --name-only <a>..<b>`
-   - Neither (an on-demand run) → `git fetch origin <base-branch>`, then
-     `git diff --name-only origin/<base-branch>...HEAD`, where `<base-branch>` is the
-     PR's base branch, usually `main`.
+   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`. The
+     orchestrator resolves REVIEW_BASE as a merge base that HEAD contains, so
+     `...` and `..` list the same files.
+   - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
+     `git diff --name-only <reviewed-sha>..<head-sha>`
+   - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
+     `git diff --name-only origin/<base-branch>...HEAD`. `<base-branch>` is the
+     PR's base branch, which `gh pr view --json baseRefName --jq .baseRefName`
+     prints; with no PR, use the default branch, usually `main`.
 
    NEVER diff against local `main`: it can sit behind `origin/main` or hold this
    branch's commits, and then you review the wrong files.

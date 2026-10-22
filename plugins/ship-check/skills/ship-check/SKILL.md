@@ -118,18 +118,23 @@ dispatching session's.
      git fetch origin <base-branch>
      git merge-base origin/<base-branch> HEAD
      ```
-   - **Local mode on a branch:** the same two commands, with the default branch
-     (usually `main`) as `<base-branch>`.
    - **Local mode with `--diff <base>`:** `git merge-base <base> HEAD`.
-   - **Local mode on `main` itself:** `git merge-base <ref> HEAD`, where `<ref>` is the
-     last tag or a base the user supplies.
+   - **Local mode on a branch, without `--diff`:** the same two commands as PR mode,
+     with the default branch (usually `main`) as `<base-branch>`.
+   - **Local mode on `main` itself, without `--diff`:** `git merge-base <tag> HEAD`,
+     with `<tag>` the last tag, which `git describe --tags --abbrev=0` prints. When
+     the repository has no tag, ask the user for a base. Do not take the
+     `origin/main` merge base here: once main's commits are pushed, that merge base
+     is HEAD itself and the range is empty.
 
-   `git merge-base` returns an ancestor base unchanged and turns a tag into its commit,
-   so REVIEW_BASE is always a commit HEAD contains. The review range is
-   `REVIEW_BASE...HEAD`. With `--inline`, run each skill as if its dispatch named this
-   `Base:` line; with `--fork`, put the line in each fork's prompt.
-3. Get the branch name (or "main" in local mode) — agents need this context in their
-   briefing.
+   Given a base that HEAD already contains, `git merge-base` returns that base; given
+   any other base, it returns the last commit the two share; given a tag, it returns
+   the tag's commit. So REVIEW_BASE is always a commit SHA that HEAD contains, and
+   the review range `REVIEW_BASE...HEAD` holds exactly the commits HEAD added after
+   it. With `--inline`, run each skill as if its dispatch named this `Base:` line;
+   with `--fork`, put the line in each fork's prompt.
+3. Get the branch name (or "main" when reviewing main directly) — agents need this
+   context in their briefing.
 
 ## Comment mode (`--comment`)
 
@@ -258,10 +263,12 @@ accepted.
 
 Replace PR references in each phase dispatch:
 
-- `PR #<number>` → `commits <short-sha>..<short-sha>`
+- `PR #<number>` → `commits <review-base-short>..<head-short>`, the short SHAs of
+  REVIEW_BASE and HEAD
 - `branch <branch>` → `branch <branch>` (unchanged if on a branch) or `main` (if reviewing main directly)
 - Add: `LOCAL MODE: Report all findings to the orchestrator. Do not post PR comments.`
-- Keep the `Base: <REVIEW_BASE>` line.
+- Keep the `Base: <REVIEW_BASE>` line. Agents take their diff from it; the
+  `commits` range only labels the review.
 
 When `--report` is NOT set and the changes are on a feature branch, agents still fix
 and commit normally — local mode only implies `--report` when reviewing main directly
@@ -384,8 +391,9 @@ caught). Post-phase commits that no phase ever sees are the largest source of sh
 misses. This section closes that hole. Comment mode skips it (Phase 6 doesn't run and
 the pipeline pushes nothing).
 
-1. **Record the reviewed SHA.** When Phase 5 completes (including its triage fixes),
-   note the branch head SHA — the high-water mark of what the phases have seen.
+1. **Record the reviewed SHA** (`<reviewed-sha>` below). When Phase 5 completes
+   (including its triage fixes), note the branch head SHA — the high-water mark of
+   what the phases have seen.
 2. **Check the delta before every merge-ready verdict.** In Phase 6, before declaring
    merge-ready (and again before re-declaring it on later passes), run
    `git diff <reviewed-sha>..HEAD --stat`. An empty or trivial delta (typo-level docs
@@ -394,8 +402,8 @@ the pipeline pushes nothing).
 3. **Dispatch a delta review when the delta is substantive** — any new or changed
    logic, API shape, config/CI behavior, or restructured docs. Scope the dispatch to
    the delta diff only: in place of the `Base:` line, name the commits under review
-   as `Range: <reviewed-sha>..<head-sha>` (full SHAs), so the agent lists only the
-   delta's files. Dispatch
+   as `Range: <reviewed-sha>..<head-sha>`, both full SHAs, with `<head-sha>` the
+   HEAD that step 2 diffed. The agent then lists only the delta's files. Dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
    when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
@@ -558,7 +566,7 @@ review type.
 Build the file list from the diff, excluding test files:
 
 ```bash
-git diff --name-only <REVIEW_BASE>...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
+git diff --name-only REVIEW_BASE...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
 ```
 
 ```
@@ -646,16 +654,17 @@ commits one such file for each of its server configurations under
 the gates in step 2 pass, and only `--skip tool-definitions` or an `--only` list
 without `tool-definitions` turns it off.
 
-1. **Resolve the base.** In PR mode, fetch the base branch and take the merge base;
-   in local mode, use REVIEW_BASE. Call the result MERGE_BASE and the head commit
-   HEAD_SHA. Write both as full commit SHAs (`git rev-parse <ref>`),
-   never as a symbolic ref such as `main~1`, because step 9 records them for a later
-   re-review.
-   ```
-   git fetch origin <base-branch>
-   git merge-base origin/<base-branch> HEAD
-   git rev-parse HEAD
-   ```
+1. **Resolve the base.** Call the base commit MERGE_BASE and the head commit HEAD_SHA.
+   Write both as full commit SHAs (`git rev-parse <ref>`), never as a symbolic ref
+   such as `main~1`, because step 9 records them for a later re-review.
+   - **PR mode:** take a fresh merge base rather than REVIEW_BASE, because the
+     re-review runs this step again after the base branch may have moved.
+     ```
+     git fetch origin <base-branch>
+     git merge-base origin/<base-branch> HEAD
+     ```
+   - **Local mode:** MERGE_BASE is REVIEW_BASE.
+   - **Both modes:** HEAD_SHA is the output of `git rev-parse HEAD`.
 2. **Gates (git only).** The gates run before the plan script, so a runtime without
    Bun fails the step only when a tool list changed. List the changed JSON files,
    then check both ends for a tool list:
@@ -928,7 +937,7 @@ scratchpad directory, or in `/tmp/probe-pr-NUMBER/` when the runtime has no
 scratchpad.
 
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
-merge-ready verdict, diff the current head against the last phase-reviewed SHA and
+merge-ready verdict, diff the current head against the reviewed SHA and
 dispatch a delta review if the difference is substantive, then run the
 tool-definition re-review (delta review step 6).
 
@@ -941,7 +950,7 @@ pipeline conclusion. Update it on each monitoring pass as PR status evolves.
 
 ```
 Ship check complete:
-- Reviewed at:  <last phase-reviewed SHA; delta since then checked in Phase 6>
+- Reviewed at:  <reviewed SHA; delta since then checked in Phase 6>
 - PR Review:    N findings, M fixed (correctness, security, conditional)
 - Fresh Eyes:   N functions read, M pauses — K fixed by code-quality, J dismissed <when a persona was set: (read as <persona>)>
 - Code Quality: N findings, M fixed (conventions, readability)

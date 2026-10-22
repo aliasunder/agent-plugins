@@ -51,10 +51,17 @@ Load these sources fresh every time — do not rely on what is already in contex
 
 3. **The diff**: Read the full diff and all source files touched by the PR. For large
    PRs, read file-by-file rather than just the diff — context around changes matters.
-   Take the diff of the range the dispatch names (`<Base>...HEAD`, or the `Range:`
-   commits of a delta review). When no dispatch names a range, run
-   `git fetch origin <base-branch>` and use `origin/<base-branch>...HEAD`. NEVER diff
-   against local `main`, which can be stale.
+   Take the diff of the range the dispatch names:
+   - `Base: <REVIEW_BASE>` → `git diff <REVIEW_BASE>...HEAD`
+   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits) →
+     `git diff <reviewed-sha>..<head-sha>`
+   - Neither line → `git fetch origin <base-branch>`, then
+     `git diff origin/<base-branch>...HEAD`, with `<base-branch>` the PR's base
+     branch (`gh pr view --json baseRefName --jq .baseRefName`), or the default
+     branch, usually `main`, when there is no PR.
+
+   NEVER diff against local `main`: it can sit behind `origin/main` or hold this
+   branch's commits, and then you review the wrong files.
 
 ## Review dimensions
 
@@ -247,8 +254,8 @@ comment mode.
 - **State what you reviewed.** The summary names the PR head SHA actually
   reviewed — a review that doesn't say what it checked is indistinguishable
   from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the delta-review baseline it records
-  itself at Phase 5 close.
+  what this phase actually saw against the reviewed SHA it records at Phase 5
+  close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could

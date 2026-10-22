@@ -51,11 +51,18 @@ Load these sources fresh:
 
 ## Scope
 
-- **Default**: audit all test files changed on the current branch. List the changed
-  `.test.ts` / `.spec.ts` files from the range the dispatch names:
-  `git diff --name-only <Base>...HEAD`, or the `Range:` commits of a delta review.
-  When no dispatch names a range, run `git fetch origin <base-branch>` and use
-  `origin/<base-branch>...HEAD`. NEVER diff against local `main`, which can be stale.
+- **Default**: audit all `.test.ts` / `.spec.ts` files changed on the current
+  branch, in the range the dispatch names:
+  - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
+  - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits) →
+    `git diff --name-only <reviewed-sha>..<head-sha>`
+  - Neither line → `git fetch origin <base-branch>`, then
+    `git diff --name-only origin/<base-branch>...HEAD`, with `<base-branch>` the
+    PR's base branch (`gh pr view --json baseRefName --jq .baseRefName`), or the
+    default branch, usually `main`, when there is no PR.
+
+  NEVER diff against local `main`: it can sit behind `origin/main` or hold this
+  branch's commits, and then you review the wrong files.
 - **If the user specifies files or "all tests"**: use that scope instead.
 - **Production files are read-only for this phase.** A production bug discovered
   while auditing is reported as a finding, proven by the failing test you write
@@ -275,14 +282,16 @@ Every test must satisfy BOTH bars:
 Always runs alongside the audit dimensions above. When no test files were changed, this
 is the primary audit. It answers: "should there be tests for what changed?"
 
-1. **List all changed files** in the range from Scope: `git diff --name-only <range>`.
+1. **List all changed files**: `git diff --name-only <range>`, where `<range>` is the
+   range Scope chose: `<REVIEW_BASE>...HEAD`, `<reviewed-sha>..<head-sha>`, or
+   `origin/<base-branch>...HEAD`.
    Separate into two lists: test files (`.test.ts` / `.spec.ts`) and non-test files. Exclude docs (`.md`)
    and generated files from the non-test list. Don't categorically exclude config files
    (`.config.ts`, `sst.config.ts`, etc.) — check whether existing tests cover them
    first (`grep -rn "config" --include="*.test.ts"`). If a config file has tests,
    it's in scope.
 
-2. **For each changed non-test file**, read the diff (`git diff <range> -- <file>`, the same range)
+2. **For each changed non-test file**, read the diff (`git diff <range> -- <file>`)
    and classify each change:
    - **New exported function/method** — needs tests unless trivially thin (a re-export,
      a one-line delegation to an already-tested function)
@@ -359,8 +368,8 @@ This proves the test is load-bearing, not decorative.
 - **State what you reviewed.** The summary names the PR head SHA actually
   reviewed — a review that doesn't say what it checked is indistinguishable
   from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the delta-review baseline it records
-  itself at Phase 5 close.
+  what this phase actually saw against the reviewed SHA it records at Phase 5
+  close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could

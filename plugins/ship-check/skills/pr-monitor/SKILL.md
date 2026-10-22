@@ -473,7 +473,7 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   after the most recent push with no new unresolved threads
 - No new unresolved threads in the most recent status pass
 - **Pipeline context only (ship-check Phase 6)**: the pre-merge delta review has run
-  against the current head — the diff from the last phase-reviewed SHA was checked,
+  against the current head — the diff from the reviewed SHA was checked,
   and if substantive, a delta review was dispatched and completed (see the ship-check
   skill's "Pre-merge delta review" section). Fixes this monitoring loop wrote are part
   of that delta, not exempt from it.

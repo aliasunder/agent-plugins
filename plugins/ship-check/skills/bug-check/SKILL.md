@@ -38,13 +38,16 @@ to every changed file. It is systematic where pr-review is intuitive.
      note matching the repo's language/stack
    - `vault_memory_recall({ query: "<change domain>" })`
 3. Identify all files changed on the branch, in the range the dispatch names:
-   ```
-   git diff --name-only <Base>...HEAD    # the dispatch names Base: <sha>
-   git diff --name-only <a>..<b>         # a delta review names Range: <a>..<b>
-   ```
-   When no dispatch names a range, run `git fetch origin <base-branch>` and use
-   `git diff --name-only origin/<base-branch>...HEAD`. NEVER diff against local
-   `main`: it can be stale, and `git diff main` also lists uncommitted edits.
+   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
+   - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
+     `git diff --name-only <reviewed-sha>..<head-sha>`
+   - Neither line → `git fetch origin <base-branch>`, then
+     `git diff --name-only origin/<base-branch>...HEAD`, with `<base-branch>` the
+     PR's base branch (`gh pr view --json baseRefName --jq .baseRefName`), or the
+     default branch, usually `main`, when there is no PR.
+
+   NEVER diff against local `main`: it can sit behind `origin/main` or hold this
+   branch's commits, and then you review the wrong files.
 4. **Scope check**: Production code (`.ts`, `.js`), infrastructure (`.yml`, `.yaml`,
    `Dockerfile`, `docker-compose*`), environment config (`.env`, `.env.*`,
    `.env.example`), and config files (`sst.config.*`, `*.json`) are in scope. CI/workflow files ARE in scope — dimension 1
@@ -498,8 +501,8 @@ Bug check complete:
 - **State what you reviewed.** The summary names the PR head SHA actually
   reviewed — a review that doesn't say what it checked is indistinguishable
   from one that checked nothing. It also lets the orchestrator cross-check
-  what this phase actually saw against the delta-review baseline it records
-  itself at Phase 5 close.
+  what this phase actually saw against the reviewed SHA it records at Phase 5
+  close.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". This
   extends "No silent skipping" to the negative space: findings you confirmed

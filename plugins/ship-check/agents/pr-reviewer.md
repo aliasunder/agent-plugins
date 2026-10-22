@@ -85,11 +85,16 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 4. **Read the full diff** of the range your dispatch names, and every source file it
    touches:
-   - `Base: <sha>` → `git diff <sha>...HEAD`
-   - `Range: <a>..<b>` (a delta review) → `git diff <a>..<b>`
-   - Neither (an on-demand run) → `git fetch origin <base-branch>`, then
-     `git diff origin/<base-branch>...HEAD`, where `<base-branch>` is the PR's
-     base branch, usually `main`.
+   - `Base: <REVIEW_BASE>` → `git diff <REVIEW_BASE>...HEAD`. The orchestrator
+     resolves REVIEW_BASE as a merge base that HEAD contains, so `...` and `..`
+     give the same diff.
+   - `Range: <reviewed-sha>..<head-sha>` (ship-check's delta review dispatches only
+     bug-checker and code-quality-reviewer, so this line comes from another
+     dispatcher) → `git diff <reviewed-sha>..<head-sha>`
+   - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
+     `git diff origin/<base-branch>...HEAD`. `<base-branch>` is the PR's base
+     branch, which `gh pr view --json baseRefName --jq .baseRefName` prints; with
+     no PR, use the default branch, usually `main`.
 
    NEVER diff against local `main`: it can sit behind `origin/main` or hold this
    branch's commits, and then you review the wrong files.
