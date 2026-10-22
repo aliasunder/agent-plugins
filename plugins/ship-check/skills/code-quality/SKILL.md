@@ -80,8 +80,11 @@ Load these sources fresh — do not rely on what is already in context:
 
 ## Scope
 
-- **Default**: sweep all files changed in the current branch (vs main/base branch).
-  Use `git diff --name-only main...HEAD` to find them.
+- **Default**: sweep all files changed on the current branch. List them from the
+  range the dispatch names: `git diff --name-only <Base>...HEAD`, or the `Range:`
+  commits of a delta review. When no dispatch names a range, run
+  `git fetch origin <base-branch>` and use `origin/<base-branch>...HEAD`. NEVER
+  diff against local `main`, which can be stale.
 - **If the user specifies files or a scope**: use that instead.
 - **Skip test files** — those have their own skill (/test-audit).
 - **All code file types are in scope** — TypeScript, JavaScript, YAML, Dockerfile,

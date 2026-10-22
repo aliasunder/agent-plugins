@@ -83,7 +83,16 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 3. **Load sequential thinking** for organizing findings:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
-4. **Read the full diff** and all source files touched by the PR.
+4. **Read the full diff** of the range your dispatch names, and every source file it
+   touches:
+   - `Base: <sha>` → `git diff <sha>...HEAD`
+   - `Range: <a>..<b>` (a delta review) → `git diff <a>..<b>`
+   - Neither (an on-demand run) → `git fetch origin <base-branch>`, then
+     `git diff origin/<base-branch>...HEAD`, where `<base-branch>` is the PR's
+     base branch, usually `main`.
+
+   NEVER diff against local `main`: it can sit behind `origin/main` or hold this
+   branch's commits, and then you review the wrong files.
 
 ## Scope
 

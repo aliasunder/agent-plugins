@@ -37,10 +37,14 @@ to every changed file. It is systematic where pr-review is intuitive.
    - `vault_read_note` the results (currently typescript and docs), plus any newer
      note matching the repo's language/stack
    - `vault_memory_recall({ query: "<change domain>" })`
-3. Identify all files changed in the branch vs main:
+3. Identify all files changed on the branch, in the range the dispatch names:
    ```
-   git diff main --name-only
+   git diff --name-only <Base>...HEAD    # the dispatch names Base: <sha>
+   git diff --name-only <a>..<b>         # a delta review names Range: <a>..<b>
    ```
+   When no dispatch names a range, run `git fetch origin <base-branch>` and use
+   `git diff --name-only origin/<base-branch>...HEAD`. NEVER diff against local
+   `main`: it can be stale, and `git diff main` also lists uncommitted edits.
 4. **Scope check**: Production code (`.ts`, `.js`), infrastructure (`.yml`, `.yaml`,
    `Dockerfile`, `docker-compose*`), environment config (`.env`, `.env.*`,
    `.env.example`), and config files (`sst.config.*`, `*.json`) are in scope. CI/workflow files ARE in scope — dimension 1

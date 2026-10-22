@@ -81,7 +81,16 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 3. **Load sequential thinking**:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
-4. **Identify changed files**: `git diff --name-only main...HEAD`
+4. **Identify changed files** in the range your dispatch names:
+   - `Base: <sha>` → `git diff --name-only <sha>...HEAD`
+   - `Range: <a>..<b>` (a delta review) → `git diff --name-only <a>..<b>`
+   - Neither (an on-demand run) → `git fetch origin <base-branch>`, then
+     `git diff --name-only origin/<base-branch>...HEAD`, where `<base-branch>` is the
+     PR's base branch, usually `main`.
+
+   NEVER diff against local `main`: it can sit behind `origin/main` or hold this
+   branch's commits, and then you review the wrong files.
+
    Skip test files (test-audit handles those). Docs are NOT auto-skipped — the
    bug-check skill's scope check governs: docs making factual claims about the
    system, and restructured docs, are in scope. Only report "docs only — nothing

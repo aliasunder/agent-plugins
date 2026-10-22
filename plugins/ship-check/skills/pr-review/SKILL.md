@@ -51,6 +51,10 @@ Load these sources fresh every time — do not rely on what is already in contex
 
 3. **The diff**: Read the full diff and all source files touched by the PR. For large
    PRs, read file-by-file rather than just the diff — context around changes matters.
+   Take the diff of the range the dispatch names (`<Base>...HEAD`, or the `Range:`
+   commits of a delta review). When no dispatch names a range, run
+   `git fetch origin <base-branch>` and use `origin/<base-branch>...HEAD`. NEVER diff
+   against local `main`, which can be stale.
 
 ## Review dimensions
 

@@ -51,8 +51,11 @@ Load these sources fresh:
 
 ## Scope
 
-- **Default**: audit all test files changed in the current branch (vs main/base).
-  Use `git diff --name-only main...HEAD` to find changed `.test.ts` / `.spec.ts` files.
+- **Default**: audit all test files changed on the current branch. List the changed
+  `.test.ts` / `.spec.ts` files from the range the dispatch names:
+  `git diff --name-only <Base>...HEAD`, or the `Range:` commits of a delta review.
+  When no dispatch names a range, run `git fetch origin <base-branch>` and use
+  `origin/<base-branch>...HEAD`. NEVER diff against local `main`, which can be stale.
 - **If the user specifies files or "all tests"**: use that scope instead.
 - **Production files are read-only for this phase.** A production bug discovered
   while auditing is reported as a finding, proven by the failing test you write
@@ -272,14 +275,14 @@ Every test must satisfy BOTH bars:
 Always runs alongside the audit dimensions above. When no test files were changed, this
 is the primary audit. It answers: "should there be tests for what changed?"
 
-1. **List all changed files**: `git diff --name-only main...HEAD`. Separate into two
-   lists: test files (`.test.ts` / `.spec.ts`) and non-test files. Exclude docs (`.md`)
+1. **List all changed files** in the range from Scope: `git diff --name-only <range>`.
+   Separate into two lists: test files (`.test.ts` / `.spec.ts`) and non-test files. Exclude docs (`.md`)
    and generated files from the non-test list. Don't categorically exclude config files
    (`.config.ts`, `sst.config.ts`, etc.) — check whether existing tests cover them
    first (`grep -rn "config" --include="*.test.ts"`). If a config file has tests,
    it's in scope.
 
-2. **For each changed non-test file**, read the diff (`git diff main...HEAD -- <file>`)
+2. **For each changed non-test file**, read the diff (`git diff <range> -- <file>`, the same range)
    and classify each change:
    - **New exported function/method** — needs tests unless trivially thin (a re-export,
      a one-line delegation to an already-tested function)

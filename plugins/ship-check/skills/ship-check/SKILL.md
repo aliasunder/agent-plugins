@@ -108,11 +108,23 @@ dispatching session's.
      (see Local review mode below).
    - **No PR, no flag**: offer two options — create a PR first, or proceed in local
      review mode.
-2. **Identify the review range.** In PR mode: the PR diff against the base branch. In
-   local mode: `--diff <base>` if supplied, otherwise `HEAD~N..HEAD` where N is the
-   number of commits since the last merge or tag (use `git log --oneline --first-parent
-   main..HEAD | wc -l`; if on main, use the count of commits since the last tag or a
-   user-supplied base).
+2. **Resolve the review base once.** Every phase diffs the same base. Record it as
+   REVIEW_BASE, a full commit SHA, and put it in every phase dispatch as a
+   `Base: <REVIEW_BASE>` line. NEVER use local `main` as the base: it can sit behind
+   `origin/main` or already hold this branch's commits, and then every phase reviews
+   the wrong files.
+   - **PR mode:** fetch the PR's base branch and take the merge base.
+     ```
+     git fetch origin <base-branch>
+     git merge-base origin/<base-branch> HEAD
+     ```
+   - **Local mode on a branch:** the same two commands, with the default branch
+     (usually `main`) as `<base-branch>`.
+   - **Local mode with `--diff <base>`:** `git rev-parse <base>`.
+   - **Local mode on `main` itself:** `git rev-parse` of the last tag, or of a base the
+     user supplies.
+
+   The review range is `REVIEW_BASE...HEAD`.
 3. Get the branch name (or "main" in local mode) — agents need this context in their
    briefing.
 
@@ -231,7 +243,7 @@ accepted.
 
 | Aspect | PR mode | Local mode |
 |--------|---------|------------|
-| Review range | PR diff vs base branch | `--diff <base>` if supplied, otherwise commits since last merge/tag |
+| Review range | `REVIEW_BASE...HEAD`, with REVIEW_BASE the merge base of the PR's base branch | `REVIEW_BASE...HEAD`, with REVIEW_BASE resolved as in "Before starting" step 2 |
 | Dispatch prompts | Reference PR number and branch | Reference commit range and branch |
 | Phase 6 (pr-monitor) | Runs | Skipped — no PR to monitor |
 | Comment mode | Posts inline PR review comments | Not available (no PR) |
@@ -246,6 +258,7 @@ Replace PR references in each phase dispatch:
 - `PR #<number>` → `commits <short-sha>..<short-sha>`
 - `branch <branch>` → `branch <branch>` (unchanged if on a branch) or `main` (if reviewing main directly)
 - Add: `LOCAL MODE: Report all findings to the orchestrator. Do not post PR comments.`
+- Keep the `Base: <REVIEW_BASE>` line.
 
 When `--report` is NOT set and the changes are on a feature branch, agents still fix
 and commit normally — local mode only implies `--report` when reviewing main directly
@@ -377,7 +390,9 @@ the pipeline pushes nothing).
    commit range.
 3. **Dispatch a delta review when the delta is substantive** — any new or changed
    logic, API shape, config/CI behavior, or restructured docs. Scope the dispatch to
-   the delta diff only, naming the commits under review: dispatch
+   the delta diff only: in place of the `Base:` line, name the commits under review
+   as `Range: <reviewed-sha>..<head-sha>` (full SHAs), so the agent lists only the
+   delta's files. Dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
    when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
@@ -505,7 +520,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "PR review — <resolved model> / <resolved phase effort>",
-  prompt: "Review the PR on branch <branch> (PR #<number>) against main. This is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push."
+  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push."
 })
 ```
 
@@ -540,7 +555,7 @@ review type.
 Build the file list from the diff, excluding test files:
 
 ```bash
-git diff --name-only main...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
+git diff --name-only <REVIEW_BASE>...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
 ```
 
 ```
@@ -570,7 +585,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Code quality — <resolved model> / <resolved phase effort>",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against main. Review all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, comments, simplicity, and module conventions; changed markdown docs get the docs & comment concision dimension. Fix every finding, commit, and push. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 
@@ -592,7 +607,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against main. Audit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit and push. Prior-phase context: <summarize what Phases 1-3 fixed and any deferred findings>."
 })
 ```
 
@@ -609,7 +624,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Bug check — <resolved model> / <resolved phase effort>",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against main. Read every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit and push. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 
