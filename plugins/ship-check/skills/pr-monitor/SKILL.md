@@ -199,13 +199,18 @@ Without the skill, continue as below.
 ### Findings that would restore a cut
 
 When this session holds a cut list (the ship-check skill's "Design pass", step 6:
-pieces the user decided to remove, in a ship-check run or this skill's standalone
-design pass), pass it to `triage-finding` as a standing disposition when that skill
-runs, and NEVER apply a finding that would put a listed piece back: not from a bot
-thread, not from the item-4 sweep under "Bot threads", and not in "After handling
-all threads". Reply "The maintainer decided not to change this: [her reason]" with
-the footer, and resolve a bot thread after the reply. New evidence that the cut's case is common after all goes to the
-user, and the piece stays cut until she decides.
+pieces the user decided to remove, in a ship-check run or in the design pass that
+Step 5 (Final report) runs when this skill runs outside ship-check), NEVER apply a finding that would put a listed piece
+back: not from a bot thread, not from the item-4 sweep under "Bot threads", and not
+in "After handling all threads".
+- **With `triage-finding`:** pass it the cut list as a standing disposition (a
+  decision already made, which covers every finding this session), and post the
+  reply its result gives, as the section above says.
+- **Without it:** reply "The maintainer decided not to change this: [reason]" with
+  the footer, and resolve a bot thread after the reply.
+
+New evidence that the cut's case is common after all goes to the user, and the
+piece stays cut until she decides.
 
 ### Bot threads (qodo, CodeRabbit, etc.)
 
@@ -523,14 +528,19 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   skill's "Pre-merge delta review" section). Fixes this monitoring loop wrote are part
   of that delta, not exempt from it.
 - **Design pass**, in ship-check's Phase 6 and in a standalone run: the final design
-  pass ran once this session, its trigger did not fire at the first merge-ready
-  verdict or live-test request, or the user declined it. Never run it again because
-  the head moved since.
+  pass ran once this session, its trigger did not fire before the first merge-ready
+  verdict or the first request to test the change live, or the user said not to run
+  it. Never run it again because the head moved since.
   A standalone run with no design pass yet this session, on a PR whose diff changes
-  non-test code, CI or config, runs one before its first merge-ready verdict: follow
-  the ship-check skill's "Design pass" section and its Execution controls (never a
-  copy of them). Its proposals go to the user; fixes she approves go through Step 3's
-  sweep and Step 4's follow-up check, like this skill's own fixes.
+  non-test code, CI or config, runs one before its first merge-ready verdict. Read
+  the ship-check skill's "Design pass" section and run it from there, not from a
+  copy in this skill:
+  - Take the base as its step 1 does in PR mode (a fresh merge base).
+  - Run its steps 2 to 4 (dispatch, edit check, coverage) and step 6 (cut list),
+    with the model and effort controls from that skill's Execution section.
+  - Treat the pass as a final pass: every proposal goes to the user, and none is
+    fixed through triage. Fixes she approves go through Step 3's sweep and Step 4's
+    follow-up check, like this skill's own fixes.
 
 If any prerequisite is not met, go back to the relevant step.
 

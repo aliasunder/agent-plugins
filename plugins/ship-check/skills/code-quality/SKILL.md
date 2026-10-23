@@ -6,7 +6,9 @@ description: >
   "do a readability pass", "code quality pass", "make more readable", "review code
   quality", "clean up against conventions", "simplify with my preferences", or
   "review against AGENTS.md". Different from the built-in /simplify (which is generic)
-  — this loads project-specific conventions and personal preferences.
+  — this loads project-specific conventions and personal preferences. A dispatch
+  that says "Design pass: dimension 8 only" instead runs a report-only design pass
+  over the whole change.
   NOT for: test file audits (use test-audit), full PR review (use pr-review), or
   generic simplification without convention grounding (use /simplify).
 skills:
@@ -37,9 +39,9 @@ Approach this review as a skeptical outsider seeing the code for the first time:
 - **Report everything.** Flag every finding, even marginal ones. Mark uncertain findings
   with "Uncertain:" so the user can decide. Missing a genuine issue is worse than
   flagging a borderline one. **Exception: a design pass.** When the dispatch says
-  `Design pass: dimension 8 only`, dimension 8's pragmatic bar replaces this rule:
-  report only proposals that meet the bar, and report `Dimension 8: nothing found`
-  for a clean change.
+  `Design pass: dimension 8 only`, the pragmatic bar in dimension 8 (Whole-change
+  design, below) replaces this rule: report only proposals that meet the bar, and
+  report `Dimension 8: nothing found` for a clean change.
 - **A trigger is dismissed only on its own boundary.** Every trigger below is a rule
   with an action, a condition, and a boundary that names when it does not apply;
   the boundary is the only valid reason to drop a match. "The function is small",
@@ -101,9 +103,10 @@ Load these sources fresh — do not rely on what is already in context:
   branch's commits, and then you review the wrong files.
 - **If the user specifies files or a scope**: use that instead.
 - **Design pass**: a dispatch that says `Design pass: dimension 8 only` runs
-  dimension 8 alone, on the whole range its `Base:` line names, and follows
-  dimension 8's read procedure instead of the per-file sweep below. Every other
-  dispatch (Phase 3, delta reviews, standalone passes) skips dimension 8.
+  dimension 8 alone, on the whole range its `Base:` line names (the "Neither line"
+  range above when it has none), and follows dimension 8's read procedure instead
+  of the per-file sweep below. Every other dispatch (ship-check's Phase 3, delta
+  reviews, standalone passes) skips dimension 8.
 - **Skip test files** — those have their own skill (/test-audit). A design pass
   reads them only as evidence of intended behaviour.
 - **All code file types are in scope** — TypeScript, JavaScript, YAML, Dockerfile,
@@ -567,20 +570,24 @@ commit or push, whatever "How to report and fix" says for the other dimensions. 
 returns its report to the orchestrator and never posts to the PR, even in a
 comment-mode run.
 
-**Read the whole change before judging anything:**
+**Read the whole change before judging anything.** `<base>` below is the commit
+the dispatch's `Base:` line names. When the dispatch also carries a `Files:` line,
+an earlier pass missed those files: read them whole first, then run every step.
 
 1. Run `git log --reverse --format='%h %s' <base>..HEAD` to see when each mechanism
    arrived.
 2. Read each changed code, CI and config file whole at HEAD
    (`git diff --name-only --diff-filter=d <base>...HEAD`, minus test files). Read
    each deleted file at the base (`git diff --name-only --diff-filter=D
-   <base>...HEAD`, then `git show <base>:<path>`). Read changed tests as evidence of
-   what the code is meant to do; never audit or edit them.
+   <base>...HEAD`, then `git show <base>:<path>`). Read each changed test file whole
+   too, as evidence of what the code is meant to do; never audit or edit them.
 3. Read changed docs by diff hunk only.
 4. Write an inventory: every command or entry point, function, guard, check, catch,
    option and parameter the change adds, with `file:line`.
-5. For each sequence of two or more steps, search the whole repo for its key calls
-   (`rg -n '<call>'`), so a copy in an unchanged file shows up too.
+5. For each run of two or more calls or commands the change adds that do one job
+   together (parse a query, then validate it), search the whole repo for the calls
+   any copy of that job would also make (`rg -n 'parsePagination'`), so a copy in
+   an unchanged file shows up too.
 6. Write a synthesis after all the reads. Before calling two pieces duplicates,
    compare their inputs, errors, side effects and lifecycle.
 
@@ -588,8 +595,9 @@ Report the base and head you read, and list the files you read whole. When you
 could not read a changed code, CI or config file, name it; a pass that missed a
 file never reports "nothing found".
 
-**Ask each question of the inventory.** Each one has a skip. Weigh the skip against
-the evidence; do not match words against it.
+**Ask each question of the inventory.** Each one has a skip. Skip a question only
+when the evidence shows the skip's condition holds, never because a comment or name
+in the code uses the skip's words.
 
 | Question | Skip when |
 | --- | --- |
@@ -602,11 +610,12 @@ the evidence; do not match words against it.
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
 | Does each guard, check, catch and option earn its place? | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, or publishes, releases or deletes something that is hard to undo, and no other layer already enforces the case |
 
-**Four counters.** Each one answers a dismissal that has kept redundant code
+**Four counters.** Each one rebuts a dismissal that has kept redundant code
 through past reviews:
 
-- A rule about where a guard lives does not decide whether a second copy earns its
-  place.
+- Do not keep a second copy of a guard because a project rule says guards belong
+  where it sits. A rule about where a guard lives does not decide whether a second
+  copy earns its place.
 - Code no input can reach is a finding: report it for removal. Do not keep it because
   it is harmless.
 - For an option or flag, ask whether removing it changes the output in supported
@@ -615,8 +624,8 @@ through past reviews:
   (`git -C /tmp/probe-x/repo …`), never through `cd`: a `cd` that fails leaves the
   next commands running in the change under review.
 - "It is cheap to keep" and "it is only a few lines" are not reasons to skip a
-  guard, check, catch or option. The user decides every cut of one, so do not decide
-  it for her: when its case is rare and failing there is cheap and visible (a red
+  guard, check, catch or option. The user decides every removal of one, so do not
+  decide it for her: when its case is rare and failing there is cheap and visible (a red
   run, a clear error, a re-run that works), propose removing it, with the case, how
   often it occurs and what failing there costs. Skip it only when its case is common
   in supported use, or when failing there loses data, breaks security, gives wrong
@@ -675,9 +684,10 @@ Right: `[design] client.ts:9 — "default" is fetch's default cache mode, so rem
 the option changes no request → proposal (needs design decision): −1 option in 6
 calls, 1 file, tests unchanged, risk: none`.
 
-**Cut list.** When the dispatch carries a `Cuts:` list, the user has already decided
-to remove each listed piece. Never propose restoring one, and do not report it
-again.
+**Cut list.** A cut is a piece the user decided to remove this session. The
+orchestrator lists them under `Cuts:` in the dispatch, one line per piece: the
+file, what was removed and her reason. When the dispatch carries that list, never
+propose restoring a listed piece, and do not report it again.
 
 ## How to report and fix
 
@@ -720,7 +730,10 @@ test.)
    the planned fix — the diff speaks for itself.
 2. **Fix** every finding directly — this is a "pass", not just a review. A design
    pass is the one exception: it fixes nothing, and every dimension 8 finding is a
-   `[design]` proposal carrying the pragmatic bar's fields.
+   `[design]` proposal carrying the pragmatic bar's fields. When the dispatch
+   carries a `Cuts:` list (dimension 8, "Cut list"), never make a fix that puts a
+   listed piece back, however small; report the finding as a proposal
+   (`needs design decision`) instead.
 3. **Re-read every comment-only edit** before you commit, whether it came from a
    finding or a fresh-eyes pause. Read each one beside the code it describes,
    and revert it when it fails question 3 of the stranger read (dimension 0):
@@ -738,7 +751,7 @@ test.)
    read whole, any changed file it missed, and either its `[design]` proposals or
    `Dimension 8: nothing found`.
 
-**Output honesty (both modes):**
+**Output honesty (every mode, the design pass included):**
 
 - **State what you reviewed.** The summary names the HEAD SHA actually
   reviewed (`git rev-parse HEAD`) — a review that doesn't say what it checked
@@ -758,9 +771,10 @@ comments.
 
 ### Procedure
 
-1. **Review normally** — check all dimensions (naming, structure, error handling,
-   comments, simplicity, module conventions, docs & comment quality). The only
-   difference is the output path.
+1. **Review normally** — check dimensions 1 to 7 (naming, structure, error
+   handling, comments, simplicity, module conventions, docs & comment quality). The
+   only difference is the output path. Dimension 8 runs only in a design pass,
+   which never posts to the PR.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, category tag, and description with the suggested fix.
 3. **Post a single PR review** with all findings as inline comments:

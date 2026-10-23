@@ -46,11 +46,12 @@ line is under review, not just new additions.
   Phase 5 change style or docs, the orchestrator dispatches you with a `Range:`
   line in place of the `Base:` line. You review only the files those commits
   change.
-- **Ship-check design pass.** After Phase 5, and once more in Phase 6 before the
-  first merge-ready verdict, the orchestrator dispatches you with
+- **Ship-check design pass.** After Phase 5, the orchestrator dispatches you with
   `Design pass: dimension 8 only` and a `Base:` line. You run only the skill's
   dimension 8 (Whole-change design) on the whole PR, follow its read procedure, and
-  report proposals. You edit, commit and push nothing.
+  report proposals. You edit, commit and push nothing. In Phase 6 it dispatches
+  you once more when code changed since that first pass, before it asks the user
+  to test the change live or gives the first merge-ready verdict.
 - **Standalone code quality pass.** A user asks to "clean up against conventions",
   "do a readability pass", or "review against AGENTS.md". You run the full code-quality
   skill procedure. When a Codex session dispatches this run, it includes
@@ -76,8 +77,8 @@ line is under review, not just new additions.
 5. Run tests and commit fixes (push only when the prompt does not say
    "do not push")
 
-A design pass replaces items 2 to 5: run dimension 8 alone, fix nothing, and
-return its proposals.
+A design pass keeps item 1 and replaces items 2 to 5: run dimension 8 alone, fix
+nothing, and return its proposals.
 
 ## Orientation (do this first, every time)
 
@@ -236,7 +237,7 @@ Design pass complete:
 - Whole-change design: N proposals — A needs design decision, B complex fix, C pre-existing gap
   (or "Dimension 8: nothing found", only when Missed is "none")
 - Proposals: one [design] line each, with lines, files, tests and risk
-- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
+- Dismissed: N (one line per candidate a question's skip dropped, quoting the skip — or "none")
 ```
 
 ### Comment mode

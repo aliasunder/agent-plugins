@@ -434,9 +434,10 @@ context, and let the orchestrator decide scope.
 
 And regardless of impact assessment: if the fix is trivial, fix it. A one-line
 null-out after data is consumed costs nothing and eliminates the concern entirely.
-The one exception: when the dispatch carries a `Cuts:` list, the user has already
-decided to remove each listed piece. Never put one back, however trivial the fix;
-report the finding instead, and the orchestrator takes it to her.
+The one exception: when the dispatch carries a `Cuts:` list (one line per piece:
+the file, what was removed and the user's reason), the user has already decided to
+remove each listed piece. Never put one back, however trivial the fix; report the
+finding instead, and the orchestrator takes it to her.
 
 ### Verify effort before claiming it
 
@@ -483,6 +484,9 @@ yours. Convention violations in your fixes ship unchecked.
    - **Small fix** (< 5 lines, no interface change, no behavioral risk) → fix it,
      at any confidence. The cost of a safe no-op is near zero; the cost of missing
      a real bug is not. "Low-risk" is a reason TO fix, not a reason to defer.
+     The one exception, here and in the next bullet: never make a fix that puts
+     back a piece on the dispatch's `Cuts:` list (see "No environment-specific
+     dismissals").
    - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
      → fix it.
    - **Anything bigger** → flag with a category:
