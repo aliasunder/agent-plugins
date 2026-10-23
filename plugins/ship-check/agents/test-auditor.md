@@ -92,9 +92,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
      `..` would list the same files here, because REVIEW_BASE is already a merge
      base that HEAD contains. `...` matters in the standalone line below, where
      the base is a branch tip.
-   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits, when
-     a user or another dispatcher names them; ship-check's pre-merge delta review
-     dispatches only the bug-checker and code-quality-reviewer agents) →
+   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits:
+     ship-check's pre-merge delta review sends it when those commits add or change
+     test files, and a user or another dispatcher may name a range too) →
      `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
      `git diff --name-only origin/<base-branch>...HEAD`. `<base-branch>` is the

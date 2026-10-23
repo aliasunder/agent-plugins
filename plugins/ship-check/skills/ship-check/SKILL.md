@@ -442,7 +442,7 @@ the pipeline pushes nothing).
    edits, lockfile churn) needs no action — state that the delta was checked and its
    commit range.
 3. **Dispatch a delta review when the delta is substantive** — any new or changed
-   logic, API shape, config/CI behavior, or restructured docs. Scope the dispatch to
+   logic, API shape, config/CI behavior, tests, or restructured docs. Scope the dispatch to
    the delta diff only. In the phase template:
    - replace "against the base commit below" with "on the commits below";
    - replace the `Base:` line with `Range: <reviewed-sha>..<head-sha>`, both full
@@ -451,11 +451,13 @@ the pipeline pushes nothing).
    The agent then lists only the delta's files. Dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains naming, comment, formatting,
-   or documentation changes, both when mixed. Findings follow the normal fix/flag
-   rules and inter-phase triage.
+   or documentation changes, and `ship-check:test-auditor` when it adds or changes
+   test files (including the regression tests triage writes with its fixes). Send
+   every one that applies. Findings follow the normal fix/flag rules and
+   inter-phase triage.
    Model and effort follow Execution below: retain the run's selected model;
-   bug-checker uses the Adversarial review task class, code-quality-reviewer the
-   Ordinary review class (the task-class table under "Resolve model and effort").
+   bug-checker uses the Adversarial review task class, code-quality-reviewer and
+   test-auditor the Ordinary review class (the task-class table under "Resolve model and effort").
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
