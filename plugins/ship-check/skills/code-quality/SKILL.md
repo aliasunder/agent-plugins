@@ -610,7 +610,10 @@ through past reviews:
 - Code no input can reach is a finding: report it for removal. Do not keep it because
   it is harmless.
 - For an option or flag, ask whether removing it changes the output in supported
-  use, not only whether the output is correct. Run it both ways when you can.
+  use, not only whether the output is correct. Run it both ways when you can, in a
+  throwaway repository under `/tmp`, addressed by an absolute path
+  (`git -C /tmp/probe-x/repo …`), never through `cd`: a `cd` that fails leaves the
+  next commands running in the change under review.
 - "It is cheap to keep" and "it is only a few lines" are not reasons to skip a
   guard, check, catch or option. The user decides every cut of one, so do not decide
   it for her: when its case is rare and failing there is cheap and visible (a red
