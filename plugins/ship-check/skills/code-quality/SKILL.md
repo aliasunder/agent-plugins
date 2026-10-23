@@ -600,7 +600,7 @@ the evidence; do not match words against it.
 | When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
-| Does each guard, check, catch and option earn its place? | Its case is common in supported use; or failing there loses data, breaks security, or gives wrong output that nobody sees, and no other layer already enforces the case |
+| Does each guard, check, catch and option earn its place? | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, or publishes, releases or deletes something that is hard to undo, and no other layer already enforces the case |
 
 **Four counters.** Each one answers a dismissal that has kept redundant code
 through past reviews:
@@ -619,13 +619,15 @@ through past reviews:
   it for her: when its case is rare and failing there is cheap and visible (a red
   run, a clear error, a re-run that works), propose removing it, with the case, how
   often it occurs and what failing there costs. Skip it only when its case is common
-  in supported use, or when failing there loses data, breaks security, or gives
-  wrong output that nobody sees and no other layer already enforces the case.
+  in supported use, or when failing there loses data, breaks security, gives wrong
+  output that nobody sees, or publishes, releases or deletes something that is hard
+  to undo, and no other layer already enforces the case.
   - **Cheap means the recovery works.** Before proposing a removal, read what is
     left when the guard is gone: the error, and the recovery it points the user
     to. Keep the guard when its own message is what sends the user to the right
     recovery, such as a warning not to dispatch again, or a hint to re-run only
-    the failed job.
+    the failed job. A failure is never cheap when it publishes, releases,
+    deletes, or otherwise reaches users and is hard to undo.
   - **Another layer already enforces it.** When a branch ruleset, a type, or a
     check at the same boundary already enforces the case, propose the removal
     and name that layer, even when an admin can bypass it.
