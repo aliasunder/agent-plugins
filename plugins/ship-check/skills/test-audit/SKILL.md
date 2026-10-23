@@ -336,7 +336,10 @@ is the primary audit. It answers: "should there be tests for what changed?"
    For each gap: add tests to the existing test file for that module (create one if
    none exists). Follow the audit dimensions above — don't write tests that would fail
    your own audit. For bug fixes, mutation-test the new test (verify it fails when the
-   fix is reverted). Run the suite after all tests are written.
+   fix is reverted). Run the suite after all tests are written. A gap test that
+   fails because the production code is wrong has found a production bug: delete
+   the test and report the bug as the Scope section's read-only rule says. Never
+   change its expected value to match the wrong output.
 
 5. **Coverage regression check** (changed test files): For each changed test file, read
    the diff and look for:
