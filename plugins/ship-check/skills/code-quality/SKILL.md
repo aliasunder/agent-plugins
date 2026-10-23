@@ -595,11 +595,12 @@ the evidence; do not match words against it.
 | --- | --- |
 | Is a sequence, rule or literal implemented in more than one place? A literal counts when the same message or command text is built in three or more places. First ask whether one copy can be deleted; only then propose a merge | Your synthesis names a boundary or contract that one copy protects and the other does not |
 | When sibling paths (commands, handlers, steps) should apply the same check, does every sibling apply it? | The siblings' contracts differ, and the code or docs say how |
-| Did a later mechanism make an earlier one redundant? When several pieces each patch one consequence of the same ordering or timing problem, would a different order remove the problem, and the pieces with it? | The earlier one protects a named case the later one does not |
+| Did a later mechanism make an earlier one redundant? | The earlier one protects a named case the later one does not |
+| Do several pieces exist to handle one ordering or timing case? Would changing the order make the case impossible, and remove the pieces with it? Propose the reorder and list every piece it removes | An external contract the code or docs name fixes the order |
 | When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
-| Does each guard, check, catch and option earn its place? | Its case is common in supported use, or failing there loses data, breaks security, or gives wrong output that nobody sees |
+| Does each guard, check, catch and option earn its place? | Its case is common in supported use; or failing there loses data, breaks security, or gives wrong output that nobody sees, and no other layer already enforces the case |
 
 **Four counters.** Each one answers a dismissal that has kept redundant code
 through past reviews:
@@ -616,7 +617,15 @@ through past reviews:
   run, a clear error, a re-run that works), propose removing it, with the case, how
   often it occurs and what failing there costs. Skip it only when its case is common
   in supported use, or when failing there loses data, breaks security, or gives
-  wrong output that nobody sees.
+  wrong output that nobody sees and no other layer already enforces the case.
+  - **Cheap means the recovery works.** Before proposing a removal, read what is
+    left when the guard is gone: the error, and the recovery it points the user
+    to. Keep the guard when its own message is what sends the user to the right
+    recovery, such as a warning not to dispatch again, or a hint to re-run only
+    the failed job.
+  - **Another layer already enforces it.** When a branch ruleset, a type, or a
+    check at the same boundary already enforces the case, propose the removal
+    and name that layer, even when an admin can bypass it.
 
 **Pragmatic bar.** In a design pass this bar replaces "Report everything":
 
