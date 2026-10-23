@@ -170,7 +170,7 @@ reviewing a PR it isn't responsible for.
 | Phase sequencing | Sequential (each sees prior fixes) | Sequential (each sees prior findings to avoid duplicates) |
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
 | Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reviewer reports' Defects and Unintended text changes lists (see "Tool-definition review (conditional)"); no re-review |
-| Inter-phase triage | Evaluates flagged findings, may fix | Evaluates flagged findings, may post additional comments |
+| Inter-phase triage | Evaluates flagged findings, may fix; runs `triage-finding` on what it defers and asks the user before the next phase | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
 
 ### Dispatch prompt addition
 
@@ -380,13 +380,32 @@ sequential thinking forces you to deliberate instead of relaying.
    **In comment mode**: instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
-5. **Report deferrals immediately — never silently.** Deferring a finding to the user
-   is a message to the user, not a bookkeeping state. The moment triage defers a
-   finding, say so in the status update before dispatching the next phase: file:line,
-   flag category, what the issue is, the options with their tradeoffs, and what
-   decision is needed. Phases take minutes each — a deferral held back until the
-   final summary is a decision the user didn't know they were sitting on. The final
-   summary re-lists deferrals; it is never their first disclosure.
+5. **Triage what the matrix defers now, before the next dispatch.** Findings are
+   triaged as they occur, never held for the final summary: a deferral held back is
+   a decision the user didn't know they were sitting on. When a `triage-finding`
+   skill (a separate skill, outside this plugin, that decides each review finding's
+   outcome) is available, run it on the findings this step deferred, passing this
+   run's mode (PR, comment, `--report`, local on `main` or a detached HEAD, or local
+   on a branch) and what the run may do. Act on each result before dispatching the
+   next phase:
+   - `Fix` (the caller applies the fix): apply it as step 4 says, with the
+     regression test for a production bug test-audit reported, and count it as
+     fixed once applied.
+   - `Recommended fix` (the fix described, for a caller that may not edit): list it
+     under Deferred with the change it describes, and ask nothing about it in a run
+     that may not edit. Never count it as fixed.
+   - A logged dismissal (`False positive (logged)` or `Logged: not worth doing`):
+     count it under Dismissed with its evidence.
+   - A finding it leaves for the user: ask the user now, with file:line, flag
+     category, what the issue is, the options with their tradeoffs, and the
+     decision needed, and wait for the answer before dispatching the next phase.
+
+   A finding another rule sends to the user without exception (an unintended
+   tool-text change, a tool-definition re-review finding) goes to `triage-finding`
+   marked as the user's, so it is assessed but never logged away. In comment mode
+   `triage-finding` asks nothing, and each result lands in this run's comments.
+   Without `triage-finding`, ask the user about each deferral now, with the same
+   fields. The final summary re-lists deferrals; it is never their first disclosure.
 6. **Record results**: track triage fixes separately from phase fixes in the summary.
 
 ### Key principle: risk vs. confidence
@@ -1076,21 +1095,11 @@ Ship check complete:
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
 
-If any findings remain deferred at the end of Phases 1-5 and the tool-definition
-review, and a `triage-finding` skill (a separate skill, outside this plugin, that
-decides each review finding's outcome) is available, run it once with them first,
-passing this run's mode (PR, `--report`, local on main or a detached HEAD, or local
-on a branch) and what the run may do. It returns one result per finding, such as
-`Fix` (the caller applies the fix), `Recommended fix` (the fix described, for a
-caller that may not edit), a logged dismissal (`False positive (logged)` or
-`Logged: not worth doing`), or the finding left for the user. Apply each `Fix` it
-returns as inter-phase triage step 4 says, with the regression test for a
-production bug test-audit reported, and count it as fixed once applied. Never
-count a `Recommended fix` as fixed: list it under Deferred with the change it
-describes, and ask nothing about it in a run that may not edit. Count each logged
-dismissal under Dismissed with its evidence, and each finding it leaves for the
-user under Deferred. Then present the findings still deferred to the user with
-their flag category and ask for a decision before declaring the verdict.
+Each finding inter-phase triage deferred, from a phase, a delta review or the
+tool-definition review, already went through `triage-finding` (when available) in
+its step 5, as it occurred. Before declaring the verdict, re-list each finding still
+deferred with its flag category, and ask for a decision on any the user has not yet
+given one.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
@@ -1117,8 +1126,8 @@ Ship check complete (comment mode):
 - Reviews posted: N (one per phase with findings or dismissals)
 ```
 
-If a `triage-finding` skill is available, run it once with the deferred findings
-first, passing comment mode; it asks nothing, and each result lands in this run's
+Each finding inter-phase triage deferred already went through `triage-finding`
+(when available) in its step 5, in comment mode, so each result is in this run's
 comments or this report. Present the findings still deferred to the user with their
 flag category. The pipeline ends here — no Phase 6 monitoring loop.
 
