@@ -374,44 +374,71 @@ sequential thinking forces you to deliberate instead of relaying.
 
 4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. A
    fix for a production bug test-audit reported also adds a regression test for
-   that bug, in the same commit. Do not push: "Push the fixes" pushes after Phase 5, and in Phase 6 the delta
-   review's push ("Pre-merge delta review", step 5) or pr-monitor's next push
-   carries the commit.
+   that bug, in the same commit. Do not push: "Push the fixes" pushes after Phase 5,
+   and in Phase 6 the delta review's push ("Pre-merge delta review", step 5) or
+   pr-monitor's next push carries the commit.
    **In comment mode**: instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
 5. **Triage what the matrix defers now, before the next dispatch.** Findings are
    triaged as they occur, never held for the final summary: a deferral held back is
-   a decision the user didn't know they were sitting on. When a `triage-finding`
-   skill (a separate skill, outside this plugin, that decides each review finding's
-   outcome) is available, run it on the findings step 3 sends to the user, passing
-   this run's mode (PR, comment, `--report`, local on `main` or a detached HEAD, or
-   local on a branch) and what the run may do. Act on each result before dispatching
-   the next phase:
+   a decision the user didn't know they were sitting on. When the runtime's skill
+   list names a `triage-finding` skill (a separate skill, outside this plugin, that
+   decides each review finding's outcome), run it on every finding whose step 3
+   row ends with the user (`Defer to user`, `Present to user — they decide scope`,
+   or `Always defer to user`). Pass it the run's mode and what the run may do,
+   from this table; `--report` wins over every other row:
+
+   | Run | Mode to pass | What the run may do |
+   |---|---|---|
+   | PR, default | PR | edit and commit |
+   | `--comment` | comment | post PR comments |
+   | `--report`, with or without a PR | `--report` | report only |
+   | Local, on a branch | local on a branch | edit and commit |
+   | Local, on `main` or a detached HEAD | local on `main` or a detached HEAD | report only |
+
+   Act on each result before dispatching the next phase:
    - `Fix` (the caller applies the fix): apply it as step 4 says, with the
-     regression test for a production bug test-audit reported, and count it as
-     fixed once applied.
-   - `Recommended fix` (the fix described, for a caller that may not edit): list it
-     under Deferred with the change it describes, and ask nothing about it in a run
-     that may not edit. Never count it as fixed.
+     regression test for a production bug test-audit reported. Once applied,
+     count it as a triage fix (step 6).
+   - `Recommended fix` (the fix described, returned when the run may not edit):
+     list it under Deferred with the change it describes, and ask nothing about it.
+     Never count it as fixed.
    - A logged dismissal (`False positive (logged)` or `Logged: not worth doing`):
      count it under Dismissed with its evidence.
-   - `Already done` (with the PR, commit or log it cites) or `Mentioned`: count it
-     under Dismissed with that citation or line.
-   - A question it puts to the user: wait for the user's answer before dispatching
-     the next phase, and never ask it again. Count `Deferred by her` under Deferred
-     and `Dismissed by her` under Dismissed.
-   - `Pending` (a live peer session holds a matching card): list it under Deferred,
-     naming that session, and do not ask the user about it.
+   - `Already done` (with the PR, commit or log it cites): count it under
+     Dismissed with that citation.
+   - `Mentioned` (one line in triage-finding's report, with no card and no
+     question): count it under Dismissed with that line.
+   - A question to the user, which triage-finding asks itself: wait for the user's
+     answer before dispatching the next phase. Never ask that question again
+     yourself, in the final summary included. The answer comes back as a result.
+     Count `Deferred by her` under Deferred and `Dismissed by her` under Dismissed
+     (triage-finding's labels call the user "her"); any other result follows its
+     bullet in this list.
+   - `Pending` (another session that is running now holds a card for the same
+     problem, marked `[/]` on the project's task board; triage-finding has sent
+     that session the finding): list it under Deferred, naming that session, and do
+     not ask the user about it.
 
-   A finding another rule sends to the user without exception (an unintended
-   tool-text change, a tool-definition re-review finding) goes to `triage-finding`
-   with the instruction that the user decides it, so it is assessed and asked, never
-   fixed or logged away. In comment mode `triage-finding` asks nothing, and each
-   result lands in this run's comments. Without `triage-finding`, ask the user about
-   each deferral now, with file:line, flag category, what the issue is, the options
-   with their tradeoffs, and the decision needed. The final summary re-lists
-   deferrals; it is never their first disclosure.
+   Four kinds of finding go to the user without exception:
+   - an unintended tool-text change ("Tool-definition review (conditional)", step 8);
+   - a broken or removed tool-list file (the same section, step 4);
+   - a removed tool the PR title or body does not mention (the same section, step 4);
+   - every tool-definition re-review finding ("The re-review", step 5).
+
+   Route them and every other deferral this way:
+   - Pass each of the four kinds to `triage-finding` with the instruction "the user
+     decides this finding" (its Instructions input), so it is assessed and asked,
+     never fixed or logged away.
+   - In comment mode `triage-finding` asks nothing, those four kinds included. Post
+     each result on the PR yourself: as an inline comment, as step 4 says, when it
+     sits on a diff line, and otherwise as a PR-level comment under "Non-inline
+     findings still land on the PR".
+   - Without `triage-finding`, ask the user about each deferral now, with file:line,
+     flag category, what the issue is, the options with their tradeoffs, and the
+     decision needed.
+   - The final summary re-lists deferrals; it is never their first disclosure.
 6. **Record results**: track triage fixes separately from phase fixes in the summary.
 
 ### Key principle: risk vs. confidence
@@ -478,11 +505,10 @@ the pipeline pushes nothing).
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains naming, comment, formatting,
    or documentation changes, and `ship-check:test-auditor` when it adds or changes
-   test files (including a regression test triage writes with a Phase 6 fix; a
-   test triage writes after Phase 4 lands before the reviewed SHA, so no delta
-   covers it). Send
-   every one that applies. Findings follow the normal fix/flag rules and
-   inter-phase triage.
+   test files, including a regression test that triage writes with a Phase 6 fix.
+   A test that triage writes after Phase 4 is committed before the reviewed SHA, so
+   no delta covers it. Send every one that applies. Findings follow the normal
+   fix/flag rules and inter-phase triage.
    Model and effort follow Execution below: retain the run's selected model;
    bug-checker uses the Adversarial review task class, code-quality-reviewer and
    test-auditor the Ordinary review class (the task-class table under "Resolve model and effort").
@@ -800,9 +826,9 @@ without `tool-definitions` turns it off.
      in `files` holds. The reviewer traces each edit once, following the failures
      it describes into the server's source, so these dispatches need the
      repository root.
-   - `coldDispatch`: true when `reviewOnly` holds more than eight tools, the most
-     one dispatch takes through the diff read (the tool-definition-review skill
-     sets that limit; the cold read has none).
+   - `coldDispatch`: true when `reviewOnly` holds more than eight tools. Eight is
+     the most tools one dispatch takes through the diff read, a limit the
+     tool-definition-review skill sets; the cold read has no limit.
    - `batches`: `reviewOnly` split into runs of at most eight names.
    - `records` is 0 → `not dispatched`, with one reason for each non-empty list:
 
@@ -817,7 +843,8 @@ without `tool-definitions` turns it off.
    - A changed file that appears in none of these lists holds only tool changes
      that another file in `files` reviews (the plan reviews equal changes across
      files once), so it gets no dispatch of its own. In a re-review, a file the
-     base branch deleted and this branch never touched is also in no list. When every list is empty and `records` is 0, the reason is
+     base branch deleted and this branch never touched is also in no list.
+   - When every list is empty and `records` is 0, the reason is
      `the base branch deleted every changed tool list`.
    - Each `broken` or `removed` file goes to the user as a finding before the verdict.
    - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
@@ -905,19 +932,23 @@ without `tool-definitions` turns it off.
    eight-tool limit (step 4).
    Names still unfinished after the continuation make the step `partial`; never
    send a second continuation.
-8. **Triage the findings.** The reviewer reports without flag categories, so assign
-   them yourself and run inter-phase triage on each report's Defects:
-   - A description-text edit is not an interface change. An input-schema edit (a
-     type, `required`, `enum`, or a parameter name) is an interface change, so it
-     goes to the user.
+8. **Triage the findings.** The reviewer reports without flag categories, so give
+   each Defect one of inter-phase triage's four categories (its step 1) yourself,
+   then run inter-phase triage on each report's Defects:
+   - A fix that edits only description text is not an interface change. A fix that
+     edits an input schema (a type, `required`, `enum`, or a parameter name) is an
+     interface change, so its finding goes to the user.
    - An unintended text change ALWAYS goes to the user, never to a fix. Only the
-     author knows whether it was meant.
-   - Run inter-phase triage on each finding step 4 sends to the user (a broken or
-     removed file, a removed tool the PR title or body does not mention) along with
-     the Defects, as a finding the user decides.
-   - Count unintended changes once per tool and change. A report's Unintended text
-     changes list covers every changed tool in its file, not only its `Review only:`
-     names, so one change appears in every report on that file.
+     author knows whether it was meant. Run inter-phase triage on it as a finding
+     the user decides (inter-phase triage step 5).
+   - Each finding step 4 sends to the user (a broken or removed file, a removed tool
+     the PR title or body does not mention) also goes through inter-phase triage as
+     a finding the user decides.
+   - Count unintended changes once per tool and change: entries in two reports are
+     one change when they name the same tool and the same shared line or changed
+     part. A report's Unintended text changes list covers every changed tool in its
+     file, not only its `Review only:` names, so one change appears in every report
+     on that file.
    - A tool listed in `alsoChangedOnBaseBranch` was changed on the base branch too:
      say so with any finding on it, since its diff can hold the base branch's edit.
    - Fixes follow the mode's rule in the table below. The re-review covers them.
@@ -1002,8 +1033,8 @@ until the user accepts the missing coverage in words when the step:
 - stayed `partial` after its continuation; or
 - could not be dispatched because the runtime has no reviewer agent.
 
-Deferred findings already hold the verdict: Reporting says to put them to the user
-for a decision before any verdict.
+Deferred findings already hold the verdict: Reporting says which of them to put to
+the user for a decision before any verdict.
 
 ### Push the fixes
 
@@ -1104,11 +1135,13 @@ Ship check complete:
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
 
-Each finding inter-phase triage deferred, from a phase, a delta review or the
-tool-definition review, already went through `triage-finding` (when available) in
-its step 5, as it occurred. Before declaring the verdict, re-list each finding still
-deferred with its flag category, and ask for a decision on any the user has not yet
-given one, except a `Pending` one, which waits on the peer session that holds it.
+Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
+finding it deferred, from a phase, a delta review or the tool-definition review, as
+the finding occurred. Before declaring the verdict, re-list each finding still
+deferred with its flag category. Ask for a decision on each one the user has not yet
+decided, except a `Recommended fix`, which the run may not apply and inter-phase
+triage step 5 never asks about, and a `Pending` one, which waits on the peer session
+that holds it.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
@@ -1135,10 +1168,10 @@ Ship check complete (comment mode):
 - Reviews posted: N (one per phase with findings or dismissals)
 ```
 
-Each finding inter-phase triage deferred already went through `triage-finding`
-(when available) in its step 5, in comment mode, so each result is in this run's
-comments or this report. Present the findings still deferred to the user with their
-flag category. The pipeline ends here — no Phase 6 monitoring loop.
+Do not run `triage-finding` again here: inter-phase triage step 5 ran it in comment
+mode on each finding it deferred and posted each result on the PR. List the findings
+still deferred in this report with their flag category, and ask no question:
+comment mode asks nothing. The pipeline ends here — no Phase 6 monitoring loop.
 
 ## Options
 
