@@ -787,7 +787,7 @@ review, so duplicated logic, and mechanisms that later commits made redundant,
 reach merge-ready. The design pass dispatches `ship-check:code-quality-reviewer`
 with `Design pass: dimension 8 only`: the code-quality skill's dimension 8 reads
 the whole PR and asks whether each mechanism the change adds should exist. **It edits nothing**; every finding is a
-proposal. On its own it runs twice per PR at most (see "When it runs"), and only
+proposal. On its own it runs at most twice in a ship-check run (see "When it runs"), and only
 `--skip design-pass` or an `--only` list without `design-pass` turns it off.
 
 1. **Base and head.** Record DESIGN_BASE and DESIGN_HEAD as full SHAs:
@@ -819,10 +819,12 @@ proposal. On its own it runs twice per PR at most (see "When it runs"), and only
    DESIGN_HEAD. When either fails, stop and show the user the diff or the new
    commits. Never keep them: an edit here can be a guard cut the user never approved.
 4. **Coverage.** When the report's `Missed:` line names files, send ONE continuation
-   dispatch with the same prompt plus `Files: <the missed files>`. Files still missed
-   after it: say so with the report; the pass cannot count as "nothing found".
-5. **Triage the proposals** with inter-phase triage. Each proposal carries its flag
-   category:
+   dispatch with the same prompt plus `Files: <the missed files>`, then run step 3's
+   check again. Files still missed after it: say so with the report; the pass cannot
+   count as "nothing found".
+5. **Triage the proposals** with inter-phase triage. In the final pass, first drop
+   each proposal the user already decided this session, such as a piece she chose
+   to keep. Each proposal carries its flag category:
    - `needs design decision` (removing a guard, check, catch, guard clause or
      option): always the user's. Triage never applies it.
    - `complex fix` (duplication or dead code with no protective role): in the first
@@ -840,13 +842,14 @@ proposal. On its own it runs twice per PR at most (see "When it runs"), and only
    inter-phase triage step 5 reserves for the user.
 6. **The session's cut list.** Each cut the user approves goes on the cut list. Pass
    the list as a `Cuts:` line, in step 2's format, in the prompt of every later
-   delta review (in its prior-phase context) and design pass (step 2's template).
+   design pass (step 2's template), delta review, and Phase 1, 3, 4 or 5 dispatch of
+   a later ship-check run in this session (after any prior-phase context).
    Pass it to triage, `triage-finding` included, as a standing disposition: a
    decision already made that covers every later finding. Print it as the Reporting
    snapshot's `Cuts:` line. Fresh-eyes and the tool-definition cold read never
    receive it. A finding that would restore a listed cut is never applied:
-   - a delta agent leaves the fix unmade and reports the finding, as the
-     bug-check and code-quality skills' `Cuts:` rules say;
+   - a phase or delta agent leaves the fix unmade and reports the finding, as the
+     pr-review, bug-check and code-quality skills' `Cuts:` rules say;
    - triage never applies it;
    - a bot thread in pr-monitor Step 3 gets the existing reply "The maintainer
      decided not to change this: [reason]".
@@ -860,7 +863,7 @@ proposal. On its own it runs twice per PR at most (see "When it runs"), and only
 
 | Pass | When | Reads | Its proposals |
 |---|---|---|---|
-| First | After Phase 5 and its triage, before the tool-definition review and "Push the fixes", so the tool-definition review reads the text the pass leaves | The whole PR | Triage as step 5 says |
+| First | After Phase 5 and its triage, before the tool-definition review and "Push the fixes", so the tool-definition review reads the text the pass's triage fixes leave | The whole PR | Triage as step 5 says |
 | Final | In Phase 6, at the first of these: asking the user to test the change live, or the first merge-ready verdict. After the delta review, before the tool-definition re-review. Only when `git diff --name-only <first pass's DESIGN_HEAD> HEAD` lists a changed non-test code, CI or config file | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
 | Any later one | Only when the user asks (`--only design-pass`) | The whole PR | As the final pass |
 

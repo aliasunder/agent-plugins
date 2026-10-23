@@ -156,6 +156,9 @@ skipping decision points.
   - High or medium confidence, and the fix is 10 lines or fewer with no interface
     change: fix it.
   - Anything bigger: flag it.
+  - The one exception: never make a fix that puts back a piece on the dispatch's
+    `Cuts:` list; report the finding instead (the skill's "No environment-specific
+    dismissals").
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
   decision`, or `pre-existing gap` — the orchestrator uses these to triage.
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.

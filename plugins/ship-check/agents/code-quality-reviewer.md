@@ -166,7 +166,10 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 skip this whole section: edit nothing, commit nothing, push nothing. Every finding
 is a `[design]` proposal; the orchestrator checks the tree and HEAD afterwards.
 
-- Fix every finding directly — this is a "pass", not just a review.
+- Fix every finding directly — this is a "pass", not just a review. The one
+  exception: when the dispatch carries a `Cuts:` list, never make a fix that puts a
+  listed piece back; report the finding as a proposal (the skill's "How to report
+  and fix", step 2).
 - Before committing, run step 3 of the code-quality skill's "How to report and
   fix": re-read every comment-only edit beside the code it describes, and revert
   each one that fails question 3 of the stranger read (dimension 0).

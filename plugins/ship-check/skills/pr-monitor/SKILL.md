@@ -530,7 +530,8 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 - **Design pass**, in ship-check's Phase 6 and in a standalone run: the final design
   pass ran once this session, its trigger did not fire before the first merge-ready
   verdict or the first request to test the change live, or the user said not to run
-  it. Never run it again because the head moved since.
+  it. Never run it again because the head moved since. In ship-check's Phase 6,
+  that skill's "Pre-merge delta review", step 6, runs it.
   A standalone run with no design pass yet this session, on a PR whose diff changes
   non-test code, CI or config, runs one before its first merge-ready verdict. Read
   the ship-check skill's "Design pass" section and run it from there, not from a
@@ -540,7 +541,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     with the model and effort controls from that skill's Execution section.
   - Treat the pass as a final pass: every proposal goes to the user, and none is
     fixed through triage. Fixes she approves go through Step 3's sweep and Step 4's
-    follow-up check, like this skill's own fixes.
+    follow-up check, like this skill's own fixes. The sweep removes no guard, check,
+    catch or option she did not approve: each one it finds goes to her as a new
+    proposal.
 
 If any prerequisite is not met, go back to the relevant step.
 

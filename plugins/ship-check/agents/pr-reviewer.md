@@ -145,6 +145,9 @@ you're shortcutting the review.
   - High or medium confidence, and the fix is 10 lines or fewer with no interface
     change: fix it.
   - Anything bigger: flag it.
+  - The one exception: never make a fix that puts back a piece on the dispatch's
+    `Cuts:` list; flag the finding instead (the skill's "How to report and fix",
+    step 2).
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
   decision`, or `pre-existing gap` — the orchestrator uses these to triage between
   phases.

@@ -244,6 +244,9 @@ comment mode.
      → fix it.
    - **Anything bigger** → flag with a category (step 3).
    - When in doubt about the diagnosis but not about a small fix: **fix it.**
+   - The one exception: when the dispatch carries a `Cuts:` list (pieces the user
+     decided to remove this session), never make a fix that puts a listed piece
+     back, however small; flag the finding instead.
 3. **When flagging, categorize** — the orchestrator needs this to triage:
    - `uncertain diagnosis` — low confidence, and the fix is not small
    - `complex fix` — diagnosis is sound but the fix runs past 10 lines or changes an
