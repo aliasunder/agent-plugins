@@ -864,7 +864,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
 | Pass | When | Reads | Its proposals |
 |---|---|---|---|
 | First | After Phase 5 and its triage, before the tool-definition review and "Push the fixes", so the tool-definition review reads the text the pass's triage fixes leave | The whole PR | Triage as step 5 says |
-| Final | In Phase 6, at the first of these: asking the user to test the change live, or the first merge-ready verdict. After the delta review, before the tool-definition re-review. Only when `git diff --name-only <first pass's DESIGN_HEAD> HEAD` lists a changed non-test code, CI or config file | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
+| Final | In Phase 6, at the first of these: asking the user to test the change live, or the first merge-ready verdict. After the delta review, before the tool-definition re-review. Only when a non-test code, CI or config file is in both `git diff --name-only <the head "Push the fixes" pushed> HEAD` (what changed since the phases' push) and `git diff --name-only <a fresh DESIGN_BASE>...HEAD` (the PR's own files), so the first pass's own triage fixes and base-branch merges do not trigger it | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
 | Any later one | Only when the user asks (`--only design-pass`) | The whole PR | As the final pass |
 
 No further pass runs on its own, so the pass cannot loop. Approved fixes from the
@@ -878,11 +878,13 @@ ask, run the final pass first when its trigger fires.
 |---|---|---|
 | Default | First pass, then the final pass | As in "When it runs" |
 | `--comment` | First pass only | One PR-level comment holding every proposal, posted under "Non-inline findings still land on the PR" with component `design-pass`; nothing applied |
-| `--report` (with or without a PR), or local on `main` or a detached HEAD | First pass only | Listed in the report; nothing applied |
+| `--report` with a PR | First pass, then the final pass in Phase 6 when its trigger fires, as the tool-definition review re-reviews under `--report` | To the user only; nothing applied |
+| `--report` without a PR, or local on `main` or a detached HEAD | First pass only | Listed in the report; nothing applied |
 | Local on a branch | First pass only (no Phase 6) | Triage as step 5 says; the summary lists each design fix triage applied |
 | `--inline`, `--fork` | Dimension 8 in this context or a fork | As in default, labelled "not cold" |
 | `--skip design-pass` | Never | Summary: `skipped` |
 | `--only design-pass` | One pass now | As the final pass; "Push the fixes" pushes any fix the user approves |
+| `--only` including `design-pass` and other phases | The first pass after the other selected phases, then the final pass in Phase 6 | As in default |
 | `--only` without `design-pass` | Never | Summary: `not selected` |
 | `--skip code-quality` | Still runs | As in default |
 

@@ -628,9 +628,10 @@ through past reviews:
   decide it for her: when its case is rare and failing there is cheap and visible (a red
   run, a clear error, a re-run that works), propose removing it, with the case, how
   often it occurs and what failing there costs. Skip it only when its case is common
-  in supported use, or when failing there loses data, breaks security, gives wrong
-  output that nobody sees, or publishes, releases or deletes something that is hard
-  to undo, and no other layer already enforces the case.
+  in supported use, or when failing there is not cheap: it loses data, breaks
+  security, gives wrong output that nobody sees, publishes, releases or deletes
+  something that is hard to undo, or leaves the user without the recovery the
+  guard's own message gives (below), and no other layer already enforces the case.
   - **Cheap means the recovery works.** Before proposing a removal, read what is
     left when the guard is gone: the error, and the recovery it points the user
     to. Keep the guard when its own message is what sends the user to the right
@@ -681,8 +682,9 @@ double write leaves one bad entry until the next run`.
 Wrong: a client passes `{ cache: "default" }` to every `fetch` call, and the review
 confirms the responses are correct.
 Right: `[design] client.ts:9 — "default" is fetch's default cache mode, so removing
-the option changes no request → proposal (needs design decision): −1 option in 6
-calls, 1 file, tests unchanged, risk: none`.
+the option changes no request, so its case never occurs and removing it costs
+nothing → proposal (needs design decision): −1 option in 6 calls, 1 file, tests
+unchanged, risk: none`.
 
 **Cut list.** A cut is a piece the user decided to remove this session. The
 orchestrator lists them under `Cuts:` in the dispatch, one line per piece: the
