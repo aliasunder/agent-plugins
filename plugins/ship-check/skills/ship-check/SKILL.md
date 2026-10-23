@@ -132,10 +132,13 @@ dispatching session's.
         as `<base-branch>`. On a branch this is where it left the default branch.
         On `main`, it is the last commit `origin/main` and HEAD share, so the range
         holds exactly the commits not pushed yet.
-     2. `git merge-base <tag> HEAD`, with `<tag>` the last tag, which
-        `git describe --tags --abbrev=0` prints. This covers `main` once every
-        commit is pushed, the case where step 1 returns HEAD.
-     3. Neither gives a range (no tag, or HEAD is the tag): ask the user for a base.
+     2. On `main` or a detached HEAD only: `git merge-base <tag> HEAD`, with
+        `<tag>` the last tag, which `git describe --tags --abbrev=0` prints. This
+        covers `main` once every commit is pushed, the case where step 1 returns
+        HEAD. Skip it on a branch: a branch whose step 1 returns HEAD has no
+        commits of its own, and the tag range would review commits already on main.
+     3. Neither gives a range (no tag, HEAD is the tag, or a branch with no commits
+        of its own): ask the user for a base.
 
      Wrong: on `main` with three unpushed commits, reviewing every commit since the
      last tag. Right: reviewing the three unpushed commits.
@@ -617,7 +620,7 @@ review type.
 Build the file list from the diff, excluding test files:
 
 ```bash
-git diff --name-only REVIEW_BASE...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
+git diff --name-only --diff-filter=d REVIEW_BASE...HEAD | grep -v '__tests__\|\.test\.\|\.spec\.'
 ```
 
 ```
