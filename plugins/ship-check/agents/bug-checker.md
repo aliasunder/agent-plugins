@@ -6,8 +6,8 @@ description: >
   include being dispatched by the ship-check pipeline for Phase 5, a user asking for
   a deep correctness check or to look for subtle bugs, and verifying that tool
   descriptions match their implementations after changes. See "When to invoke" in the
-  agent body for worked scenarios. A Codex dispatcher must include
-  `Attribution model ID: <exact-id>` in the prompt.
+  agent body for worked scenarios. A Codex session that dispatches
+  this agent must include `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: red
 tools:
@@ -62,7 +62,8 @@ bugs hide.
 5. Fix or flag each bug with the confidence × fix-complexity matrix (see "Fixing and Committing")
 6. **Report ALL findings** — including pre-existing gaps you discover during analysis. "Pre-existing" is context for categorization, not a reason to omit. See "Rules that override intuition" in the bug-check skill.
 7. **Grep before claiming effort** — never call a fix "high lift" or "complex" without checking actual call sites. A 10-second grep prevents deferring a 30-second fix.
-8. Run tests and commit fixes (push only in a standalone run)
+8. Run tests and commit fixes (push only when the prompt does not say
+   "do not push")
 
 ## Orientation (do this first, every time)
 
@@ -80,7 +81,7 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` the phase-relevant results (currently typescript and docs),
    plus any newer note matching the repo's language/stack.
-   Then recall the dated evidence trail for the change's domain — it surfaces
+   Then recall the dated memory entries for the change's domain, which hold
    preferences newer than the notes: `vault_memory_recall({ query: "<change domain>" })`
 
 3. **Load sequential thinking**:
@@ -88,9 +89,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 4. **Identify changed files** in the range your dispatch names:
    - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`.
-     REVIEW_BASE is already a merge base that HEAD contains, so `..` would list
-     the same files. `...` matters in the standalone line below, where the base
-     is a branch tip.
+     `..` would list the same files here, because REVIEW_BASE is already a merge
+     base that HEAD contains. `...` matters in the standalone line below, where
+     the base is a branch tip.
    - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
      `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
@@ -156,8 +157,8 @@ skipping decision points.
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
   decision`, or `pre-existing gap` — the orchestrator uses these to triage.
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.
-- Stage and commit when done. Push only in a standalone run: a ship-check
-  dispatch says "do not push", and the orchestrator pushes every phase's commits
+- Stage and commit when done. Push only when your prompt does not say "do not
+  push": every ship-check dispatch says it, because the orchestrator pushes every phase's commits
   once after Phase 5.
 - Commit message: `fix: <summary of bug fixes>`
 
@@ -171,8 +172,8 @@ order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
-2. Without that line, a Claude agent may use the family ID from its system context,
-   such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+2. Without that line, a Claude agent may use the model ID from its system context
+   without its context-window or dated-build suffixes, such as `claude-opus-4-6`.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
@@ -224,7 +225,7 @@ Bug check complete (comment mode):
 - Files checked: N
 - Reviewed at: <HEAD SHA reviewed>
 - Bugs found: N (M would-fix, K flagged)
-- Review posted: yes / no (0 findings)
+- Review posted: yes / no (0 findings, 0 dismissals)
 - By dimension:
   - Description mismatch: A
   - SQL correctness: B

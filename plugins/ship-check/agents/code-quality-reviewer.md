@@ -6,8 +6,8 @@ description: >
   ship-check pipeline for Phase 3 (naming, structure, comments, simplicity, module
   conventions), a user asking for a convention-grounded code quality pass, and reviewing
   changed files against project-specific naming and immutability rules. See "When to
-  invoke" in the agent body for worked scenarios. A Codex dispatcher must include
-  `Attribution model ID: <exact-id>` in the prompt.
+  invoke" in the agent body for worked scenarios. A Codex session that dispatches
+  this agent must include `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: green
 tools:
@@ -47,8 +47,9 @@ line is under review, not just new additions.
   change.
 - **Standalone code quality pass.** A user asks to "clean up against conventions",
   "do a readability pass", or "review against AGENTS.md". You run the full code-quality
-  skill procedure. A Codex dispatcher includes `Attribution model ID: <exact-id>` in
-  this standalone prompt.
+  skill procedure. When a Codex session dispatches this run, it includes
+  `Attribution model ID: <exact-id>` in the prompt; without that line, a Codex run
+  stops before committing (see Attribution).
 - **Post-refactor convention check.** After a large refactor, the user wants to verify
   all touched files still meet naming and module layering rules.
 - **Not for a fresh-eyes read of one function, or a comparison of two candidate
@@ -66,7 +67,8 @@ line is under review, not just new additions.
    handling, comments, simplicity, module conventions, and docs & comment quality
    (dimensions 1-7)
 4. Fix every finding directly — this is a "pass", not just a review
-5. Run tests and commit fixes (push only in a standalone run)
+5. Run tests and commit fixes (push only when the prompt does not say
+   "do not push")
 
 ## Orientation (do this first, every time)
 
@@ -87,7 +89,7 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    (`Reference/code-standards-docs`, which grounds the comments and docs
    dimensions; read it even when no markdown file changed) — plus any newer note
    matching the repo's language/stack.
-   Then recall the dated evidence trail for the change's domain — it surfaces
+   Then recall the dated memory entries for the change's domain, which hold
    preferences newer than the notes: `vault_memory_recall({ query: "<change domain>" })`
    Also read `Reference/style-core.md` (`vault_read_note`) — its invariants bind
    all prose you review or write: doc comments, tool descriptions, and every
@@ -98,9 +100,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 4. **Identify changed files** in the range your dispatch names:
    - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`.
-     REVIEW_BASE is already a merge base that HEAD contains, so `..` would list
-     the same files. `...` matters in the standalone line below, where the base
-     is a branch tip.
+     `..` would list the same files here, because REVIEW_BASE is already a merge
+     base that HEAD contains. `...` matters in the standalone line below, where
+     the base is a branch tip.
    - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
      `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
@@ -152,8 +154,8 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   fix": re-read every comment-only edit beside the code it describes, and revert
   each one that fails question 3 of the stranger read (dimension 0).
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.
-- Stage and commit when done. Push only in a standalone run: a ship-check
-  dispatch says "do not push", and the orchestrator pushes every phase's commits
+- Stage and commit when done. Push only when your prompt does not say "do not
+  push": every ship-check dispatch says it, because the orchestrator pushes every phase's commits
   once after Phase 5.
 - Commit message: `style: <summary of readability/convention fixes>`
 
@@ -167,8 +169,8 @@ order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
-2. Without that line, a Claude agent may use the family ID from its system context,
-   such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+2. Without that line, a Claude agent may use the model ID from its system context
+   without its context-window or dated-build suffixes, such as `claude-opus-4-6`.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
@@ -217,7 +219,7 @@ Code quality complete (comment mode):
 - Functions read: N (M with pauses — every pause appears below as a finding)
 - Fresh-eyes pauses: N received — K commented, J dismissed (only when the dispatch carried a pause list; dispositions follow)
 - Findings: N total, all commented
-- Review posted: yes / no (0 findings)
+- Review posted: yes / no (0 findings, 0 dismissals)
 - By category:
   - Naming: A
   - Structure: B

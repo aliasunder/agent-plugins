@@ -6,8 +6,8 @@ description: >
   for Phase 1 (correctness, security, conditional checks), a user asking for a
   convention-aware PR review rather than a generic one, and reviewing a PR against
   project-specific feature surface doc requirements. See "When to invoke"
-  in the agent body for worked scenarios. A Codex dispatcher must include
-  `Attribution model ID: <exact-id>` in the prompt.
+  in the agent body for worked scenarios. A Codex session that dispatches
+  this agent must include `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: cyan
 tools:
@@ -45,8 +45,9 @@ author intended.
   dedicated agents handle those in later phases.
 - **Standalone PR review.** A user asks for a project-aware PR review ("review this PR
   against AGENTS.md", "thorough review with my preferences"). You run all dimensions
-  since no pipeline is handling the others. A Codex dispatcher includes
-  `Attribution model ID: <exact-id>` in this standalone prompt.
+  since no pipeline is handling the others. When a Codex session dispatches this run, it
+  includes `Attribution model ID: <exact-id>` in the prompt; without that line, a
+  Codex run stops before committing (see Attribution).
 - **Feature surface check.** The PR changes the project's feature surface, and the user
   wants that dimension specifically evaluated.
 - **Not for MCP tool definitions.** A change to tool descriptions or input schemas is
@@ -59,7 +60,8 @@ author intended.
 2. Read the full diff and all touched source files — not just the changed lines
 3. Evaluate every change against the review dimensions in the preloaded pr-review skill
 4. Fix or flag each finding with the confidence × fix-complexity matrix (see "Fixing and Committing")
-5. Run tests and commit fixes (push only in a standalone run)
+5. Run tests and commit fixes (push only when the prompt does not say
+   "do not push")
 
 ## Orientation (do this first, every time)
 
@@ -78,7 +80,7 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    Then `vault_read_note` EVERY note the tag returns (distilled current consensus —
    currently typescript, testing, logging-observability, docs).
-   Then recall the dated evidence trail for the PR's domain — it surfaces preferences
+   Then recall the dated memory entries for the PR's domain, which hold preferences
    newer than the notes: `vault_memory_recall({ query: "<change domain, e.g. 'error handling'>" })`
 
 3. **Load sequential thinking** for organizing findings:
@@ -86,9 +88,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 4. **Read the full diff** of the range your dispatch names, and every source file it
    touches:
-   - `Base: <REVIEW_BASE>` → `git diff <REVIEW_BASE>...HEAD`. REVIEW_BASE is
-     already a merge base that HEAD contains, so `..` would give the same diff.
-     `...` matters in the standalone line below, where the base is a branch tip.
+   - `Base: <REVIEW_BASE>` → `git diff <REVIEW_BASE>...HEAD`. `..` would
+     give the same diff here, because REVIEW_BASE is already a merge base that HEAD
+     contains. `...` matters in the standalone line below, where the base is a branch tip.
    - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits;
      ship-check's delta review never sends it to this agent) →
      `git diff <reviewed-sha>..<head-sha>`
@@ -147,8 +149,8 @@ you're shortcutting the review.
   decision`, or `pre-existing gap` — the orchestrator uses these to triage between
   phases.
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.
-- Stage and commit when done. Push only in a standalone run: a ship-check
-  dispatch says "do not push", and the orchestrator pushes every phase's commits
+- Stage and commit when done. Push only when your prompt does not say "do not
+  push": every ship-check dispatch says it, because the orchestrator pushes every phase's commits
   once after Phase 5.
 - Commit message: `fix(review): <summary of fixes>`
 
@@ -162,8 +164,8 @@ order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
-2. Without that line, a Claude agent may use the family ID from its system context,
-   such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+2. Without that line, a Claude agent may use the model ID from its system context
+   without its context-window or dated-build suffixes, such as `claude-opus-4-6`.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
@@ -215,7 +217,7 @@ PR Review complete (comment mode):
 - Files reviewed: N
 - Reviewed at: <HEAD SHA reviewed>
 - Findings: N total (M would-fix, K flagged)
-- Review posted: yes / no (0 findings)
+- Review posted: yes / no (0 findings, 0 dismissals)
 - By dimension:
   - Correctness: A
   - Security/performance: B

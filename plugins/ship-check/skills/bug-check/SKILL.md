@@ -31,7 +31,7 @@ to every changed file. It is systematic where pr-review is intuitive.
 1. Load AGENTS.md for project conventions.
 2. Load code standards + preference recall — discover the standards notes first
    (the set grows; hardcoded lists go stale), read the pass-relevant results,
-   then recall the dated evidence trail for the change's domain (surfaces
+   then recall the dated memory entries for the change's domain (they hold
    preferences newer than the notes):
    - `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
    - `vault_read_note` the results (currently typescript and docs), plus any newer
@@ -516,9 +516,9 @@ Bug check complete:
 
 - **State what you reviewed.** The summary names the HEAD SHA actually
   reviewed (`git rev-parse HEAD`) — a review that doesn't say what it checked
-  is indistinguishable from one that checked nothing. It also lets the
-  orchestrator cross-check what this phase actually saw against the reviewed
-  SHA it records at Phase 5 close.
+  is indistinguishable from one that checked nothing. In a ship-check run, it
+  also lets the pipeline's orchestrator cross-check what this phase actually saw
+  against the reviewed SHA it records when Phase 5 (bug-check) finishes.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". This
   extends "No silent skipping" to the negative space: findings you confirmed
@@ -561,14 +561,19 @@ REVIEW
 ```
 
 Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
-with the number in its `PR #<number>`. Replace `MODEL_ID` with the exact runtime
-model:
+with the number in its `PR #<number>`. With no dispatch prompt, take them from
+`gh repo view --json nameWithOwner -q .nameWithOwner` and
+`gh pr view --json number -q .number`. Replace `MODEL_ID` with the exact
+runtime model, from the first of these sources that applies:
 
-1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
-   Placeholder text is not an ID; treat it as a missing line.
-2. Without that line, a Claude agent may use its system-context family ID, and an
-   OpenCode agent may use its runtime-exposed provider/model ID.
-3. An inline standalone run may use the current session's verified exact model source.
+- `Attribution model ID: <exact-id>` from the dispatch prompt, verbatim.
+  Placeholder text is not an ID; treat it as a missing line.
+- Without that line, a Claude agent may use the model ID from its system
+  context without context-window or dated-build suffixes, and an OpenCode
+  agent may use its runtime-exposed provider/model ID.
+- When the skill runs inline in the user's own session rather than as a
+  dispatched agent, use that session's exact model, resolved the way
+  ship-check's Attribution section describes for inline mode.
 
 A Codex child without the dispatch line stops before committing or posting and reports
 an attribution blocker. Never infer a model from memory, parent prose, whichever Codex
