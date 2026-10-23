@@ -655,7 +655,7 @@ through past reviews:
 
 | The proposal removes or merges | Flag category |
 | --- | --- |
-| A piece that protects against a case: a guard, check, catch, guard clause or option | `needs design decision`, even when it is also duplication or dead code |
+| A piece that protects against a case: a guard, check, catch, guard clause or option | `needs design decision`, even when it is also duplication, dead code, or code that existed before the change (say so in the proposal) |
 | Duplication or dead code with no protective role | `complex fix` |
 | Code that existed before the change | `pre-existing gap` |
 

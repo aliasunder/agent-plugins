@@ -437,7 +437,8 @@ null-out after data is consumed costs nothing and eliminates the concern entirel
 The one exception: when the dispatch carries a `Cuts:` list (one line per piece:
 the file, what was removed and the user's reason), the user has already decided to
 remove each listed piece. Never put one back, however trivial the fix; report the
-finding instead, and the orchestrator takes it to her.
+finding instead. The orchestrator turns it down under the cut list, and takes it to
+her only when it shows new evidence that the cut's case is common.
 
 ### Verify effort before claiming it
 
