@@ -577,8 +577,8 @@ comment-mode run.
    <base>...HEAD`, then `git show <base>:<path>`). Read changed tests as evidence of
    what the code is meant to do; never audit or edit them.
 3. Read changed docs by diff hunk only.
-4. Write an inventory: every command or entry point, function, guard, check, catch
-   and option the change adds, with `file:line`.
+4. Write an inventory: every command or entry point, function, guard, check, catch,
+   option and parameter the change adds, with `file:line`.
 5. For each sequence of two or more steps, search the whole repo for its key calls
    (`rg -n '<call>'`), so a copy in an unchanged file shows up too.
 6. Write a synthesis after all the reads. Before calling two pieces duplicates,
@@ -593,14 +593,15 @@ the evidence; do not match words against it.
 
 | Question | Skip when |
 | --- | --- |
-| Is a sequence or rule implemented in more than one place? First ask whether one copy can be deleted; only then propose a merge | Your synthesis names a boundary or contract that one copy protects and the other does not |
-| Did a later mechanism make an earlier one redundant? | The earlier one protects a named case the later one does not |
-| When the project states layering rules (AGENTS.md or similar), does each new function sit in the layer they assign? | The project states no layering rules |
+| Is a sequence, rule or literal implemented in more than one place? A literal counts when the same message or command text is built in three or more places. First ask whether one copy can be deleted; only then propose a merge | Your synthesis names a boundary or contract that one copy protects and the other does not |
+| When sibling paths (commands, handlers, steps) should apply the same check, does every sibling apply it? | The siblings' contracts differ, and the code or docs say how |
+| Did a later mechanism make an earlier one redundant? When several pieces each patch one consequence of the same ordering or timing problem, would a different order remove the problem, and the pieces with it? | The earlier one protects a named case the later one does not |
+| When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
-| Is anything left from a superseded approach, or left unused by a removal: dead code, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
-| Does each guard, check, catch and option earn its place? Weigh how often its case occurs against what failing there costs | Its case is common in supported use, or how often it occurs times the cost of failing there outweighs the cost of keeping it |
+| Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
+| Does each guard, check, catch and option earn its place? | Its case is common in supported use, or failing there loses data, breaks security, or gives wrong output that nobody sees |
 
-**Three counters.** Each one answers a dismissal that has kept redundant code
+**Four counters.** Each one answers a dismissal that has kept redundant code
 through past reviews:
 
 - A rule about where a guard lives does not decide whether a second copy earns its
@@ -609,13 +610,21 @@ through past reviews:
   it is harmless.
 - For an option or flag, ask whether removing it changes the output in supported
   use, not only whether the output is correct. Run it both ways when you can.
+- "It is cheap to keep" and "it is only a few lines" are not reasons to skip a
+  guard, check, catch or option. The user decides every cut of one, so do not decide
+  it for her: when its case is rare and failing there is cheap and visible (a red
+  run, a clear error, a re-run that works), propose removing it, with the case, how
+  often it occurs and what failing there costs. Skip it only when its case is common
+  in supported use, or when failing there loses data, breaks security, or gives
+  wrong output that nobody sees.
 
 **Pragmatic bar.** In a design pass this bar replaces "Report everything":
 
 - Every finding states the lines removed or moved, the files touched, the tests
   affected and the risk.
 - A proposal must leave the code smaller or clearer now. A new abstraction must
-  remove duplication that exists today.
+  remove duplication that exists today. Removing dead code, an unused parameter or
+  an option that changes no output always meets this bar, however small.
 - A clean change gets `Dimension 8: nothing found`. Never pad a clean change with
   filler proposals.
 
