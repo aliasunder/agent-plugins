@@ -426,13 +426,15 @@ sequential thinking forces you to deliberate instead of relaying.
    Four kinds of finding go to the user without exception:
    - an unintended tool-text change ("Tool-definition review (conditional)", step 8);
    - a broken or removed tool-list file (the same section, step 4);
-   - a removed tool the PR title or body does not mention (the same section, step 4);
+   - a removed tool the PR title or body (in local mode, the range's commit
+     messages) does not mention (the same section, step 4);
    - every tool-definition re-review finding ("The re-review", step 5).
 
    Route them and every other deferral this way:
    - Pass each of the four kinds to `triage-finding` with the instruction "the user
-     decides this finding" (its Instructions input), so it is assessed and asked,
-     never fixed or logged away. For these, `Already done` and `Pending` stand, and
+     decides this finding" (its Instructions input), so it is assessed and asked
+     (listed, in a run that asks nothing, as the next two bullets say), never fixed
+     or logged away. For these, `Already done` and `Pending` stand, and
      a `Mentioned` result goes to the user as a question instead. Then run
      `triage-finding` on it again with the user's answer as its Instructions input.
    - In comment mode `triage-finding` asks nothing, those four kinds included. Post
@@ -440,9 +442,14 @@ sequential thinking forces you to deliberate instead of relaying.
      sits on a diff line, and otherwise as a PR-level comment under "Non-inline
      findings still land on the PR". A `Pending` result gets no comment while it
      waits, the way pr-monitor leaves pending findings out of its PR comments.
+   - In a report-only run (`--report`, or local on `main` or a detached HEAD)
+     `triage-finding` asks nothing either, those four kinds included. List each
+     result with its recommendation in the status update before the next dispatch;
+     the user decides from that list, and Reporting asks nothing about these.
    - Without `triage-finding`, ask the user about each deferral now, with file:line,
      flag category, what the issue is, the options with their tradeoffs, your
-     recommendation, and the decision needed.
+     recommendation, and the decision needed. In comment mode and report-only runs,
+     list the same fields instead of asking.
    - The final summary re-lists deferrals; it is never their first disclosure.
 6. **Record results**: track triage fixes separately from phase fixes in the summary.
 
@@ -853,8 +860,8 @@ without `tool-definitions` turns it off.
      `the base branch deleted every changed tool list`.
    - Each `broken` or `removed` file goes to the user as a finding before the verdict.
    - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
-     tool whose name the PR title or body does not mention goes to the user as a
-     finding.
+     tool whose name the PR title or body does not mention (in local mode, the
+     range's commit messages, as step 5 reads them) goes to the user as a finding.
 5. **Intended tools.** Collect every name in the plan's `reviewOnly` lists that
    appears as a whole word in the PR title or body
    (`gh pr view <number> -R OWNER_REPO --json title,body`, where OWNER_REPO is the
@@ -947,7 +954,8 @@ without `tool-definitions` turns it off.
      author knows whether it was meant. Run inter-phase triage on it as a finding
      the user decides (inter-phase triage step 5).
    - Each finding step 4 sends to the user (a broken or removed file, a removed tool
-     the PR title or body does not mention) also goes through inter-phase triage as
+     the PR title or body, or in local mode the range's commit messages, does not
+     mention) also goes through inter-phase triage as
      a finding the user decides.
    - Count unintended changes once per tool and change: entries in two reports are
      one change when they name the same tool and the same shared line or changed
@@ -1038,9 +1046,10 @@ until the user accepts the missing coverage in words when the step:
 - stayed `partial` after its continuation; or
 - could not be dispatched because the runtime has no reviewer agent.
 
-Deferred findings already hold the verdict, except a `Pending` one, which another
-session's card holds: Reporting says which of them to put to the user for a decision
-before any verdict.
+Deferred findings already hold the verdict, a `Pending` one included until it settles
+(inter-phase triage step 5), as pr-monitor's Step 5 also lists pending findings as
+blockers. Reporting says which of them to put to the user for a decision before any
+verdict.
 
 ### Push the fixes
 
@@ -1151,7 +1160,9 @@ decided, except:
   a later monitoring pass;
 - a `Recommended fix`, which the run may not apply and inter-phase triage step 5
   never asks about;
-- a `Pending` one, which waits on the peer session that holds it.
+- a `Pending` one, which waits on the peer session that holds it;
+- any finding in a report-only run (`--report`, or local on `main` or a detached
+  HEAD): inter-phase triage step 5 listed it, and such a run asks nothing.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
