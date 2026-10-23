@@ -419,7 +419,9 @@ sequential thinking forces you to deliberate instead of relaying.
    - `Pending` (another session that is running now holds a card for the same
      problem, marked `[/]` on the project's task board; triage-finding has sent
      that session the finding): list it under Deferred, naming that session, and do
-     not ask the user about it.
+     not ask the user about it. When that session answers, or peer discovery no
+     longer finds it running, run `triage-finding` on the finding again, with the
+     answer when there is one, and act on the new result by its bullet in this list.
 
    Four kinds of finding go to the user without exception:
    - an unintended tool-text change ("Tool-definition review (conditional)", step 8);
@@ -431,14 +433,16 @@ sequential thinking forces you to deliberate instead of relaying.
    - Pass each of the four kinds to `triage-finding` with the instruction "the user
      decides this finding" (its Instructions input), so it is assessed and asked,
      never fixed or logged away. For these, `Already done` and `Pending` stand, and
-     a `Mentioned` result goes to the user as a question instead.
+     a `Mentioned` result goes to the user as a question instead. Then run
+     `triage-finding` on it again with the user's answer as its Instructions input.
    - In comment mode `triage-finding` asks nothing, those four kinds included. Post
      each result on the PR yourself: as an inline comment, as step 4 says, when it
      sits on a diff line, and otherwise as a PR-level comment under "Non-inline
-     findings still land on the PR".
+     findings still land on the PR". A `Pending` result gets no comment while it
+     waits, the way pr-monitor leaves pending findings out of its PR comments.
    - Without `triage-finding`, ask the user about each deferral now, with file:line,
-     flag category, what the issue is, the options with their tradeoffs, and the
-     decision needed.
+     flag category, what the issue is, the options with their tradeoffs, your
+     recommendation, and the decision needed.
    - The final summary re-lists deferrals; it is never their first disclosure.
 6. **Record results**: track triage fixes separately from phase fixes in the summary.
 
@@ -1129,7 +1133,7 @@ Ship check complete:
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
-- Triage:       N flagged findings triaged across all phases — M fixed, K deferred (L pre-existing gaps)
+- Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">
@@ -1141,9 +1145,13 @@ Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
 finding it deferred, from a phase, a delta review or the tool-definition review, as
 the finding occurred. Before declaring the verdict, re-list each finding still
 deferred with its flag category. Ask for a decision on each one the user has not yet
-decided, except a `Recommended fix`, which the run may not apply and inter-phase
-triage step 5 never asks about, and a `Pending` one, which waits on the peer session
-that holds it.
+decided, except:
+
+- one already asked, which waits for the user's answer: never ask it again, even on
+  a later monitoring pass;
+- a `Recommended fix`, which the run may not apply and inter-phase triage step 5
+  never asks about;
+- a `Pending` one, which waits on the peer session that holds it.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
@@ -1162,7 +1170,7 @@ Ship check complete (comment mode):
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
-- Triage:       N flagged findings triaged across all phases — M commented, K deferred
+- Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
 - Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")
@@ -1171,9 +1179,10 @@ Ship check complete (comment mode):
 ```
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it in comment
-mode on each finding it deferred and posted each result on the PR. List the findings
-still deferred in this report with their flag category, and ask no question:
-comment mode asks nothing. The pipeline ends here — no Phase 6 monitoring loop.
+mode on each finding it deferred and posted every result but a `Pending` one on the
+PR. List the findings still deferred in this report with their flag category, and
+ask no question about them: in comment mode, findings reach the user through the PR
+and this report. The pipeline ends here — no Phase 6 monitoring loop.
 
 ## Options
 
