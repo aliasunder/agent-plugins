@@ -533,7 +533,7 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   it. Never run it again because the head moved since. In ship-check's Phase 6,
   that skill's "Pre-merge delta review", step 6, runs it.
   A standalone run with no design pass yet this session, on a PR whose diff changes
-  non-test code, CI or config, runs one before its first merge-ready verdict. Read
+  non-test code, CI, config or shipped agent instructions, runs one before its first merge-ready verdict. Read
   the ship-check skill's "Design pass" section and run it from there, not from a
   copy in this skill:
   - Take the base as its step 1 does in PR mode (a fresh merge base).

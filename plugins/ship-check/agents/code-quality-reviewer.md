@@ -236,7 +236,7 @@ Code quality complete:
 Design pass complete:
 - Read: base <full SHA>, head <full SHA>
 - Files read whole: N (deleted files read at the base: M)
-- Missed: <changed code, CI or config files not read — or "none">
+- Missed: <changed code, CI, config or shipped-instruction files not read — or "none">
 - Whole-change design: N proposals — A needs design decision, B complex fix, C pre-existing gap
   (or "Dimension 8: nothing found", only when Missed is "none")
 - Proposals: one [design] line each, with lines, files, tests and risk

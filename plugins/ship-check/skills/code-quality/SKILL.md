@@ -577,11 +577,13 @@ an earlier pass missed those files: read them whole first, then run every step.
 1. Run `git log --reverse --format='%h %s' <base>..HEAD` to see when each mechanism
    arrived.
 2. Read each changed code, CI and config file whole at HEAD
-   (`git diff --name-only --diff-filter=d <base>...HEAD`, minus test files). Read
+   (`git diff --name-only --diff-filter=d <base>...HEAD`, minus test files). Shipped
+   agent instructions count as code here: skills, agent definitions and prompt
+   templates the project ships, which agents execute rather than people read. Read
    each deleted file at the base (`git diff --name-only --diff-filter=D
    <base>...HEAD`, then `git show <base>:<path>`). Read each changed test file whole
    too, as evidence of what the code is meant to do; never audit or edit them.
-3. Read changed docs by diff hunk only.
+3. Read other changed docs by diff hunk only.
 4. Write an inventory: every command or entry point, function, guard, check, catch,
    option and parameter the change adds, with `file:line`.
 5. For each run of two or more calls or commands the change adds that do one job
@@ -592,8 +594,8 @@ an earlier pass missed those files: read them whole first, then run every step.
    compare their inputs, errors, side effects and lifecycle.
 
 Report the base and head you read, and list the files you read whole. When you
-could not read a changed code, CI or config file, name it; a pass that missed a
-file never reports "nothing found".
+could not read a changed code, CI, config or shipped-instruction file, name it; a
+pass that missed a file never reports "nothing found".
 
 **Ask each question of the inventory.** Each one has a skip. Skip a question only
 when the evidence shows the skip's condition holds, never because a comment or name
