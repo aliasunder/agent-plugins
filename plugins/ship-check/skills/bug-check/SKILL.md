@@ -477,14 +477,19 @@ yours. Convention violations in your fixes ship unchecked.
    **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
    **Call `sequentialthinking` before each disposition decision** — input the finding,
    confidence level, and fix complexity; output which matrix cell it falls in and why:
-   - **High/medium confidence** → fix directly.
-   - **Low confidence + trivial fix** (< 5 lines, no interface change) → fix it.
-     The cost of a safe no-op is near zero; the cost of missing a real bug is not.
-     "Low-risk" is a reason TO fix, not a reason to defer.
-   - **Low confidence + complex/risky fix** → flag with category.
-   When flagging, categorize as: `uncertain diagnosis`, `complex fix`,
-   `needs design decision`, or `pre-existing gap`. The orchestrator uses
-   these categories to triage.
+   - **Small fix** (< 5 lines, no interface change, no behavioral risk) → fix it,
+     at any confidence. The cost of a safe no-op is near zero; the cost of missing
+     a real bug is not. "Low-risk" is a reason TO fix, not a reason to defer.
+   - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
+     → fix it.
+   - **Anything bigger** → flag with a category:
+     - `complex fix` — the diagnosis is sound, but the fix runs past 10 lines,
+       changes an interface, or carries behavioral risk. Grep for call sites
+       before claiming this.
+     - `uncertain diagnosis` — low confidence, and the fix is not small.
+     - `needs design decision` — more than one valid approach; the user chooses.
+     - `pre-existing gap` — the issue predates the change but the change revealed it.
+   The orchestrator uses these categories to triage.
 4. Stage and commit all fixes. Push only in a standalone run. In a ship-check run
    (the dispatch says "do not push", or you run inline in the orchestrator's
    context), commit only: the orchestrator pushes every phase's commits once after

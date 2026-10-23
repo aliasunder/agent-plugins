@@ -237,16 +237,17 @@ comment mode.
 2. **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
    **Call `sequentialthinking` before each disposition decision** — input the finding,
    confidence level, and fix complexity; output which matrix cell it falls in and why:
-   - **High/medium confidence** → fix directly, regardless of fix complexity.
-   - **Low confidence + trivial fix** (< 5 lines, no interface change, no behavioral
-     risk) → fix it. A safe no-op change costs nothing; a real bug left unfixed does.
-     "Low-risk" is a reason TO fix, not a reason to defer.
-   - **Low confidence + complex/risky fix** → flag with category.
-   - When in doubt about the diagnosis but not about the fix: **fix it.**
+   - **Small fix** (< 5 lines, no interface change, no behavioral risk) → fix it,
+     at any confidence. A safe no-op change costs nothing; a real bug left unfixed
+     does. "Low-risk" is a reason TO fix, not a reason to defer.
+   - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
+     → fix it.
+   - **Anything bigger** → flag with a category (step 3).
+   - When in doubt about the diagnosis but not about a small fix: **fix it.**
 3. **When flagging, categorize** — the orchestrator needs this to triage:
-   - `uncertain diagnosis` — not sure the issue is real, fix is non-trivial
-   - `complex fix` — diagnosis is sound but fix is non-trivial (> 10 lines, interface
-     changes, or behavioral risk). **Grep for call sites before claiming this** — the
+   - `uncertain diagnosis` — low confidence, and the fix is not small
+   - `complex fix` — diagnosis is sound but the fix runs past 10 lines, changes an
+     interface, or carries behavioral risk. **Grep for call sites before claiming this** — the
      difference between "every call site" and "one call site" is the difference between
      deferring and a 30-second fix.
    - `needs design decision` — multiple valid approaches, user must choose

@@ -352,8 +352,8 @@ sequential thinking forces you to deliberate instead of relaying.
    |-----------|-----|--------|
    | Uncertain diagnosis | Trivial (< 5 lines, no interface change) | Fix — safe even if diagnosis is wrong |
    | Uncertain diagnosis | Complex or risky | Defer to user |
-   | Complex fix | Trivial (after grep — step 2) | Fix — the sub-agent overestimated |
-   | Complex fix | Actually complex (> 10 lines or interface changes) | Defer to user |
+   | Complex fix | 10 lines or fewer, no interface change (after grep — step 2) | Fix — the sub-agent overestimated |
+   | Complex fix | More than 10 lines, or an interface change | Defer to user |
    | Pre-existing gap | Trivial and mechanical | Fix — the PR revealed the gap |
    | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
    | Any | Needs design decision | Always defer to user |
@@ -570,7 +570,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "PR review — <resolved model> / <resolved phase effort>",
-  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix all high/medium confidence findings directly. For low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
+  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix every finding whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence finding whose fix is 10 lines or fewer with no interface change. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
 })
 ```
 
@@ -675,7 +675,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Bug check — <resolved model> / <resolved phase effort>",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix high-confidence bugs directly. For medium/low-confidence findings: fix if the change is trivial and safe (< 5 lines, no interface change); only flag when the fix itself is uncertain, risky, or needs a design decision. When flagging, categorize as: 'uncertain diagnosis', 'complex fix', or 'needs design decision'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix every bug whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence bug whose fix is 10 lines or fewer with no interface change. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 

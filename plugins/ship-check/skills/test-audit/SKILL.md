@@ -52,8 +52,9 @@ Load these sources fresh:
 
 ## Scope
 
-- **Default**: audit all `.test.ts` / `.spec.ts` files changed on the current
-  branch, in the range the dispatch names:
+- **Default**: audit all test files changed on the current branch (a `.test.` or
+  `.spec.` file, or any file under a `__tests__/` folder, such as a helper or
+  fixture), in the range the dispatch names:
   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits) →
     `git diff --name-only <reviewed-sha>..<head-sha>`
@@ -293,11 +294,14 @@ is the primary audit. It answers: "should there be tests for what changed?"
    range Scope's Default chose, also when the user named the test files to audit:
    `<REVIEW_BASE>...HEAD`, `<reviewed-sha>..<head-sha>`, or
    `origin/<base-branch>...HEAD`.
-   Separate into two lists: test files (`.test.ts` / `.spec.ts`) and non-test files. Exclude docs (`.md`)
-   and generated files from the non-test list. Don't categorically exclude config files
-   (`.config.ts`, `sst.config.ts`, etc.) — check whether existing tests cover them
-   first (`grep -rn "config" --include="*.test.ts"`). If a config file has tests,
-   it's in scope.
+   Separate into two lists: test files (a `.test.` or `.spec.` file, or any file
+   under a `__tests__/` folder, such as a helper or fixture) and non-test files.
+   Exclude docs (`.md`) and generated files from the non-test list. Don't
+   categorically exclude config files (`.config.ts`, `sst.config.ts`, etc.) —
+   check whether existing tests cover them first, by searching the test files for
+   the config file's name (for `sst.config.ts`:
+   `rg -l "sst.config" -g "*.test.ts" -g "*.spec.ts"`). If a config file has
+   tests, it's in scope.
 
 2. **For each changed non-test file**, read the diff (`git diff <range> -- <file>`)
    and classify each change:

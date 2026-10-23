@@ -109,7 +109,8 @@ Load these sources fresh — do not rely on what is already in context:
   0 findings, report "0 findings" — that is a valid result, not a reason to skip.
 - **Markdown docs are in scope for dimension 7 only** — changed `.md` files (README,
   guides, ARCHITECTURE, env templates) get dimension 7 (Docs & comment quality), not
-  the code dimensions.
+  the code dimensions. Dimension 0 (Stranger read) reads code, not markdown, but
+  every fresh-eyes pause on a markdown file still gets a disposition.
 - **Same-pattern sweep**: when a trigger fires on changed code, scan the rest of the
   file — and grep for sibling call sites — for other instances of the same pattern,
   including pre-existing ones. Copy-paste inheritance and partial manual cleanups both

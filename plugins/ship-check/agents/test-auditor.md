@@ -99,7 +99,8 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    NEVER diff against local `main`: it can sit behind `origin/main` or hold this
    branch's commits, and then you review the wrong files.
 
-   Separate into test files (`.test.ts` / `.spec.ts`) and production files. Then
+   Separate into test files (a `.test.` or `.spec.` file, or any file under a
+   `__tests__/` folder, such as a helper or fixture) and production files. Then
    apply the test-audit skill's Fast exit: when there are 0 test files AND 0
    testable files (CI/CD workflows, IaC, Dockerfiles, pure config and docs are not
    testable), report "0 test files, 0 testable files changed — nothing to audit"
@@ -121,7 +122,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 - Fix every test-quality finding directly, and write the missing test for each
   coverage gap. Edit test files only: a production bug you find is reported as a
   finding, proven by the failing test you write for it (the test-audit skill's
-  Scope).
+  Scope). Flag each one with a category (`uncertain diagnosis`, `complex fix`,
+  `needs design decision`, or `pre-existing gap`) so the orchestrator's triage
+  can fix it or take it to the user.
 - Run the full test suite after all fixes: `npm test`, or the command AGENTS.md
   names.
 - Stage and commit when done. Push only in a standalone run: a ship-check

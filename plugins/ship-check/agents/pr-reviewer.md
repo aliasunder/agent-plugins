@@ -137,11 +137,15 @@ you're shortcutting the review.
 
 ## Fixing and Committing
 
-- Fix all high and medium confidence findings directly.
-- For low-confidence findings: fix if the change is trivial and safe (< 5 lines,
-  no interface change). Only flag when the fix itself is uncertain or risky.
-- When flagging, categorize: `uncertain diagnosis`, `complex fix`, or `needs design
-  decision` — the orchestrator uses these to triage between phases.
+- Fix or flag with the pr-review skill's matrix ("How to report and fix", step 2):
+  - A small fix (< 5 lines, no interface change, no behavioral risk): fix it, at
+    any confidence.
+  - High or medium confidence, and the fix is 10 lines or fewer with no interface
+    change: fix it.
+  - Anything bigger: flag it.
+- When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
+  decision`, or `pre-existing gap` — the orchestrator uses these to triage between
+  phases.
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.
 - Stage and commit when done. Push only in a standalone run: a ship-check
   dispatch says "do not push", and the orchestrator pushes every phase's commits
