@@ -246,8 +246,8 @@ comment mode.
    - When in doubt about the diagnosis but not about a small fix: **fix it.**
 3. **When flagging, categorize** — the orchestrator needs this to triage:
    - `uncertain diagnosis` — low confidence, and the fix is not small
-   - `complex fix` — diagnosis is sound but the fix runs past 10 lines, changes an
-     interface, or carries behavioral risk. **Grep for call sites before claiming this** — the
+   - `complex fix` — diagnosis is sound but the fix runs past 10 lines or changes an
+     interface. **Grep for call sites before claiming this** — the
      difference between "every call site" and "one call site" is the difference between
      deferring and a 30-second fix.
    - `needs design decision` — multiple valid approaches, user must choose

@@ -195,7 +195,7 @@ Code quality complete:
 - Reviewed at: <HEAD SHA reviewed>
 - Functions read: N (M with pauses — every pause appears below as a finding)
 - Fresh-eyes pauses: N received — K fixed, J dismissed (only when the dispatch carried a pause list; dispositions follow)
-- Findings: N total — M fixed, K reported as proposals (fixes that would change behavior)
+- Findings: N total — M fixed, K reported as proposals (fixes that would change behavior, each with its flag category)
 - By category:
   - Naming: A
   - Structure: B

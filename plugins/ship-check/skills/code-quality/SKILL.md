@@ -580,9 +580,12 @@ test.)
 ```
 
 1. **Report each finding** as a one-liner: `[category] file:line — what's wrong → fixed`,
-   or `→ proposal` when the contract above stops the fix because it would change
-   behavior. Group by category when multiple findings exist. Don't describe the
-   planned fix — the diff speaks for itself.
+   or `→ proposal (<flag category>)` when the contract above stops the fix because
+   it would change behavior. Give each proposal one of the flag categories
+   ship-check's triage reads: `uncertain diagnosis`, `complex fix`,
+   `needs design decision`, or `pre-existing gap`. Triage then fixes it or takes
+   it to the user. Group by category when multiple findings exist. Don't describe
+   the planned fix — the diff speaks for itself.
 2. **Fix** every finding directly — this is a "pass", not just a review.
 3. **Re-read every comment-only edit** before you commit, whether it came from a
    finding or a fresh-eyes pause. Read each one beside the code it describes,

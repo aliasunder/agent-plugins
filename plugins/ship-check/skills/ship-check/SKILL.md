@@ -341,7 +341,8 @@ sequential thinking forces you to deliberate instead of relaying.
 
 1. **Read the flag category** from the phase output. Sub-agents categorize each flagged
    finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`, or
-   `pre-existing gap`.
+   `pre-existing gap`. Code-quality's proposals (fixes it reverted because they would
+   change behavior) and test-audit's production bugs carry these categories too.
 2. **Verify effort claims before applying the matrix.** When a finding is flagged as
    `complex fix`, don't take the sub-agent's effort estimate at face value. Grep for
    actual call sites and usages. "Would change every call site across the codebase"
@@ -1061,9 +1062,10 @@ on a branch) and what the run may do. It returns one result per finding, such as
 `Fix` (the caller applies the fix), `Recommended fix` (the fix described, for a
 caller that may not edit), a logged dismissal (`False positive (logged)` or
 `Logged: not worth doing`), or the finding left for the user. Count each `Fix` it
-returns as fixed once applied (a `Recommended fix` when the run may not edit),
-each logged dismissal under Dismissed with its evidence, and each finding it
-leaves for the user under Deferred. Then present the findings still deferred to the
+returns as fixed once applied. Never count a `Recommended fix` as fixed: list it
+under Deferred with the change it describes, and ask nothing about it in a run
+that may not edit. Count each logged dismissal under Dismissed with its evidence,
+and each finding it leaves for the user under Deferred. Then present the findings still deferred to the
 user with their flag category and ask for a decision before declaring the verdict.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a

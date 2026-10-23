@@ -483,9 +483,8 @@ yours. Convention violations in your fixes ship unchecked.
    - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
      → fix it.
    - **Anything bigger** → flag with a category:
-     - `complex fix` — the diagnosis is sound, but the fix runs past 10 lines,
-       changes an interface, or carries behavioral risk. Grep for call sites
-       before claiming this.
+     - `complex fix` — the diagnosis is sound, but the fix runs past 10 lines or
+       changes an interface. Grep for call sites before claiming this.
      - `uncertain diagnosis` — low confidence, and the fix is not small.
      - `needs design decision` — more than one valid approach; the user chooses.
      - `pre-existing gap` — the issue predates the change but the change revealed it.
