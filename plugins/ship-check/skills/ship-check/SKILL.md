@@ -360,8 +360,9 @@ sequential thinking forces you to deliberate instead of relaying.
    | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
    | Any | Needs design decision | Always defer to user |
 
-4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. Do
-   not push: "Push the fixes" pushes after Phase 5, and in Phase 6 the delta
+4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. A
+   fix for a production bug test-audit reported also adds a regression test for
+   that bug, in the same commit. Do not push: "Push the fixes" pushes after Phase 5, and in Phase 6 the delta
    review's push ("Pre-merge delta review", step 5) or pr-monitor's next push
    carries the commit.
    **In comment mode**: instead of editing, post a separate inline comment on the PR

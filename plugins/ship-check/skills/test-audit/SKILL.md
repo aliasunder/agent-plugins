@@ -73,8 +73,11 @@ Load these sources fresh:
   empty (on the default branch with every commit pushed), skip gap analysis and
   say so in the summary instead of asking for a base.
 - **Production files are read-only for this phase.** A production bug discovered
-  while auditing is reported as a finding, proven by the failing test you write
-  for it — never fixed here. This phase's edits are confined to test files.
+  while auditing is reported as a finding — its file:line, the input or path that
+  breaks it, and what the code does instead — and never fixed here. Write no test
+  for it: a failing test committed now would turn CI red if the fix is deferred,
+  so the regression test is written with the fix. This phase's edits are confined
+  to test files.
   (Mutation testing's temporary break-and-restore is a diagnostic, not an edit —
   the restore is part of the procedure.)
 - **Restructuring existing tests preserves each case's expected behavior.**

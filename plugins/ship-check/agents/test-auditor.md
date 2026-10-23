@@ -120,11 +120,12 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 ## Fixing and Committing
 
 - Fix every test-quality finding directly, and write the missing test for each
-  coverage gap. Edit test files only: a production bug you find is reported as a
-  finding, proven by the failing test you write for it (the test-audit skill's
-  Scope). Flag each one with a category (`uncertain diagnosis`, `complex fix`,
-  `needs design decision`, or `pre-existing gap`) so the orchestrator's triage
-  can fix it or take it to the user.
+  coverage gap. Edit test files only. Report a production bug you find to the
+  orchestrator as a flagged finding: its file:line, the input or path that breaks
+  it, and what the code does instead. Write no test for it: the regression test
+  is written with the fix. Flag each one with a category (`uncertain diagnosis`,
+  `complex fix`, `needs design decision`, or `pre-existing gap`) so the
+  orchestrator's triage can fix it or take it to the user.
 - Run the full test suite after all fixes: `npm test`, or the command AGENTS.md
   names.
 - Stage and commit when done. Push only in a standalone run: a ship-check
@@ -179,7 +180,7 @@ Test audit complete:
   - Coverage regressions: F
 - Coverage gaps found: K
 - Tests written: J
-- Production bugs reported: P (each with its flag category and the failing test that proves it; not fixed here)
+- Production bugs reported: P (each with its flag category, file:line, the breaking input and what happens; not fixed here)
 - Mutation-tested: L
 - Suite: passing / N failures (total test count)
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
