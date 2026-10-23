@@ -453,7 +453,9 @@ the pipeline pushes nothing).
    `ship-check:bug-checker` when the delta contains logic changes,
    `ship-check:code-quality-reviewer` when it contains naming, comment, formatting,
    or documentation changes, and `ship-check:test-auditor` when it adds or changes
-   test files (including the regression tests triage writes with its fixes). Send
+   test files (including a regression test triage writes with a Phase 6 fix; a
+   test triage writes after Phase 4 lands before the reviewed SHA, so no delta
+   covers it). Send
    every one that applies. Findings follow the normal fix/flag rules and
    inter-phase triage.
    Model and effort follow Execution below: retain the run's selected model;

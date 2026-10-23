@@ -318,8 +318,9 @@ For each unresolved bot thread, do ALL of these in order:
    a retry:
    - **Never build the body with `$(…)`** -- no `"$(cat file)"`, `$(printf …)`, or
      `$(jq …)`. Write the body text directly in the query.
-   - **When the body mentions `git` (a git command, or the word itself), or the
-     sandbox refuses the call once, post from a file instead.** Write the reply,
+   - **When the body mentions `git` (a git command, or the word itself), holds an
+     apostrophe (it would end the single-quoted `query='…'`), or the sandbox
+     refuses the call once, post from a file instead.** Write the reply,
      footer included, to a file with the file-write tool, then post it as its own
      command:
      ```
@@ -333,8 +334,9 @@ For each unresolved bot thread, do ALL of these in order:
      file as a throwaway posting copy: once posted, the PR holds the text.
      Do NOT pair a body file with the GraphQL mutation above -- the sandbox
      refuses that form.
-   - **Not a reason to switch:** backticks in the body, or a reply chained to its
-     resolve call with `&&`. Both run inline.
+   - **Not a reason to switch:** backticks in the body (inside the single-quoted
+     query the shell leaves them alone), or a reply chained to its resolve call
+     with `&&`. Both run inline.
 
 6. **Resolve the thread** (AFTER replying):
    ```
