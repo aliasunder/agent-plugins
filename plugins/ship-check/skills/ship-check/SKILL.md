@@ -34,6 +34,7 @@ Phase 2: ship-check:fresh-eyes            -> stranger pauses (report only, no co
 Phase 3: ship-check:code-quality-reviewer -> convention compliance, readability (resolves Phase 2 pauses)
 Phase 4: ship-check:test-auditor          -> test design, assertion quality, coverage gaps
 Phase 5: ship-check:bug-checker           -> description-vs-code, SQL, type coercion, boundary
+Design pass: ship-check:code-quality-reviewer -> whole-PR design (report only); again before the first merge-ready verdict
 Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (the reviewer reports; triage fixes)
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
@@ -52,6 +53,7 @@ orchestrator triage, pr-monitor replies).
 - `<component>` is the phase or role: `pr-review`, `code-quality`, `test-audit`,
   `bug-check`, `pr-monitor`, `triage` (for orchestrator inter-phase triage posts),
   `tool-definitions` (for the orchestrator's post of tool-definition review findings),
+  `design-pass` (for the orchestrator's post of design-pass proposals in comment mode),
   or `ship-check` (for the orchestrator's other PR-level comments).
 - `<model-id>` identifies the poster's exact runtime model. Resolve it by runtime:
   - **Claude agent mode:** the phase agent uses the model ID from its system context
@@ -169,6 +171,7 @@ reviewing a PR it isn't responsible for.
 | Phase 6 | Runs (monitoring loop) | Skipped |
 | Phase sequencing | Sequential (each sees prior fixes) | Sequential (each sees prior findings to avoid duplicates) |
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
+| Design pass | First pass after Phase 5, final pass before the first merge-ready verdict; triage may apply small design fixes | First pass only; one PR-level comment with every proposal (see "Design pass"); nothing applied |
 | Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reviewer reports' Defects and Unintended text changes lists (see "Tool-definition review (conditional)"); no re-review |
 | Inter-phase triage | Evaluates flagged findings, may fix; runs `triage-finding` on what it defers and asks the user before the next phase | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
 
@@ -280,6 +283,7 @@ from the startup offer ("Before starting", step 1).
 | Comment mode | Posts inline PR review comments | Not available (no PR) |
 | Findings | Edit/commit/push (default) or PR comments | On `main` or a detached HEAD: report only (implies `--report`). On a branch: edit and commit, pushed by "Push the fixes", unless `--report` is set. |
 | Delta review | Tracks PR head | Not applicable |
+| Design pass | First pass after Phase 5, final pass before the first merge-ready verdict | First pass only (no Phase 6); report only on `main` or a detached HEAD |
 | Tool-definition re-review | Before each merge-ready verdict | On a branch, once before the summary when triage fixed tool text; none on `main` or a detached HEAD |
 
 ### Dispatch prompt changes
@@ -312,6 +316,9 @@ HEAD belong to no branch).
    (`surface-diff.ts --plan`) decide (see "Tool-definition review (conditional)").
    NEVER skip it on your own reading of the change; only `--skip tool-definitions`
    or an `--only` list without it turns it off.
+   **The design pass runs like a phase.** Its first pass runs every time; its final
+   pass runs on its own trigger (see "Design pass"). Only `--skip design-pass` or an
+   `--only` list without `design-pass` turns it off.
 
 2. **Each phase handles its own scope.** If a phase detects nothing in scope, it reports
    that nothing was in scope and exits cleanly. Its skill sets the wording, such as
@@ -341,8 +348,8 @@ HEAD belong to no branch).
 
 ## Inter-phase triage
 
-After each of Phases 1, 3-5 completes, triage any flagged findings BEFORE launching the
-next phase. This is mandatory when flagged findings exist — skip only when a phase
+After each of Phases 1, 3-5 and each design pass completes, triage any flagged
+findings BEFORE launching the next phase. This is mandatory when flagged findings exist — skip only when a phase
 reports all findings fixed. Phase 2 (fresh-eyes) produces pauses, not findings — no
 triage needed.
 
@@ -423,27 +430,30 @@ sequential thinking forces you to deliberate instead of relaying.
      longer finds it running, run `triage-finding` on the finding again, with the
      answer when there is one, and act on the new result by its bullet in this list.
 
-   Four kinds of finding go to the user without exception:
+   Five kinds of finding go to the user without exception:
    - an unintended tool-text change ("Tool-definition review (conditional)", step 8);
    - a broken or removed tool-list file (the same section, step 4);
    - a removed tool the PR title or body (in local mode, the range's commit
      messages) does not mention (the same section, step 4);
-   - every tool-definition re-review finding ("The re-review", step 5).
+   - every tool-definition re-review finding ("The re-review", step 5);
+   - a design-pass proposal that removes a guard, check, catch, guard clause or
+     option (`needs design decision`), and every final-pass proposal ("Design
+     pass", step 5).
 
    Route them and every other deferral this way:
-   - Pass each of the four kinds to `triage-finding` with the instruction "the user
+   - Pass each of the five kinds to `triage-finding` with the instruction "the user
      decides this finding" (its Instructions input), so it is assessed and asked
      (listed, in a run that asks nothing, as the next two bullets say), never fixed
      or logged away. For these, `Already done` and `Pending` stand, and
      a `Mentioned` result goes to the user as a question instead. Then run
      `triage-finding` on it again with the user's answer as its Instructions input.
-   - In comment mode `triage-finding` asks nothing, those four kinds included. Post
+   - In comment mode `triage-finding` asks nothing, those five kinds included. Post
      each result on the PR yourself: as an inline comment, as step 4 says, when it
      sits on a diff line, and otherwise as a PR-level comment under "Non-inline
      findings still land on the PR". A `Pending` result gets no comment while it
      waits, the way pr-monitor leaves pending findings out of its PR comments.
    - In a report-only run (`--report`, or local on `main` or a detached HEAD)
-     `triage-finding` asks nothing either, those four kinds included. List each
+     `triage-finding` asks nothing either, those five kinds included. List each
      result with its recommendation in the status update before the next dispatch;
      the user decides from that list, and Reporting asks nothing about these.
    - Without `triage-finding`, ask the user about each deferral now, with file:line,
@@ -486,7 +496,9 @@ Don't use one deployment's specs to dismiss resource, performance, or scaling co
 valid dismissal for an OSS project where users may have 10x the data on half the RAM.
 Evaluate against
 the worst reasonable use case for the project's audience — not the maintainer's current
-setup. And if the fix is trivial, fix it regardless of the impact assessment.
+setup. And if the fix is trivial, fix it regardless of the impact assessment, unless
+it restores a piece on the session's cut list ("Design pass", step 6): report that
+instead.
 
 ## Pre-merge delta review
 
@@ -537,8 +549,11 @@ the pipeline pushes nothing).
    the user the error and the unpushed commits; never force-push or rebase on your
    own ("Push the fixes", step 2). Then set the reviewed SHA to the new head and
    repeat step 2 on later passes. Deltas shrink, so this converges.
-6. **Re-review tool text before every merge-ready verdict**, after steps 3-5 and
-   their fixes: run the re-review in "Tool-definition review (conditional)". Run it
+6. **Run the design pass's final pass, then re-review tool text, before every
+   merge-ready verdict**, after steps 3-5 and their fixes. The final pass runs once,
+   at the first merge-ready verdict or live-test request, when its trigger fires
+   ("Design pass" → When it runs). Then run the re-review in "Tool-definition review
+   (conditional)". Run it
    even when step 2 of this section found the delta trivial — the re-review's own
    gates decide whether tool text changed. It tracks its own tool-review commit (the
    head the last tool-definition review saw, recorded by that section's step 9),
@@ -764,10 +779,97 @@ Agent({
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
 flagged findings.
 
+### Design pass
+
+Phases 1-5 judge lines, and a delta review sees each round alone, so duplicated
+logic and mechanisms a later round made redundant reach merge-ready. The design
+pass dispatches `ship-check:code-quality-reviewer` with `Design pass: dimension 8
+only`: the code-quality skill's dimension 8 reads the whole PR and asks whether each
+mechanism the change adds should exist. **It edits nothing**; every finding is a
+proposal. It runs twice per PR at most (see "When it runs"), and only
+`--skip design-pass` turns it off.
+
+1. **Base and head.** Resolve MERGE_BASE as "Tool-definition review (conditional)"
+   step 1 does: a fresh merge base in PR mode, REVIEW_BASE in local mode. Record
+   `git rev-parse HEAD` as DESIGN_HEAD, a full SHA.
+2. **Dispatch.** Use the Ordinary review task class (Execution):
+
+   ```
+   Agent({
+     subagent_type: "ship-check:code-quality-reviewer",
+     model: "<resolved model>",
+     effort: "<resolved review effort>",
+     description: "Design pass — <resolved model> / <resolved review effort>",
+     prompt: "Design pass: dimension 8 only\nBase: <MERGE_BASE>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, her reason>"
+   })
+   ```
+
+   In local mode, change `branch <branch>` and `PR #<number>` the way "Dispatch
+   prompt changes" under Local review mode says. NEVER add `COMMENT MODE` to this
+   dispatch: the orchestrator posts the pass's findings itself (By mode, below).
+3. **Check that the pass edited nothing**, in every mode, right after the dispatch:
+   `git status --porcelain` prints nothing and `git rev-parse HEAD` equals
+   DESIGN_HEAD. When either fails, stop and show the user the diff or the new
+   commits. Never keep them: an edit here can be a guard cut the user never approved.
+4. **Coverage.** When the report's `Missed:` line names files, send ONE continuation
+   dispatch with the same prompt plus `Files: <the missed files>`. Files still missed
+   after it: say so with the report; the pass cannot count as "nothing found".
+5. **Triage the proposals** with inter-phase triage. Each proposal carries its flag
+   category:
+   - `needs design decision` (removing a guard, check, catch, guard clause or
+     option): always the user's. Triage never applies it.
+   - `complex fix` (duplication or dead code with no protective role): in the first
+     pass, the matrix's `Complex fix` rows apply. In the final pass every proposal
+     goes to the user.
+   - `pre-existing gap`: a card proposal through `triage-finding` (or the user when
+     that skill is missing), never an edit. For the design pass this overrides the
+     matrix's trivial pre-existing-gap row.
+
+   Pass the pass's proposals to `triage-finding` together, so they reach the user as
+   one question: up to four as a multi-select, five or more as a table followed by
+   one question with fixed options. Its protective proposals, and every final-pass
+   proposal, are among the kinds inter-phase triage step 5 reserves for the user.
+6. **The session's cut list.** Each cut the user approves goes on the cut list. Pass
+   the list in the prior-phase context of every later correctness dispatch (delta
+   reviews, the final pass) and to triage, and print it as the Reporting snapshot's
+   `Cuts:` line. Fresh-eyes and the tool-definition cold read never receive it. A
+   finding that would restore a listed cut, from a phase, a delta agent's own fix,
+   triage, or a bot thread in pr-monitor Step 3, is never applied: a bot thread gets
+   the existing reply "The maintainer decided not to change this: [reason]". Both
+   "trivial fix" rules ("No environment-specific dismissals" here, and bug-check's)
+   carry this exception. The list lasts for this session; a later session starts
+   without it.
+
+#### When it runs
+
+| Pass | When | Reads | Its proposals |
+|---|---|---|---|
+| First | After Phase 5 and its triage, before the tool-definition review and "Push the fixes", so the tool-definition review reads the text the pass leaves | The whole PR | Triage as step 5 says |
+| Final | In Phase 6, at the first of these: asking the user to test the change live, or the first merge-ready verdict. After the delta review, before the tool-definition re-review. Only when `git diff --name-only <first pass's DESIGN_HEAD> HEAD` lists a changed non-test code, CI or config file | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
+| Any later one | Only when the user asks (`--only design-pass`) | The whole PR | As the final pass |
+
+No further pass runs on its own, so the pass cannot loop. Approved fixes from the
+final pass enter the normal delta review. The live-test run point is a standing
+instruction until a verification step exists to attach it to.
+
+#### By mode
+
+| Mode | What runs | What happens to proposals |
+|---|---|---|
+| Default | First pass, then the final pass | As in "When it runs" |
+| `--comment` | First pass only | One PR-level comment holding every proposal, posted under "Non-inline findings still land on the PR" with component `design-pass`; nothing applied |
+| `--report`, local on `main` or a detached HEAD | First pass only | Listed in the report; nothing applied |
+| Local on a branch | First pass only (no Phase 6) | Triage as step 5 says; the summary lists each design fix triage applied |
+| `--inline`, `--fork` | Dimension 8 in this context or a fork | As in default, labelled "not cold" |
+| `--skip design-pass` | Never | Summary: `skipped` |
+| `--only design-pass` | One pass now | As the final pass; "Push the fixes" counts commits as usual |
+| `--skip code-quality` | Still runs | As in default |
+
 ### Tool-definition review (conditional)
 
-Run this after Phase 5 and its triage: Phase 3 and Phase 5 rewrite tool text, and
-this review must read the text they leave. It dispatches
+Run this after Phase 5, its triage and the design pass's first pass: Phase 3 and
+Phase 5 rewrite tool text, triage can apply design fixes, and this review must read
+the text they leave. It dispatches
 `ship-check:tool-definition-reviewer` (report only) for each MCP tool whose
 definition changed in a **tool-list file**: the JSON a server's `tools/list`
 returns, committed to the repository (for example, the vault-cortex MCP server
@@ -1053,8 +1155,8 @@ verdict.
 
 ### Push the fixes
 
-Run this once, after Phase 5, its triage and the tool-definition review's triage
-fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
+Run this once, after Phase 5, its triage, the design pass's first pass and the
+tool-definition review's triage fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
 (Phase discipline item 4). `--skip` and `--only` never skip this step: when they
 leave Phase 5 out, run it after the last selected phase and its triage instead
 (with `--only pr-review`, it pushes Phase 1's commits).
@@ -1123,8 +1225,9 @@ refuses the call once. Put that file in your scratchpad directory, or in
 
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the reviewed SHA and
-dispatch a delta review if the difference is substantive, then run the
-tool-definition re-review (delta review step 6).
+dispatch a delta review if the difference is substantive, then run the design
+pass's final pass when its trigger fires and the tool-definition re-review (delta
+review step 6).
 
 ## Reporting
 
@@ -1141,6 +1244,8 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
+- Design pass:  <first | final | skipped | not selected> at <DESIGN_HEAD, full> (merge base <MERGE_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
+- Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
@@ -1180,6 +1285,7 @@ Ship check complete (comment mode):
 - Code Quality: N findings commented (conventions, readability)
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
+- Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <MERGE_BASE, full>) — N proposals, posted as one PR comment
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred
 - PR Monitor:   skipped (comment mode)
@@ -1204,6 +1310,9 @@ The user can customize the pipeline:
   relies on its own stranger read (its skill's dimension 0)
 - `/ship-check --only pr-review,test-audit` — run specific phases
 - `/ship-check --only fresh-eyes` — standalone stranger read, report to user
+- `/ship-check --skip design-pass` — skip both design passes (see "Design pass" →
+  By mode); `--skip code-quality` does not skip them
+- `/ship-check --only design-pass` — run one design pass now, on the whole PR
 - `/ship-check --skip tool-definitions` — skip the tool-definition review and its
   re-review (see "Tool-definition review (conditional)" → By mode)
 - `/ship-check --only tool-definitions` — run only the tool-definition review; it
@@ -1254,4 +1363,5 @@ Fresh-eyes option interactions:
 | `--inline`, `--fork` | Skipped (inherited context defeats the persona); noted in the summary |
 
 If the user doesn't specify options, run Phases 1-5 with agents and Phase 6 inline,
-plus the tool-definition review when its gates pass (the default).
+plus the design pass and the tool-definition review when its gates pass (the
+default).

@@ -434,6 +434,9 @@ context, and let the orchestrator decide scope.
 
 And regardless of impact assessment: if the fix is trivial, fix it. A one-line
 null-out after data is consumed costs nothing and eliminates the concern entirely.
+The one exception: when the dispatch carries a `Cuts:` list, the user has already
+decided to remove each listed piece. Never put one back, however trivial the fix;
+report the finding instead, and the orchestrator takes it to her.
 
 ### Verify effort before claiming it
 

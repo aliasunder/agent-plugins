@@ -196,6 +196,16 @@ resolve or ask again on your own. A pending finding is not routed again until it
 settles. Where the steps below say to ask the user, its result replaces that ask.
 Without the skill, continue as below.
 
+### Findings that would restore a cut
+
+When this session's ship-check run holds a cut list (the ship-check skill's "Design
+pass", step 6: pieces the user decided to remove), NEVER apply a finding that would
+put a listed piece back: not from a bot thread, not from the item-4 sweep under
+"Bot threads", and not in "After handling all threads". Reply "The maintainer
+decided not to change this: [her reason]" with the footer, and resolve a bot thread
+after the reply. New evidence that the cut's case is common after all goes to the
+user, and the piece stays cut until she decides.
+
 ### Bot threads (qodo, CodeRabbit, etc.)
 
 For each unresolved bot thread, do ALL of these in order:
@@ -511,6 +521,13 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   and if substantive, a delta review was dispatched and completed (see the ship-check
   skill's "Pre-merge delta review" section). Fixes this monitoring loop wrote are part
   of that delta, not exempt from it.
+- **Design pass**, in ship-check's Phase 6 and in a standalone run: the final design
+  pass ran on the current head, its trigger did not fire, or the user declined it.
+  A standalone run with no design pass yet this session, on a PR whose diff changes
+  non-test code, CI or config, runs one before its first merge-ready verdict: follow
+  the ship-check skill's "Design pass" section and its Execution controls (never a
+  copy of them). Its proposals go to the user; fixes she approves go through Step 3's
+  sweep and Step 4's follow-up check, like this skill's own fixes.
 
 If any prerequisite is not met, go back to the relevant step.
 
