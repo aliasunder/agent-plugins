@@ -198,12 +198,13 @@ Without the skill, continue as below.
 
 ### Findings that would restore a cut
 
-When this session's ship-check run holds a cut list (the ship-check skill's "Design
-pass", step 6: pieces the user decided to remove), NEVER apply a finding that would
-put a listed piece back: not from a bot thread, not from the item-4 sweep under
-"Bot threads", and not in "After handling all threads". Reply "The maintainer
-decided not to change this: [her reason]" with the footer, and resolve a bot thread
-after the reply. New evidence that the cut's case is common after all goes to the
+When this session holds a cut list (the ship-check skill's "Design pass", step 6:
+pieces the user decided to remove, in a ship-check run or this skill's standalone
+design pass), pass it to `triage-finding` as a standing disposition when that skill
+runs, and NEVER apply a finding that would put a listed piece back: not from a bot
+thread, not from the item-4 sweep under "Bot threads", and not in "After handling
+all threads". Reply "The maintainer decided not to change this: [her reason]" with
+the footer, and resolve a bot thread after the reply. New evidence that the cut's case is common after all goes to the
 user, and the piece stays cut until she decides.
 
 ### Bot threads (qodo, CodeRabbit, etc.)
@@ -522,7 +523,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   skill's "Pre-merge delta review" section). Fixes this monitoring loop wrote are part
   of that delta, not exempt from it.
 - **Design pass**, in ship-check's Phase 6 and in a standalone run: the final design
-  pass ran on the current head, its trigger did not fire, or the user declined it.
+  pass ran once this session, its trigger did not fire at the first merge-ready
+  verdict or live-test request, or the user declined it. Never run it again because
+  the head moved since.
   A standalone run with no design pass yet this session, on a PR whose diff changes
   non-test code, CI or config, runs one before its first merge-ready verdict: follow
   the ship-check skill's "Design pass" section and its Execution controls (never a

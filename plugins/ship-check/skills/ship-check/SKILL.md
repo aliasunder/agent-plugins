@@ -786,8 +786,8 @@ logic and mechanisms a later round made redundant reach merge-ready. The design
 pass dispatches `ship-check:code-quality-reviewer` with `Design pass: dimension 8
 only`: the code-quality skill's dimension 8 reads the whole PR and asks whether each
 mechanism the change adds should exist. **It edits nothing**; every finding is a
-proposal. It runs twice per PR at most (see "When it runs"), and only
-`--skip design-pass` turns it off.
+proposal. On its own it runs twice per PR at most (see "When it runs"), and only
+`--skip design-pass` or an `--only` list without `design-pass` turns it off.
 
 1. **Base and head.** Resolve MERGE_BASE as "Tool-definition review (conditional)"
    step 1 does: a fresh merge base in PR mode, REVIEW_BASE in local mode. Record
@@ -830,15 +830,18 @@ proposal. It runs twice per PR at most (see "When it runs"), and only
    one question with fixed options. Its protective proposals, and every final-pass
    proposal, are among the kinds inter-phase triage step 5 reserves for the user.
 6. **The session's cut list.** Each cut the user approves goes on the cut list. Pass
-   the list in the prior-phase context of every later correctness dispatch (delta
-   reviews, the final pass) and to triage, and print it as the Reporting snapshot's
-   `Cuts:` line. Fresh-eyes and the tool-definition cold read never receive it. A
-   finding that would restore a listed cut, from a phase, a delta agent's own fix,
+   the list as a `Cuts:` line, in step 2's format, in the prior-phase context of
+   every later correctness dispatch (delta reviews, the final pass), and to triage,
+   `triage-finding` included, as a standing disposition. Print it as the Reporting
+   snapshot's `Cuts:` line. Fresh-eyes and the tool-definition cold read never
+   receive it. A finding that would restore a listed cut, from a phase, a delta
+   agent's own fix,
    triage, or a bot thread in pr-monitor Step 3, is never applied: a bot thread gets
    the existing reply "The maintainer decided not to change this: [reason]". Both
    "trivial fix" rules ("No environment-specific dismissals" here, and bug-check's)
-   carry this exception. The list lasts for this session; a later session starts
-   without it.
+   carry this exception. New evidence that a cut's case is common after all goes to
+   the user, and the piece stays cut until she decides. The list lasts for this
+   session; a later session starts without it.
 
 #### When it runs
 
@@ -863,6 +866,7 @@ instruction until a verification step exists to attach it to.
 | `--inline`, `--fork` | Dimension 8 in this context or a fork | As in default, labelled "not cold" |
 | `--skip design-pass` | Never | Summary: `skipped` |
 | `--only design-pass` | One pass now | As the final pass; "Push the fixes" counts commits as usual |
+| `--only` without `design-pass` | Never | Summary: `not selected` |
 | `--skip code-quality` | Still runs | As in default |
 
 ### Tool-definition review (conditional)
@@ -1256,9 +1260,9 @@ Ship check complete:
 ```
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
-finding it deferred, from a phase, a delta review or the tool-definition review, as
-the finding occurred. Before declaring the verdict, re-list each finding still
-deferred with its flag category. Ask for a decision on each one the user has not yet
+finding it deferred, from a phase, a delta review, a design pass or the
+tool-definition review, as the finding occurred. Before declaring the verdict,
+re-list each finding still deferred with its flag category. Ask for a decision on each one the user has not yet
 decided, except:
 
 - one already asked, which waits for the user's answer: never ask it again, even on
