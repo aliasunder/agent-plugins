@@ -233,10 +233,10 @@ retry:
 
 - **Never build the body with `$(…)`** — no `"$(cat file)"`, `$(printf …)`, or
   `$(jq …)`. Write the body text directly in the command.
-- **When the body mentions `git` (a git command, or the word itself), or the
-  sandbox refuses the call once, post from a file instead.** Write the comment,
-  footer included, to a file with the file-write tool, then post it as its own
-  command:
+- **When the body mentions `git` (a git command, or the word itself), holds both
+  backticks and an apostrophe, or the sandbox refuses the call once, post from a
+  file instead.** Write the comment, footer included, to a file with the
+  file-write tool, then post it as its own command:
   ```
   gh pr comment NUMBER --body-file /absolute/path/comment.md
   ```
@@ -248,7 +248,8 @@ retry:
 - **Not a reason to switch:** backticks in a single-quoted body
   (`--body '…'`). The sandbox accepts that call. Inside double quotes the shell
   runs backticks as commands, so never put a body holding backticks in double
-  quotes.
+  quotes. An apostrophe ends a single-quoted body, so a body holding both
+  backticks and an apostrophe takes the file route above.
 
 ### Orchestrator setup
 
@@ -927,12 +928,12 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
    in steps 4-7. A non-null `base` is a file the script composes from several
    commits: for each tool under review, the version its diff starts from, and the
    current version of every other tool. For example, when `vault_search` changed
-   since the review and `vault_read_note` did not, the composed `base` holds
-   `vault_search` as it was at TOOL_REVIEW_SHA and `vault_read_note` as it is at
-   HEAD_SHA. Diffed against it, a file shows only this branch's edits since the
-   review, so a dropped fact is one dropped since then. A
-   `base` of null marks a file that was not a tool list at the review; its tools
-   are reviewed with no base.
+   since the review, `vault_read_note` did not, and the base branch changed
+   neither, the composed `base` holds `vault_search` as it was at TOOL_REVIEW_SHA
+   and `vault_read_note` as it is at HEAD_SHA. Diffed against it, a file shows
+   only this branch's edits since the review, so a dropped fact is one dropped
+   since then. A `base` of null marks a file that was not a tool list at the
+   review; its tools are reviewed with no base.
 5. Triage as in step 8, except that every re-review finding goes to the user.
    NEVER fix a re-review finding through triage: each round rereads whole tools and
    can raise new small defects, and fixing them would start the loop again. The
@@ -1040,9 +1041,9 @@ findings: any deferred finding or beyond-diff issue not already visible on the P
 decision trail lives on the PR, not only in the chat transcript. Post it under the
 plain-command rule in "Non-inline findings still land on the PR": no `$(…)` in the
 body, and `gh pr comment NUMBER --body-file /absolute/path/comment.md` when the
-body mentions `git` or the sandbox refuses the call once. Put that file in your
-scratchpad directory, or in `/tmp/probe-pr-NUMBER/` when the runtime has no
-scratchpad.
+body mentions `git`, holds both backticks and an apostrophe, or the sandbox
+refuses the call once. Put that file in your scratchpad directory, or in
+`/tmp/probe-pr-NUMBER/` when the runtime has no scratchpad.
 
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the reviewed SHA and
@@ -1080,12 +1081,14 @@ passing this run's mode (PR, `--report`, local on main or a detached HEAD, or lo
 on a branch) and what the run may do. It returns one result per finding, such as
 `Fix` (the caller applies the fix), `Recommended fix` (the fix described, for a
 caller that may not edit), a logged dismissal (`False positive (logged)` or
-`Logged: not worth doing`), or the finding left for the user. Count each `Fix` it
-returns as fixed once applied. Never count a `Recommended fix` as fixed: list it
-under Deferred with the change it describes, and ask nothing about it in a run
-that may not edit. Count each logged dismissal under Dismissed with its evidence,
-and each finding it leaves for the user under Deferred. Then present the findings still deferred to the
-user with their flag category and ask for a decision before declaring the verdict.
+`Logged: not worth doing`), or the finding left for the user. Apply each `Fix` it
+returns as inter-phase triage step 4 says, with the regression test for a
+production bug test-audit reported, and count it as fixed once applied. Never
+count a `Recommended fix` as fixed: list it under Deferred with the change it
+describes, and ask nothing about it in a run that may not edit. Count each logged
+dismissal under Dismissed with its evidence, and each finding it leaves for the
+user under Deferred. Then present the findings still deferred to the user with
+their flag category and ask for a decision before declaring the verdict.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
@@ -1133,9 +1136,9 @@ The user can customize the pipeline:
 - `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
   reported to the orchestrator). Alias: `--no-fix`.
 - `/ship-check --local` — run without a PR. Reviews the commits the default branch
-  on `origin` (usually `origin/main`) does not have yet, or the commits since the
-  last tag when it has them all (see "Before starting" step 2). Implies `--report`
-  on main or a detached HEAD.
+  on `origin` (usually `origin/main`) does not have yet, or, on main or a detached
+  HEAD, the commits since the last tag when it has them all (see "Before starting"
+  step 2). Implies `--report` on main or a detached HEAD.
 - `/ship-check --diff <base>` — set the review range explicitly (e.g. `--diff HEAD~3`,
   `--diff abc1234`). Implies `--local`.
 - `/ship-check --comment` — post findings as inline PR review comments instead of fixing.

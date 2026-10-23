@@ -40,6 +40,10 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
 - **Ship-check Phase 4.** The ship-check orchestrator dispatches you after code quality
   has committed its fixes. You audit all changed test files against convention dimensions
   AND run coverage gap analysis on changed production files to find missing tests.
+- **Ship-check pre-merge delta review.** In Phase 6, when commits added after
+  Phase 5 add or change test files, the orchestrator dispatches you with a
+  `Range:` line in place of the `Base:` line. You audit only the files those
+  commits change.
 - **Standalone test audit.** A user asks to "audit tests", "check test quality", "review
   tests against AGENTS.md", or "are there missing tests". You run the full test-audit
   skill procedure. When a Codex session dispatches this run, it includes
@@ -137,7 +141,7 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   - `needs design decision`: more than one correct behavior is defensible.
   - `complex fix`: any other bug. This phase fixes nothing, so a bug with a
     sound diagnosis and a small fix also goes here; triage fixes it when the fix
-    is 10 lines or fewer.
+    is 10 lines or fewer with no interface change.
 - Run the full test suite after all fixes: `npm test`, or the command AGENTS.md
   names.
 - Stage and commit when done. Push only when your prompt does not say "do not
@@ -182,7 +186,7 @@ Return a structured summary to the orchestrator:
 Test audit complete:
 - Test files audited: N
 - Reviewed at: <HEAD SHA reviewed>
-- Findings: N total (M fixed)
+- Findings: N total (M fixed, K flagged, each with its flag category)
 - By category:
   - Behavioral spec structure: A
   - Two-bar violations: B

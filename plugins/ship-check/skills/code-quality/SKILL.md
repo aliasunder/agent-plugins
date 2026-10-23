@@ -83,8 +83,7 @@ Load these sources fresh — do not rely on what is already in context:
 
 ## Scope
 
-- **Default**: sweep all files changed on the current branch, in the range the
-  dispatch names:
+- **Default**: sweep all files changed in the range the dispatch names:
   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
   - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
     `git diff --name-only <reviewed-sha>..<head-sha>`

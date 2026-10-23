@@ -46,8 +46,10 @@ bugs hide.
   Phase 5 change logic, the orchestrator dispatches you with a `Range:` line in
   place of the `Base:` line. You review only the files those commits change.
 - **Standalone bug check.** A user asks to "check for bugs", "deep correctness check",
-  or "look for subtle bugs". You run the full bug-check skill procedure. A Codex
-  dispatcher includes `Attribution model ID: <exact-id>` in this standalone prompt.
+  or "look for subtle bugs". You run the full bug-check skill procedure. When a
+  Codex session dispatches this run, it includes `Attribution model ID: <exact-id>`
+  in the prompt; without that line, a Codex run stops before committing (see
+  Attribution).
 - **Description-vs-implementation audit.** After MCP tool descriptions or API docs
   change, the user wants to verify every claim in every description matches the actual
   code path — the highest-yield check (40%+ of the Qodo and CodeRabbit findings

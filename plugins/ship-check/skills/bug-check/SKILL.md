@@ -37,7 +37,7 @@ to every changed file. It is systematic where pr-review is intuitive.
    - `vault_read_note` the results (currently typescript and docs), plus any newer
      note matching the repo's language/stack
    - `vault_memory_recall({ query: "<change domain>" })`
-3. Identify all files changed on the branch, in the range the dispatch names:
+3. Identify all files changed in the range the dispatch names:
    - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
    - `Range: <reviewed-sha>..<head-sha>` (a pre-merge delta review) →
      `git diff --name-only <reviewed-sha>..<head-sha>`

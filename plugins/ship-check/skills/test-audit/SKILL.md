@@ -453,7 +453,7 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
   --method POST --input - <<'REVIEW'
 {
   "event": "COMMENT",
-  "body": "## Phase 4: Test Audit\n\nN test quality findings, K coverage gaps across M files. Reviewed at <HEAD_SHA>.\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*",
+  "body": "## Phase 4: Test Audit\n\nN test quality findings, K coverage gaps, P production bugs across M files. Reviewed at <HEAD_SHA>.\n\nDismissed: <proof-of-dismissal one-liners — or \"none\">\n\n---\n*🔍 ship-check · test-audit · MODEL_ID*",
   "comments": [
     {
       "path": "src/file.test.ts",
