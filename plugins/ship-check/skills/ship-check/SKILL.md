@@ -430,7 +430,8 @@ sequential thinking forces you to deliberate instead of relaying.
    Route them and every other deferral this way:
    - Pass each of the four kinds to `triage-finding` with the instruction "the user
      decides this finding" (its Instructions input), so it is assessed and asked,
-     never fixed or logged away.
+     never fixed or logged away. For these, `Already done` and `Pending` stand, and
+     a `Mentioned` result goes to the user as a question instead.
    - In comment mode `triage-finding` asks nothing, those four kinds included. Post
      each result on the PR yourself: as an inline comment, as step 4 says, when it
      sits on a diff line, and otherwise as a PR-level comment under "Non-inline
@@ -1033,8 +1034,9 @@ until the user accepts the missing coverage in words when the step:
 - stayed `partial` after its continuation; or
 - could not be dispatched because the runtime has no reviewer agent.
 
-Deferred findings already hold the verdict: Reporting says which of them to put to
-the user for a decision before any verdict.
+Deferred findings already hold the verdict, except a `Pending` one, which another
+session's card holds: Reporting says which of them to put to the user for a decision
+before any verdict.
 
 ### Push the fixes
 
