@@ -384,10 +384,10 @@ sequential thinking forces you to deliberate instead of relaying.
    triaged as they occur, never held for the final summary: a deferral held back is
    a decision the user didn't know they were sitting on. When a `triage-finding`
    skill (a separate skill, outside this plugin, that decides each review finding's
-   outcome) is available, run it on the findings this step deferred, passing this
-   run's mode (PR, comment, `--report`, local on `main` or a detached HEAD, or local
-   on a branch) and what the run may do. Act on each result before dispatching the
-   next phase:
+   outcome) is available, run it on the findings step 3 sends to the user, passing
+   this run's mode (PR, comment, `--report`, local on `main` or a detached HEAD, or
+   local on a branch) and what the run may do. Act on each result before dispatching
+   the next phase:
    - `Fix` (the caller applies the fix): apply it as step 4 says, with the
      regression test for a production bug test-audit reported, and count it as
      fixed once applied.
@@ -396,16 +396,22 @@ sequential thinking forces you to deliberate instead of relaying.
      that may not edit. Never count it as fixed.
    - A logged dismissal (`False positive (logged)` or `Logged: not worth doing`):
      count it under Dismissed with its evidence.
-   - A finding it leaves for the user: ask the user now, with file:line, flag
-     category, what the issue is, the options with their tradeoffs, and the
-     decision needed, and wait for the answer before dispatching the next phase.
+   - `Already done` (with the PR, commit or log it cites) or `Mentioned`: count it
+     under Dismissed with that citation or line.
+   - A question it puts to the user: wait for the user's answer before dispatching
+     the next phase, and never ask it again. Count `Deferred by her` under Deferred
+     and `Dismissed by her` under Dismissed.
+   - `Pending` (a live peer session holds a matching card): list it under Deferred,
+     naming that session, and do not ask the user about it.
 
    A finding another rule sends to the user without exception (an unintended
    tool-text change, a tool-definition re-review finding) goes to `triage-finding`
-   marked as the user's, so it is assessed but never logged away. In comment mode
-   `triage-finding` asks nothing, and each result lands in this run's comments.
-   Without `triage-finding`, ask the user about each deferral now, with the same
-   fields. The final summary re-lists deferrals; it is never their first disclosure.
+   with the instruction that the user decides it, so it is assessed and asked, never
+   fixed or logged away. In comment mode `triage-finding` asks nothing, and each
+   result lands in this run's comments. Without `triage-finding`, ask the user about
+   each deferral now, with file:line, flag category, what the issue is, the options
+   with their tradeoffs, and the decision needed. The final summary re-lists
+   deferrals; it is never their first disclosure.
 6. **Record results**: track triage fixes separately from phase fixes in the summary.
 
 ### Key principle: risk vs. confidence
@@ -906,6 +912,9 @@ without `tool-definitions` turns it off.
      goes to the user.
    - An unintended text change ALWAYS goes to the user, never to a fix. Only the
      author knows whether it was meant.
+   - Run inter-phase triage on each finding step 4 sends to the user (a broken or
+     removed file, a removed tool the PR title or body does not mention) along with
+     the Defects, as a finding the user decides.
    - Count unintended changes once per tool and change. A report's Unintended text
      changes list covers every changed tool in its file, not only its `Review only:`
      names, so one change appears in every report on that file.
@@ -1099,7 +1108,7 @@ Each finding inter-phase triage deferred, from a phase, a delta review or the
 tool-definition review, already went through `triage-finding` (when available) in
 its step 5, as it occurred. Before declaring the verdict, re-list each finding still
 deferred with its flag category, and ask for a decision on any the user has not yet
-given one.
+given one, except a `Pending` one, which waits on the peer session that holds it.
 
 After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
 status update, not a termination signal.
