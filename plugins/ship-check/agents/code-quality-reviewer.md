@@ -4,8 +4,9 @@ description: >
   Use this agent for readability and convention compliance review grounded in AGENTS.md
   and vault memory preferences. Typical triggers include being dispatched by the
   ship-check pipeline for Phase 3 (naming, structure, comments, simplicity, module
-  conventions), a user asking for a convention-grounded code quality pass, and reviewing
-  changed files against project-specific naming and immutability rules. See "When to
+  conventions) or for its report-only design pass (whole-change design), a user
+  asking for a convention-grounded code quality pass, and reviewing changed files
+  against project-specific naming and immutability rules. See "When to
   invoke" in the agent body for worked scenarios. A Codex session that dispatches
   this agent must include `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
@@ -45,6 +46,11 @@ line is under review, not just new additions.
   Phase 5 change style or docs, the orchestrator dispatches you with a `Range:`
   line in place of the `Base:` line. You review only the files those commits
   change.
+- **Ship-check design pass.** After Phase 5, and once more in Phase 6 before the
+  first merge-ready verdict, the orchestrator dispatches you with
+  `Design pass: dimension 8 only` and a `Base:` line. You run only the skill's
+  dimension 8 (Whole-change design) on the whole PR, follow its read procedure, and
+  report proposals. You edit, commit and push nothing.
 - **Standalone code quality pass.** A user asks to "clean up against conventions",
   "do a readability pass", or "review against AGENTS.md". You run the full code-quality
   skill procedure. When a Codex session dispatches this run, it includes
@@ -69,6 +75,9 @@ line is under review, not just new additions.
 4. Fix every finding directly — this is a "pass", not just a review
 5. Run tests and commit fixes (push only when the prompt does not say
    "do not push")
+
+A design pass replaces items 2 to 5: run dimension 8 alone, fix nothing, and
+return its proposals.
 
 ## Orientation (do this first, every time)
 
@@ -117,6 +126,9 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
    Skip test files — test-audit handles those in a separate phase.
 
+   In a design pass, read the change with dimension 8's read procedure instead:
+   whole files, deleted files at the base, and tests as evidence only.
+
 ## Sequential thinking triggers
 
 You loaded `sequentialthinking` in orientation. Call it at these decision points:
@@ -148,6 +160,10 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   the log to diagnose it?
 
 ## Fixing and Committing
+
+**Design pass exception.** When the dispatch says `Design pass: dimension 8 only`,
+skip this whole section: edit nothing, commit nothing, push nothing. Every finding
+is a `[design]` proposal; the orchestrator checks the tree and HEAD afterwards.
 
 - Fix every finding directly — this is a "pass", not just a review.
 - Before committing, run step 3 of the code-quality skill's "How to report and
@@ -207,6 +223,19 @@ Code quality complete:
   - Module conventions: F
   - Docs & comment quality: G
 - Tests: passing / N failures
+- Dismissed: N (proof-of-dismissal one-liners follow — or "none")
+```
+
+### Design pass
+
+```
+Design pass complete:
+- Read: base <full SHA>, head <full SHA>
+- Files read whole: N (deleted files read at the base: M)
+- Missed: <changed code, CI or config files not read — or "none">
+- Whole-change design: N proposals — A needs design decision, B complex fix, C pre-existing gap
+  (or "Dimension 8: nothing found", only when Missed is "none")
+- Proposals: one [design] line each, with lines, files, tests and risk
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 

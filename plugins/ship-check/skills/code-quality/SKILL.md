@@ -36,7 +36,10 @@ Approach this review as a skeptical outsider seeing the code for the first time:
   no "looks fine." If you'd need to pause to verify something, verify it.
 - **Report everything.** Flag every finding, even marginal ones. Mark uncertain findings
   with "Uncertain:" so the user can decide. Missing a genuine issue is worse than
-  flagging a borderline one.
+  flagging a borderline one. **Exception: a design pass.** When the dispatch says
+  `Design pass: dimension 8 only`, dimension 8's pragmatic bar replaces this rule:
+  report only proposals that meet the bar, and report `Dimension 8: nothing found`
+  for a clean change.
 - **A trigger is dismissed only on its own boundary.** Every trigger below is a rule
   with an action, a condition, and a boundary that names when it does not apply;
   the boundary is the only valid reason to drop a match. "The function is small",
@@ -97,7 +100,12 @@ Load these sources fresh — do not rely on what is already in context:
   NEVER diff against local `main`: it can sit behind `origin/main` or hold this
   branch's commits, and then you review the wrong files.
 - **If the user specifies files or a scope**: use that instead.
-- **Skip test files** — those have their own skill (/test-audit).
+- **Design pass**: a dispatch that says `Design pass: dimension 8 only` runs
+  dimension 8 alone, on the whole range its `Base:` line names, and follows
+  dimension 8's read procedure instead of the per-file sweep below. Every other
+  dispatch (Phase 3, delta reviews, standalone passes) skips dimension 8.
+- **Skip test files** — those have their own skill (/test-audit). A design pass
+  reads them only as evidence of intended behaviour.
 - **All code file types are in scope** — TypeScript, JavaScript, YAML, Dockerfile,
   JSON config, shell scripts, etc. CI/CD and IaC are reviewable code. Apply the
   dimensions below to whatever format the changed files use. For YAML (workflows,
@@ -119,8 +127,9 @@ Load these sources fresh — do not rely on what is already in context:
 
 ## What to check
 
-Work through the changed files. For each, do the stranger read first, then check the
-dimensions in order.
+Work through the changed files. For each, do the stranger read (dimension 0) first,
+then check dimensions 1 to 7 in order. Dimension 8 runs only in a design pass, and
+then alone (see Scope).
 
 ### 0. Stranger read (before any checklist)
 
@@ -546,6 +555,107 @@ clause is load-bearing, keep it and flag the uncertainty instead of trimming.
   the conceptual reason ("the two modules are a unit"). The facts are correct but
   explain the wrong why — flag for the conceptual framing.
 
+### 8. Whole-change design (design pass only)
+
+Runs only when the dispatch says `Design pass: dimension 8 only`. Dimensions 1 to 7
+judge lines; this dimension asks whether each mechanism the change adds should exist,
+across files and commits. Comment wording stays with dimensions 4 and 7, and
+line-level simplification stays with dimension 5.
+
+**A design pass edits nothing.** Every finding is a proposal. Do not edit files,
+commit or push, whatever "How to report and fix" says for the other dimensions. It
+returns its report to the orchestrator and never posts to the PR, even in a
+comment-mode run.
+
+**Read the whole change before judging anything:**
+
+1. Run `git log --reverse --format='%h %s' <base>..HEAD` to see when each mechanism
+   arrived.
+2. Read each changed code, CI and config file whole at HEAD
+   (`git diff --name-only --diff-filter=d <base>...HEAD`, minus test files). Read
+   each deleted file at the base (`git diff --name-only --diff-filter=D
+   <base>...HEAD`, then `git show <base>:<path>`). Read changed tests as evidence of
+   what the code is meant to do; never audit or edit them.
+3. Read changed docs by diff hunk only.
+4. Write an inventory: every command or entry point, function, guard, check, catch
+   and option the change adds, with `file:line`.
+5. For each sequence of two or more steps, search the whole repo for its key calls
+   (`rg -n '<call>'`), so a copy in an unchanged file shows up too.
+6. Write a synthesis after all the reads. Before calling two pieces duplicates,
+   compare their inputs, errors, side effects and lifecycle.
+
+Report the base and head you read, and list the files you read whole. When you
+could not read a changed code, CI or config file, name it; a pass that missed a
+file never reports "nothing found".
+
+**Ask each question of the inventory.** Each one has a skip. Weigh the skip against
+the evidence; do not match words against it.
+
+| Question | Skip when |
+| --- | --- |
+| Is a sequence or rule implemented in more than one place? First ask whether one copy can be deleted; only then propose a merge | Your synthesis names a boundary or contract that one copy protects and the other does not |
+| Did a later mechanism make an earlier one redundant? | The earlier one protects a named case the later one does not |
+| When the project states layering rules (AGENTS.md or similar), does each new function sit in the layer they assign? | The project states no layering rules |
+| Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
+| Is anything left from a superseded approach, or left unused by a removal: dead code, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
+| Does each guard, check, catch and option earn its place? Weigh how often its case occurs against what failing there costs | Its case is common in supported use, or how often it occurs times the cost of failing there outweighs the cost of keeping it |
+
+**Three counters.** Each one answers a dismissal that has kept redundant code
+through past reviews:
+
+- A rule about where a guard lives does not decide whether a second copy earns its
+  place.
+- Code no input can reach is a finding: report it for removal. Do not keep it because
+  it is harmless.
+- For an option or flag, ask whether removing it changes the output in supported
+  use, not only whether the output is correct. Run it both ways when you can.
+
+**Pragmatic bar.** In a design pass this bar replaces "Report everything":
+
+- Every finding states the lines removed or moved, the files touched, the tests
+  affected and the risk.
+- A proposal must leave the code smaller or clearer now. A new abstraction must
+  remove duplication that exists today.
+- A clean change gets `Dimension 8: nothing found`. Never pad a clean change with
+  filler proposals.
+
+**Flag category, by what the proposal removes or merges:**
+
+| The proposal removes or merges | Flag category |
+| --- | --- |
+| A piece that protects against a case: a guard, check, catch, guard clause or option | `needs design decision`, even when it is also duplication or dead code |
+| Duplication or dead code with no protective role | `complex fix` |
+| Code that existed before the change | `pre-existing gap` |
+
+Every `needs design decision` proposal states the case, how often it occurs, what
+failing there costs, and any layer that already enforces it: a branch ruleset and
+who can bypass it, a type, or a check at the same boundary.
+
+Wrong: two HTTP handlers each parse and validate the same `page`, `limit` and
+`cursor` query, and the review reports a naming nit inside one of them.
+Right: `[design] orders.ts:31, invoices.ts:44 — the pagination parse and validation
+is written twice; invoices.ts can call parsePagination() from orders.ts → proposal
+(complex fix): −22 lines, 2 files, tests unchanged, risk: invoices.ts allows a
+larger limit, which the shared call must take as a parameter`.
+
+Wrong: a build script takes a lock around every cache write, and the review keeps it
+because two CI jobs could write the same cache key in the same second.
+Right: `[design] cache.ts:18 — the write lock guards two jobs writing one key in the
+same second; that case is rare, and failing there costs one corrupt cache entry
+that the next run rebuilds → proposal (needs design decision): −20 lines and a
+cleanup path, 1 file, tests: drop the lock test in cache.test.ts, risk: the rare
+double write leaves one bad entry until the next run`.
+
+Wrong: a client passes `{ cache: "default" }` to every `fetch` call, and the review
+confirms the responses are correct.
+Right: `[design] client.ts:9 — "default" is fetch's default cache mode, so removing
+the option changes no request → proposal (needs design decision): −1 option in 6
+calls, 1 file, tests unchanged, risk: none`.
+
+**Cut list.** When the dispatch carries a `Cuts:` list, the user has already decided
+to remove each listed piece. Never propose restoring one, and do not report it
+again.
+
 ## How to report and fix
 
 **A pass fix is observationally equivalent — this contract bounds every fix in
@@ -585,7 +695,9 @@ test.)
    `needs design decision`, or `pre-existing gap`. Triage then fixes it or takes
    it to the user. Group by category when multiple findings exist. Don't describe
    the planned fix — the diff speaks for itself.
-2. **Fix** every finding directly — this is a "pass", not just a review.
+2. **Fix** every finding directly — this is a "pass", not just a review. A design
+   pass is the one exception: it fixes nothing, and every dimension 8 finding is a
+   `[design]` proposal carrying the pragmatic bar's fields.
 3. **Re-read every comment-only edit** before you commit, whether it came from a
    finding or a fresh-eyes pause. Read each one beside the code it describes,
    and revert it when it fails question 3 of the stranger read (dimension 0):
@@ -599,6 +711,9 @@ test.)
 5. **Summarize**: files touched, count by category, each proposal, test status.
    When fresh-eyes pauses were supplied, add:
    `- Fresh-eyes pauses: N received — K fixed, J dismissed (dispositions follow)`
+   A design pass summarizes instead with the base and head it read, the files
+   read whole, any changed file it missed, and either its `[design]` proposals or
+   `Dimension 8: nothing found`.
 
 **Output honesty (both modes):**
 

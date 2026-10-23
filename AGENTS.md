@@ -34,7 +34,7 @@ plugins/
       ship-check/             # Pipeline orchestrator
       pr-review/              # Phase 1 — correctness, security, conditional checks
       fresh-eyes/             # Phase 2 — readability pauses a newcomer hits (report only)
-      code-quality/           # Phase 3 — naming, structure, conventions (resolves Phase 2 pauses)
+      code-quality/           # Phase 3 — naming, structure, conventions (resolves Phase 2 pauses); dimension 8 is the design pass
       test-audit/             # Phase 4 — test quality + coverage gaps
       bug-check/              # Phase 5 — systematic bug hunt
       pr-monitor/             # Phase 6 — CI, bot comments, merge readiness
