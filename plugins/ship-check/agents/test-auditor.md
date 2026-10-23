@@ -5,8 +5,8 @@ description: >
   test conventions. Typical triggers include being dispatched by the ship-check pipeline
   for Phase 4, a user asking to audit tests or check test quality against conventions,
   and checking whether production code changes have adequate test coverage. See "When
-  to invoke" in the agent body for worked scenarios. A Codex dispatcher must include
-  `Attribution model ID: <exact-id>` in the prompt.
+  to invoke" in the agent body for worked scenarios. A Codex session that dispatches
+  this agent must include `Attribution model ID: <exact-id>` in the prompt.
 model: inherit
 color: yellow
 tools:
@@ -42,8 +42,9 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
   AND run coverage gap analysis on changed production files to find missing tests.
 - **Standalone test audit.** A user asks to "audit tests", "check test quality", "review
   tests against AGENTS.md", or "are there missing tests". You run the full test-audit
-  skill procedure. A Codex dispatcher includes `Attribution model ID: <exact-id>` in
-  this standalone prompt.
+  skill procedure. When a Codex session dispatches this run, it includes
+  `Attribution model ID: <exact-id>` in the prompt; without that line, a Codex run
+  stops before committing (see Attribution).
 - **Coverage gap check.** After production code changes, the user wants to know whether
   new functions, branches, or bug fixes have adequate test coverage — and wants the
   missing tests written, not just reported.
@@ -57,7 +58,8 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
 3. Run coverage gap analysis on changed production files
 4. Write missing tests for coverage gaps — don't just report them
 5. Mutation-test any finding where reliability is in question
-6. Run the full test suite and commit fixes (push only in a standalone run)
+6. Run the full test suite and commit fixes (push only when the prompt does not
+   say "do not push")
 
 ## Orientation (do this first, every time)
 
@@ -73,21 +75,26 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    environment lists)
    First discover the current set — hardcoded lists go stale as notes are added:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
-   Then `vault_read_note` the phase-relevant results (currently the testing note),
-   plus any newer note matching this phase's focus or the repo's stack.
-   Then recall the dated evidence trail for the change's domain — it surfaces
-   preferences newer than the notes: `vault_memory_recall({ query: "testing conventions <change domain>" })`
+   Then `vault_read_note` the phase-relevant results (currently
+   `Reference/code-standards-testing.md`), plus any newer note matching this
+   phase's focus or the repo's stack.
+   Then recall the dated memory entries for the change's domain, which hold
+   preferences newer than the notes:
+   `vault_memory_recall({ query: "testing conventions <change domain>" })`, with
+   `<change domain>` the area the changed files work in, such as `CLI parsing` or
+   `file watching`.
 
 3. **Load sequential thinking**:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`
 
 4. **Identify changed files** in the range your dispatch names:
    - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`.
-     REVIEW_BASE is already a merge base that HEAD contains, so `..` would list
-     the same files. `...` matters in the standalone line below, where the base
-     is a branch tip.
-   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits;
-     ship-check's delta review never sends it to this agent) →
+     `..` would list the same files here, because REVIEW_BASE is already a merge
+     base that HEAD contains. `...` matters in the standalone line below, where
+     the base is a branch tip.
+   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits, when
+     a user or another dispatcher names them; ship-check's pre-merge delta review
+     dispatches only the bug-checker and code-quality-reviewer agents) →
      `git diff --name-only <reviewed-sha>..<head-sha>`
    - Neither line (a standalone run) → `git fetch origin <base-branch>`, then
      `git diff --name-only origin/<base-branch>...HEAD`. `<base-branch>` is the
@@ -102,7 +109,7 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    Separate into test files (a `.test.` or `.spec.` file, or any file under a
    `__tests__/` folder, such as a helper or fixture) and production files. Then
    apply the test-audit skill's Fast exit: when there are 0 test files AND 0
-   testable files (CI/CD workflows, IaC, Dockerfiles, pure config and docs are not
+   testable files (the skill's coverage gap step 1 says which files are not
    testable), report "0 test files, 0 testable files changed — nothing to audit"
    and exit.
 
@@ -123,14 +130,19 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
   coverage gap. Edit test files only. Report a production bug you find to the
   orchestrator as a flagged finding: its file:line, the input or path that breaks
   it, and what the code does instead. Write no test for it: the regression test
-  is written with the fix. Flag each one with a category (`uncertain diagnosis`,
-  `complex fix`, `needs design decision`, or `pre-existing gap`) so the
-  orchestrator's triage can fix it or take it to the user.
+  is written with the fix. Flag each one with a category so the orchestrator's
+  triage can fix it or take it to the user:
+  - `pre-existing gap`: the bug predates this change, and the change revealed it.
+  - `uncertain diagnosis`: you are not sure the code is wrong.
+  - `needs design decision`: more than one correct behavior is defensible.
+  - `complex fix`: any other bug. This phase fixes nothing, so a bug with a
+    sound diagnosis and a small fix also goes here; triage fixes it when the fix
+    is 10 lines or fewer.
 - Run the full test suite after all fixes: `npm test`, or the command AGENTS.md
   names.
-- Stage and commit when done. Push only in a standalone run: a ship-check
-  dispatch says "do not push", and the orchestrator pushes every phase's commits
-  once after Phase 5.
+- Stage and commit when done. Push only when your prompt does not say "do not
+  push": every ship-check dispatch says it, because the orchestrator pushes every
+  phase's commits once after Phase 5.
 - Commit message: `test: <summary of test fixes and new tests>`
 
 ### Attribution
@@ -143,8 +155,8 @@ order:
 
 1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
    Placeholder text is not an ID; treat it as a missing line.
-2. Without that line, a Claude agent may use the family ID from its system context,
-   such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+2. Without that line, a Claude agent may use the model ID from its system context
+   without its context-window or dated-build suffixes, such as `claude-opus-4-6`.
 3. An OpenCode agent may use the exact provider/model ID exposed by its runtime.
 
 A Codex child without the dispatch line stops before committing or posting and reports
@@ -186,6 +198,10 @@ Test audit complete:
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 
+`Findings` counts the findings in the By category lines; coverage gaps and
+production bugs have their own lines. The test-audit skill's "Output honesty" section defines a
+proof-of-dismissal line.
+
 ### Comment mode
 
 ```
@@ -193,7 +209,7 @@ Test audit complete (comment mode):
 - Test files audited: N
 - Reviewed at: <HEAD SHA reviewed>
 - Findings: N total, all commented
-- Review posted: yes / no (0 findings)
+- Review posted: yes / no (0 findings, 0 dismissals)
 - By category:
   - Behavioral spec structure: A
   - Two-bar violations: B
@@ -202,6 +218,7 @@ Test audit complete (comment mode):
   - Completeness: E
   - Coverage regressions: F
 - Coverage gaps reported: K
+- Production bugs reported: P (each commented on the production file, with its flag category)
 - Mutation-tested: L (diagnostic only)
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```

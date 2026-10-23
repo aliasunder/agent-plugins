@@ -41,20 +41,23 @@ Load these sources fresh:
 1. **Project test conventions**: Read `AGENTS.md` (or `CLAUDE.md`) from the project
    root. Focus on the test conventions section.
 
-2. **Code standards + preference recall**: Discover the standards notes first — the
-   set grows and hardcoded lists go stale:
+2. **Code standards + preference recall**: these calls are vault-cortex MCP tools.
+   Discover the standards notes first — the set grows and hardcoded lists go stale:
    `vault_search({ query: "code standards", filters: { tags: ["code-standards"], type: "reference", properties: { lifecycle: "living" } } })`
-   Then `vault_read_note` the audit-relevant results (currently the testing note),
-   plus any newer note matching this audit's focus or the repo's stack.
-   Then recall the dated evidence trail for the change's domain — it surfaces
+   Then `vault_read_note` the audit-relevant results (currently
+   `Reference/code-standards-testing.md`), plus any newer note matching this
+   audit's focus or the repo's stack.
+   Then recall the dated memory entries for the change's domain, which hold
    preferences newer than the notes:
-   `vault_memory_recall({ query: "testing conventions <change domain>" })`
+   `vault_memory_recall({ query: "testing conventions <change domain>" })`, with
+   `<change domain>` the area the changed files work in, such as `CLI parsing` or
+   `file watching`.
 
 ## Scope
 
-- **Default**: audit all test files changed on the current branch (a `.test.` or
+- **Default**: audit all test files changed in the range below (a `.test.` or
   `.spec.` file, or any file under a `__tests__/` folder, such as a helper or
-  fixture), in the range the dispatch names:
+  fixture). The range comes from the dispatch:
   - `Base: <REVIEW_BASE>` → `git diff --name-only <REVIEW_BASE>...HEAD`
   - `Range: <reviewed-sha>..<head-sha>` (a review limited to those commits) →
     `git diff --name-only <reviewed-sha>..<head-sha>`
@@ -71,7 +74,8 @@ Load these sources fresh:
   Coverage gap analysis still takes its changed files from the Default range
   above, because it asks whether what changed has tests. When that range is
   empty (on the default branch with every commit pushed), skip gap analysis and
-  say so in the summary instead of asking for a base.
+  say so in the summary instead of asking for a base: the named test files still
+  give the audit its work, so an empty range does not block it.
 - **Production files are read-only for this phase.** A production bug discovered
   while auditing is reported as a finding — its file:line, the input or path that
   breaks it, and what the code does instead — and never fixed here. Write no test
@@ -85,32 +89,37 @@ Load these sources fresh:
   case expects the production code to produce unchanged — cases with different
   expected outcomes are not "identical assertion shapes" and stay as separate
   `it()` blocks. Changing what a case expects during restructuring is a
-  behavioral edit wearing a compression label; stop and report it as a finding
-  instead. Boundary: this constrains the expected behavior, not the assertion's
-  form — strengthening precision around the same behavior (`toContain` → `toBe`
-  with the full exact value, property picks → one `toEqual` on the whole shape,
-  per dimension 3) is this audit's job, not a violation.
-- **Same-pattern sweep**: when a D3 trigger fires on changed code, also scan the
-  rest of the file for the same anti-pattern in unchanged tests. Pre-existing tests
+  behavioral edit wearing a compression label: stop, leave those cases as they
+  are, and report the restructuring as a `[spec]` finding flagged `needs design
+  decision`, because changing what a case expects is the author's call.
+  Boundary: this constrains the expected behavior, not the assertion's form —
+  strengthening precision around the same behavior (`toContain` → `toBe` with the
+  full exact value, property picks → one `toEqual` on the whole shape, per
+  dimension 3) is this audit's job, not a violation.
+- **Same-pattern sweep**: when a dimension 3 (Assertion quality) trigger fires on
+  changed code, also scan the rest of the file for the same anti-pattern in
+  unchanged tests. Pre-existing tests
   are often the source of the pattern (copy-paste inheritance) — fixing only the new
   instance leaves the original infection in place. This is a targeted expansion, not
   a full-file audit: only sweep for the specific anti-pattern that fired, not all
-  dimensions.
+  dimensions. The triggers in dimensions 2 and 4 do not start a sweep.
 - **Always run coverage gap analysis** on all changed files — production files need
   tests, and changed test files need review for coverage regressions (removed tests,
   weakened assertions, deleted branches). When no test files were changed, gap analysis
   on production files is the primary audit. Do NOT short-circuit with "0 findings."
 - **Fast exit** (the one exception to the rule above): After identifying changed
   files, if there are 0 test files AND 0 testable files in scope, report "0 test
-  files, 0 testable files changed — nothing to audit" and exit. CI/CD workflows (`.yml`), IaC, Dockerfiles, and pure config
-  files are not testable in the unit-test sense — a PR that only changes these is a
-  valid fast exit. Do not report "0 findings" — report that nothing was in scope.
+  files, 0 testable files changed — nothing to audit" and exit. Coverage gap
+  analysis step 1 lists the files that are not testable in the unit-test sense; a
+  PR that only changes those is a valid fast exit. Do not report "0 findings" —
+  report that nothing was in scope.
   This keeps the ship-check pipeline summary accurate (the phase ran and assessed the
   diff, rather than being skipped by the orchestrator).
 
 ## Audit dimensions
 
-For each test file, check these in order:
+For each test file, check these in order. A rule's `Boundary:` names the cases
+where the rule does not apply.
 
 ### 1. Behavioral spec structure
 - Each `it()` tests ONE focused behavior
@@ -132,8 +141,6 @@ Every test must satisfy BOTH bars:
 
 **Bar 1 — Fails when behavior breaks:**
 - If removing the tested behavior, would this test fail?
-- Tests that assert preserved state must also assert the trigger happened (no silent
-  no-op pass)
 
 **Bar 2 — Passes only for the intended reason:**
 - **Silent no-op**: a test asserting "state is preserved" passes even if the operation
@@ -144,9 +151,11 @@ Every test must satisfy BOTH bars:
 - **Early-return pass**: a returned `0`/empty/`false` can come from the guard you're
   testing OR from the function bailing out early. Assert a side effect unique to the
   intended path. Concrete example: `expect(listNotes(escapingDir)).toEqual([])` passes
-  both when the containment guard fires AND when the directory is simply empty — add a
-  sentinel (spy on the warn log, or call `listNotes(vaultRoot)` and assert `length > 0`)
-  to prove the guard is the reason for the empty result.
+  both when the containment guard (which rejects a directory outside the vault) fires
+  AND when the directory is simply empty — add a sentinel (spy on the warn log, or
+  call `listNotes(vaultRoot)` and assert `length > 0`) to prove the guard is the
+  reason for the empty result. A sentinel only has to show that the function
+  returns results when the guard does not fire, so a loose matcher is enough for it.
 - **Wrong-item pass**: an assertion checks a property of the result (non-empty,
   defined, has length > 0, contains a substring) but doesn't verify the result is
   the EXPECTED item. Common in search/query tests where multiple seeded items could
@@ -189,15 +198,17 @@ Every test must satisfy BOTH bars:
   expect(result.content[0]?.type).toBe("text")
   expect(result.content[0]?.text).toBe("Hello PDF")
   ```
-  — passes even if `result` gains an `error` field, `content[0]` gains extra
-  properties, or `isError` is `null` instead of `undefined`.
+  — passes even if `result` gains an `error` field or `content[0]` gains extra
+  properties.
   Right:
   ```
   expect(result).toEqual({
     content: [{ type: "text", text: "Hello PDF" }],
   })
   ```
-  — locks the entire shape. Any structural drift fails the test.
+  — fails when any property is added, removed, or changed. `toEqual` treats a key
+  whose value is `undefined` as absent; use `toStrictEqual` when that difference
+  matters.
 - **No substring matching on deterministic output.** When the production code
   returns a fixed or fully-controlled string (hardcoded literal, template with
   all-controlled variables, mock/fixture-supplied text), assert the exact value
@@ -262,9 +273,10 @@ Every test must satisfy BOTH bars:
   (`results[0]!.path`) that lie to the compiler. Optional chaining (`results[0]?.path`)
   is the opposite — it safely handles undefined at array boundaries. Do not rewrite
   `?.` array access into extracted variables with throw guards; that's verbosity without
-  improved test quality. Similarly, `?? fallback` in comparisons
-  (`toBeGreaterThan(x?.length ?? 0)`) is type narrowing, not a loose matcher — the
-  assertion still fails if the value doesn't meet the threshold.
+  improved test quality. Similarly, a `?? fallback` in a comparison
+  (the `?? 0` in `toBeGreaterThan(x?.length ?? 0)`) is type narrowing and does not
+  loosen the assertion, which still fails if the value doesn't meet the threshold.
+  Whether `toBeGreaterThan` is the right matcher is dimension 3's question.
 - **`continue` in a verification loop is not a silent no-op.** A `for` loop checking
   ordering (`each count >= next count`) with a guard
   `if (prev === undefined || curr === undefined) continue` is defending against array
@@ -285,8 +297,8 @@ Every test must satisfy BOTH bars:
 ### 5. Completeness
 - Error paths tested, not just happy path
 - Boundary conditions covered
-- Folder/tag/property filter tests include data BOTH inside and outside the filter
-  to confirm exclusion works
+- Tests of a filter include data BOTH inside and outside the filter to confirm
+  exclusion works (for a folder filter: items inside the folder and items outside it)
 
 ## Coverage gap analysis
 
@@ -299,12 +311,14 @@ is the primary audit. It answers: "should there be tests for what changed?"
    `origin/<base-branch>...HEAD`.
    Separate into two lists: test files (a `.test.` or `.spec.` file, or any file
    under a `__tests__/` folder, such as a helper or fixture) and non-test files.
-   Exclude docs (`.md`) and generated files from the non-test list. Don't
-   categorically exclude config files (`.config.ts`, `sst.config.ts`, etc.) —
-   check whether existing tests cover them first, by searching the test files for
-   the config file's name (for `sst.config.ts`:
-   `rg -l "sst\.config" -g "*.test.*" -g "*.spec.*" -g "**/__tests__/**"`). If a
-   config file has tests, it's in scope.
+   Leave out of the non-test list the files that are not testable in the
+   unit-test sense: docs (`.md`), generated files, CI/CD workflows (such as
+   `.github/workflows/*.yml`), IaC, Dockerfiles, and config files no test covers.
+   Don't categorically exclude config files (`.config.ts`, `sst.config.ts`, etc.)
+   — search the test files for the config file's name first (for `sst.config.ts`:
+   `rg -l "sst\.config" -g "*.test.*" -g "*.spec.*" -g "**/__tests__/**"`). A
+   config file that some test covers stays in the non-test list; one that no test
+   covers is left out, so it is never reported as a gap.
 
 2. **For each changed non-test file**, read the diff (`git diff <range> -- <file>`)
    and classify each change:
@@ -331,6 +345,7 @@ is the primary audit. It answers: "should there be tests for what changed?"
    ```
    [hard gap] file.ts:42 newFunction — no coverage → wrote file.test.ts: "does X when Y"
    [soft gap] file.ts:88 errorBranch — happy path covered, new branch not → wrote: "rejects when Z"
+   [production bug] file.ts:120 parseRange — empty range returns undefined, not [] → gap test deleted, reported (pre-existing gap)
    ```
 
    For each gap: add tests to the existing test file for that module (create one if
@@ -339,7 +354,10 @@ is the primary audit. It answers: "should there be tests for what changed?"
    fix is reverted). Run the suite after all tests are written. A gap test that
    fails because the production code is wrong has found a production bug: delete
    the test and report the bug as the Scope section's read-only rule says. Never
-   change its expected value to match the wrong output.
+   change its expected value to match the wrong output. The production code is
+   wrong when it breaks its own contract: its doc comment, its name, the PR
+   description, or what its callers rely on. When your test misread that
+   contract, fix the test instead.
 
 5. **Coverage regression check** (changed test files): For each changed test file, read
    the diff and look for:
@@ -378,22 +396,26 @@ This proves the test is load-bearing, not decorative.
 ```
 
 - **Tag each finding with its dimension**: `[spec]` (1), `[two-bar]` (2),
-  `[assertion]` (3), `[hygiene]` (4), `[completeness]` (5). A `[mutation]` line
-  records a verification, not a finding.
+  `[assertion]` (3), `[hygiene]` (4), `[completeness]` (5). Coverage gap analysis
+  adds its own tags: `[hard gap]` and `[soft gap]` (step 4), `[production bug]`
+  (step 4, under Scope's read-only rule), and `[regression]` and `[weakened]`
+  (step 5; both count as coverage regressions). A `[mutation]` line records a
+  verification, not a finding.
 - **Fix** directly — rewrite the test to meet conventions.
 - **Run the test suite** after fixes to confirm all tests still pass.
 - Coverage gap reporting uses the one-liner format in the gap analysis section above
   — don't repeat it here.
 - **Summarize**: files audited, count by category, tests mutation-verified,
-  coverage gaps found and tests written.
+  coverage gaps found and tests written, and production bugs reported, followed
+  by the two "Output honesty" lines below.
 
 **Output honesty (both modes):**
 
 - **State what you reviewed.** The summary names the HEAD SHA actually
   reviewed (`git rev-parse HEAD`) — a review that doesn't say what it checked
-  is indistinguishable from one that checked nothing. It also lets the
-  orchestrator cross-check what this phase actually saw against the reviewed
-  SHA it records at Phase 5 close.
+  is indistinguishable from one that checked nothing. In a ship-check run, it
+  also lets the pipeline's orchestrator cross-check what this phase actually saw
+  against the reviewed SHA it records when Phase 5 (bug-check) finishes.
 - **Close with proof of dismissal.** One line per suspicion you seriously
   considered and dropped, with the reason it doesn't bite — or "none". The
   clean-bill claims are part of the review: without them, "no findings" could
@@ -412,6 +434,9 @@ inline comments.
 - **Coverage gaps**: posted as inline comments on the production file where the gap
   exists (the new function, branch, or error path that lacks tests). Describe what test
   is needed — don't write the test code.
+- **Production bugs**: posted as `[production bug]` inline comments on the
+  production file and line, with the input that breaks it, what the code does
+  instead, and its flag category. Write no test for it, as in default mode.
 - **Mutation testing**: still run to verify your findings, but only as a diagnostic step.
   The mutation result supports your comment's confidence level.
 
@@ -445,19 +470,23 @@ gh api "repos/OWNER_REPO/pulls/PR_NUMBER/reviews" \
 REVIEW
 ```
 
-Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
-with the number in its `PR #<number>`. Replace `MODEL_ID` with the exact runtime
-model:
+   Replace `OWNER_REPO` with the dispatch prompt's `Repo:` value and `PR_NUMBER`
+   with the number in its `PR #<number>`. With no dispatch prompt, take them from
+   `gh repo view --json nameWithOwner -q .nameWithOwner` and
+   `gh pr view --json number -q .number`. Replace `MODEL_ID` with the exact
+   runtime model, from the first of these sources that applies:
+   - `Attribution model ID: <exact-id>` from the dispatch prompt, verbatim.
+     Placeholder text is not an ID; treat it as a missing line.
+   - Without that line, a Claude agent may use the model ID from its system
+     context without context-window or dated-build suffixes, and an OpenCode
+     agent may use its runtime-exposed provider/model ID.
+   - When the skill runs inline in the user's own session rather than as a
+     dispatched agent, use that session's exact model, resolved the way
+     ship-check's Attribution section describes for inline mode.
 
-1. Use `Attribution model ID: <exact-id>` from the dispatch prompt verbatim.
-   Placeholder text is not an ID; treat it as a missing line.
-2. Without that line, a Claude agent may use its system-context family ID, and an
-   OpenCode agent may use its runtime-exposed provider/model ID.
-3. An inline standalone run may use the current session's verified exact model source.
-
-A Codex child without the dispatch line stops before committing or posting and reports
-an attribution blocker. Never infer a model from memory, parent prose, whichever Codex
-session file (rollout) is newest, cwd, or display name.
+   A Codex child without the dispatch line stops before committing or posting and
+   reports an attribution blocker. Never infer a model from memory, parent prose,
+   whichever Codex session file (rollout) is newest, cwd, or display name.
 
 4. **If 0 findings and no dismissals**, skip the API call — report "0 findings"
    to the orchestrator only. With 0 findings but cleared suspicions, post a

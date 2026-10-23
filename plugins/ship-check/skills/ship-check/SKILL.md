@@ -17,9 +17,10 @@ description: >
 # Ship Check
 
 Orchestrate the full review pipeline. Phases 1-5 dispatch **dedicated agent types**
-from the ship-check plugin (not forks) so each reviewer approaches the code as a
-genuine stranger — no inherited context, no authorship bias. Each agent has its review
-skill and fable-mode preloaded via the `skills:` frontmatter, and loads project
+from the ship-check plugin (not forks, which inherit this session's context) so each
+reviewer approaches the code as a genuine stranger — no inherited context, no
+authorship bias. Each agent has its review skill and fable-mode (a skill for staged,
+verified execution) preloaded via the `skills:` frontmatter, and loads project
 conventions (CLAUDE.md, AGENTS.md, CLAUDE.local.md) and vault memory independently.
 Phase 2 (fresh-eyes) is the exception: it deliberately loads no conventions, no
 memory, and no shell — only Read/Grep/Glob — so its pauses reflect what a newcomer
@@ -53,8 +54,8 @@ orchestrator triage, pr-monitor replies).
   `tool-definitions` (for the orchestrator's post of tool-definition review findings),
   or `ship-check` (for the orchestrator's other PR-level comments).
 - `<model-id>` identifies the poster's exact runtime model. Resolve it by runtime:
-  - **Claude agent mode:** the phase agent uses the family ID from its system context,
-    such as `claude-opus-4-6`; omit context-window and dated-build suffixes.
+  - **Claude agent mode:** the phase agent uses the model ID from its system context
+    without its context-window or dated-build suffixes, such as `claude-opus-4-6`.
   - **Codex agent mode:** the orchestrator passes an exact model on every spawn and
     adds `Attribution model ID: <exact-id>` to the phase prompt. The phase agent uses
     that value verbatim. A Codex child never searches rollout files (Codex's session
@@ -68,7 +69,7 @@ orchestrator triage, pr-monitor replies).
     `CODEX_THREAD_ID`. It then reads the `turn_context.payload.model` of the
     latest turn at or before the post. Use
     `session_meta.payload.base_instructions.provenance.model` only when that turn
-    has no model and no later model-change evidence contradicts the provenance.
+    has no model and no later entry in the rollout file records a change of model.
   If the required source is missing, stop before posting and report the attribution
   blocker.
 - **The orchestrator's own PR-level comments** (non-inline findings, deferred items
@@ -139,12 +140,13 @@ dispatching session's.
      Wrong: on `main` with three unpushed commits, reviewing every commit since the
      last tag. Right: reviewing the three unpushed commits.
 
-   Given a base that HEAD already contains, `git merge-base` returns that base (for a
-   tag, the commit the tag points to); given any other base, it returns the last
-   commit the two share. So REVIEW_BASE is always a commit SHA that HEAD contains, and
-   the review range `REVIEW_BASE...HEAD` holds exactly the commits HEAD added after
-   it. With `--inline`, run each skill as if its dispatch named this `Base:` line;
-   with `--fork`, put the line in each fork's prompt.
+   REVIEW_BASE is always a commit SHA that HEAD contains, so the review range
+   `REVIEW_BASE...HEAD` holds exactly the commits HEAD added after it. This holds
+   because, given a base that HEAD already contains, `git merge-base` returns that
+   base (for a tag, the commit the tag points to); given any other base, it
+   returns the last commit the two share. With `--inline`, run each skill as if its
+   dispatch named this `Base:` line; with `--fork`, put the line in each fork's
+   prompt.
 3. Get the branch name (or "main" when reviewing main directly, or "detached HEAD
    at <short SHA>") — agents need this context in their briefing.
 
@@ -175,8 +177,9 @@ The phase prompt's `PR #<number>` gives the skills their PR_NUMBER.
 ```
 COMMENT MODE: Do NOT edit any files, commit, or push. Instead, collect all findings
 and post them as a single GitHub PR review with inline comments. Follow the "Comment
-mode" section in your preloaded skill for the gh api template. Only post a review if
-you have findings — skip the API call for 0 findings.
+mode" section in your preloaded skill for the gh api template. Skip the API call
+only when you have 0 findings and 0 dismissals; with dismissals alone, post the
+body-only review your skill describes.
 Repo: OWNER_REPO
 Append a footer to the review body AND every inline comment body using the
 runtime-specific model label from the Attribution section:
@@ -239,7 +242,10 @@ retry:
   otherwise put it in a `probe-pr-NUMBER/` folder directly under `/tmp`, for
   example `/tmp/probe-pr-642/comment-deferred.md`. The `probe-` prefix marks the
   file as a throwaway posting copy: once posted, the PR holds the text.
-- **Not a reason to switch:** backticks in the body. They run inline.
+- **Not a reason to switch:** backticks in a single-quoted body
+  (`--body '…'`). The sandbox accepts that call. Inside double quotes the shell
+  runs backticks as commands, so never put a body holding backticks in double
+  quotes.
 
 ### Orchestrator setup
 
@@ -304,9 +310,11 @@ HEAD belong to no branch).
    or an `--only` list without it turns it off.
 
 2. **Each phase handles its own scope.** If a phase detects nothing in scope, it reports
-   "0 files in scope" and exits cleanly. The orchestrator reports this result, not its
-   own judgment. A "0 findings" result from a dispatched agent is a valid outcome —
-   it is never a reason to have skipped the dispatch.
+   that nothing was in scope and exits cleanly. Its skill sets the wording, such as
+   "0 files in scope" or test-audit's "0 test files, 0 testable files changed —
+   nothing to audit". The orchestrator reports this result, not its own judgment.
+   A "0 findings" result from a dispatched agent is a valid outcome — it is never
+   a reason to have skipped the dispatch.
 
 3. **Phases run sequentially.** Each phase reviews the code *after* the previous phase's
    fixes are committed. Never parallelize review phases. Phase 2 (fresh-eyes)
@@ -356,7 +364,7 @@ sequential thinking forces you to deliberate instead of relaying.
    | Uncertain diagnosis | Complex or risky | Defer to user |
    | Complex fix | 10 lines or fewer, no interface change (after grep — step 2) | Fix — the sub-agent overestimated |
    | Complex fix | More than 10 lines, or an interface change | Defer to user |
-   | Pre-existing gap | Trivial and mechanical | Fix — the PR revealed the gap |
+   | Pre-existing gap | Trivial (< 5 lines, no interface change, no behavioral risk) and mechanical | Fix — the PR revealed the gap |
    | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
    | Any | Needs design decision | Always defer to user |
 
@@ -439,8 +447,9 @@ the pipeline pushes nothing).
 
    The agent then lists only the delta's files. Dispatch
    `ship-check:bug-checker` when the delta contains logic changes,
-   `ship-check:code-quality-reviewer` when it contains style/docs-weight changes, both
-   when mixed. Findings follow the normal fix/flag rules and inter-phase triage.
+   `ship-check:code-quality-reviewer` when it contains naming, comment, formatting,
+   or documentation changes, both when mixed. Findings follow the normal fix/flag
+   rules and inter-phase triage.
    Model and effort follow Execution below: retain the run's selected model;
    bug-checker uses the Adversarial review task class, code-quality-reviewer the
    Ordinary review class (the task-class table under "Resolve model and effort").
@@ -486,9 +495,10 @@ the pipeline pushes nothing).
 
 3. Resolve one model for the run and effort for each task class. Keep that model
    for phases, fresh-eyes persona reads, delta reviews, tool-definition cold/diff
-   passes, continuations and re-reviews. The Astra and Fable models, which the
-   guidance lists alongside Sol and Opus, run only when the user passes them as
-   `--model`; escalation advice in guidance never switches this run's model.
+   passes, continuations and re-reviews. The Astra and Fable models (other model
+   tiers the guidance lists alongside Sol and Opus; Fable is unrelated to the
+   fable-mode skill) run only when the user passes them as `--model`; escalation
+   advice in guidance never switches this run's model.
 
    | Controls | Model | Effort |
    |---|---|---|
@@ -513,8 +523,8 @@ For Codex parent inheritance, find the root's rollout file: the session log unde
 `CODEX_THREAD_ID`. Read model and effort from the `turn_context.payload.model`
 and `turn_context.payload.effort` of the latest turn at or before dispatch. Use
 `session_meta.payload.base_instructions.provenance.model` only if that turn has no
-model and no later model-change evidence contradicts it. Never select a rollout by
-recency, cwd, display name or a stale summary. For Claude, verify parent model and
+model and no later entry in the rollout file records a change of model. Never
+select a rollout by recency, cwd, display name or a stale summary. For Claude, verify parent model and
 effort from the current runtime context or correlated session metadata. Stop before
 an inheritance-dependent dispatch when the required model or effort cannot be
 verified.
@@ -556,14 +566,8 @@ Do not add hidden cross-runtime dispatches to obtain vendor diversity.
 verified `Attribution model ID`.
 
 The dispatch templates below also omit the `Ship-Check` commit trailer instruction.
-Append it to every phase that commits (phases 1, 3-5):
-
-```
-When committing, add this trailer to every commit message (after the body, before
-any trailers the harness adds):
-Ship-Check: PHASE_NAME · YOUR_MODEL_ID
-Use the runtime-specific model label from the Attribution section for YOUR_MODEL_ID.
-```
+Append the instruction block from the Attribution section ("Commit trailer
+format") once to every phase that commits (phases 1, 3-5).
 
 For Codex agent mode, also prepend the populated attribution line described above.
 
@@ -731,11 +735,12 @@ without `tool-definitions` turns it off.
      nothing, and a path missing at one end finds nothing; neither is an error.
    - Either of these two `not dispatched` outcomes, when Phase 1 reported tool
      definitions changed in source → tell the user the on-demand route: capture the
-     server's `tools/list` to a file and dispatch the reviewer on demand.
+     server's `tools/list` to a file and dispatch
+     `ship-check:tool-definition-reviewer` with that file as its `Current surface:`.
 3. **Plan the dispatches.** Run the plan script yourself, never through the
    reviewer: the script writes files under `--out`, and the reviewer may run without
    write access. Make a fresh parent folder, then pass a child that does not exist
-   yet:
+   yet, because the script refuses an `--out` folder that already exists:
    ```
    mktemp -d <scratchpad>/probe-tool-definitions-XXXX
    bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --out <parent>/plan
@@ -758,25 +763,28 @@ without `tool-definitions` turns it off.
    - `records`: the number of tool definitions to review across all files. A
      definition shared by several files counts once.
    - `reviewOnly`: the names of the tools this file's dispatches review.
-   - `withRoot`: true when one of those tools carries an edit no other file's
-     dispatch traces, so its dispatches need the repository root.
+   - `withRoot`: true when one of those tools carries an edit that no earlier file
+     in `files` holds. The reviewer traces each edit once, following the failures
+     it describes into the server's source, so these dispatches need the
+     repository root.
    - `coldDispatch`: true when `reviewOnly` holds more than eight tools, the most
-     one dispatch takes through the diff read.
+     one dispatch takes through the diff read (the tool-definition-review skill
+     sets that limit; the cold read has none).
    - `batches`: `reviewOnly` split into runs of at most eight names.
    - `records` is 0 → `not dispatched`, with one reason for each non-empty list:
 
      | Non-empty list | Reason |
      |---|---|
-     | `filesWithNoToolChange` | no tool needs review: only instructions, prompts, tool order, key order, or formatting changed; a new file ships only definitions another changed file already has; or, in a re-review, no tool text changed since the last review except edits from the base branch |
+     | `filesWithNoToolChange` | no tool needs review: only instructions, prompts, tool order, key order, or formatting changed; a new file ships only definitions that a changed file with a base version already shipped; or, in a re-review, no tool text changed since the last review except edits from the base branch |
      | `removed` or `removedTools` | only tools were removed |
      | `addedThenDropped` | the branch added tools and dropped them again |
      | `broken` | a tool-list file no longer parses as one |
      | `notToolLists` | the changed JSON files are not tool lists (name the paths) |
 
-   - A changed file that appears in none of these lists holds only tool
-     definitions that another file in `files` already carries, so it gets no
-     dispatch of its own. In a re-review, a file the base branch deleted and this
-     branch never touched is also in no list. When every list is empty and `records` is 0, the reason is
+   - A changed file that appears in none of these lists holds only tool changes
+     that another file in `files` reviews (the plan reviews equal changes across
+     files once), so it gets no dispatch of its own. In a re-review, a file the
+     base branch deleted and this branch never touched is also in no list. When every list is empty and `records` is 0, the reason is
      `the base branch deleted every changed tool list`.
    - Each `broken` or `removed` file goes to the user as a finding before the verdict.
    - List every `removedTools` and `addedThenDropped` entry in the summary. A removed
@@ -805,7 +813,8 @@ without `tool-definitions` turns it off.
      and every name in `reviewOnly`, plus one `Pass: diff` dispatch per batch.
    - `withRoot` true → include the `Repository root:` line. `withRoot` false → omit
      it: those tools repeat an edit another file's dispatch traces, so the reviewer
-     skips the error-entry and project-conventions checks for them and can still
+     skips its error-entry and project-conventions checks for them (both read the
+     repository; the tool-definition-review skill defines them) and can still
      report `complete`.
    - Number the report files with one counter across the whole step:
      `report-1.md`, `report-2.md`, … in the parent folder. The `batch <n>` in each
@@ -912,8 +921,11 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
 4. Read the plan, collect the intended tools, dispatch, and send continuations as
    in steps 4-7. A non-null `base` is a file the script composes from several
    commits: for each tool under review, the version its diff starts from, and the
-   current version of every other tool. Diffed against it, a file shows only this
-   branch's edits since the review, so a dropped fact is one dropped since then. A
+   current version of every other tool. For example, when `vault_search` changed
+   since the review and `vault_read_note` did not, the composed `base` holds
+   `vault_search` as it was at TOOL_REVIEW_SHA and `vault_read_note` as it is at
+   HEAD_SHA. Diffed against it, a file shows only this branch's edits since the
+   review, so a dropped fact is one dropped since then. A
    `base` of null marks a file that was not a tool list at the review; its tools
    are reviewed with no base.
 5. Triage as in step 8, except that every re-review finding goes to the user.
@@ -1057,7 +1069,8 @@ Ship check complete:
 ```
 
 If any findings remain deferred at the end of Phases 1-5 and the tool-definition
-review, and a `triage-finding` skill is available, run it once with them first,
+review, and a `triage-finding` skill (a separate skill, outside this plugin, that
+decides each review finding's outcome) is available, run it once with them first,
 passing this run's mode (PR, `--report`, local on main or a detached HEAD, or local
 on a branch) and what the run may do. It returns one result per finding, such as
 `Fix` (the caller applies the fix), `Recommended fix` (the fix described, for a
@@ -1091,7 +1104,7 @@ Ship check complete (comment mode):
 - Deferred:     <list each with flag category, or "none">
 - Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
-- Reviews posted: N (one per phase with findings)
+- Reviews posted: N (one per phase with findings or dismissals)
 ```
 
 If a `triage-finding` skill is available, run it once with the deferred findings
@@ -1157,5 +1170,5 @@ Fresh-eyes option interactions:
 | `--only` set excluding fresh-eyes | Not dispatched |
 | `--inline`, `--fork` | Skipped (inherited context defeats the persona); noted in the summary |
 
-If the user doesn't specify options, run all six phases with agents, plus the
-tool-definition review when its gates pass (the default).
+If the user doesn't specify options, run Phases 1-5 with agents and Phase 6 inline,
+plus the tool-definition review when its gates pass (the default).
