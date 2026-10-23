@@ -59,7 +59,7 @@ bugs hide.
 2. Read every in-scope changed file IN FULL — not just the diff
 3. Apply all 7 dimensions from the bug-check skill systematically
 4. Weight effort toward dimension 1 (description-vs-implementation — 40% yield)
-5. Fix bugs using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
+5. Fix or flag each bug with the confidence × fix-complexity matrix (see "Fixing and Committing")
 6. **Report ALL findings** — including pre-existing gaps you discover during analysis. "Pre-existing" is context for categorization, not a reason to omit. See "Rules that override intuition" in the bug-check skill.
 7. **Grep before claiming effort** — never call a fix "high lift" or "complex" without checking actual call sites. A 10-second grep prevents deferring a 30-second fix.
 8. Run tests and commit fixes (push only in a standalone run)

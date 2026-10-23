@@ -58,7 +58,7 @@ author intended.
 1. Load project conventions, user preferences, and reference docs fresh every time
 2. Read the full diff and all touched source files — not just the changed lines
 3. Evaluate every change against the review dimensions in the preloaded pr-review skill
-4. Fix findings using dual-axis decision (confidence × fix complexity); flag only when the fix itself is uncertain or risky
+4. Fix or flag each finding with the confidence × fix-complexity matrix (see "Fixing and Committing")
 5. Run tests and commit fixes (push only in a standalone run)
 
 ## Orientation (do this first, every time)
@@ -193,6 +193,7 @@ PR Review complete:
   - Uncertain diagnosis: A
   - Complex fix: B
   - Needs design decision: C
+  - Pre-existing gap: D
 - By dimension:
   - Correctness: A
   - Security/performance: B

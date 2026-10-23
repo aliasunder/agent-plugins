@@ -315,11 +315,12 @@ HEAD belong to no branch).
 
 4. **Phases commit; only the orchestrator pushes.** Every phase agent, delta
    review agent and triage fix commits without pushing. The orchestrator pushes
-   once, in "Push the fixes" after the tool-definition review, and pr-monitor
-   pushes the fixes it makes in Phase 6. Each push to a PR branch starts CI and
-   every review bot (the `synchronize` event), so a push from each committing
-   phase (1, 3, 4 and 5) would start up to four bot rounds on code the next phase
-   is about to change.
+   the phases' commits once, in "Push the fixes" after the tool-definition review.
+   In Phase 6, pr-monitor pushes the fixes it makes, and the orchestrator pushes
+   each delta review's fixes ("Pre-merge delta review", step 5). Each push to a PR
+   branch starts CI and every review bot (the `synchronize` event), so a push from
+   each committing phase (1, 3, 4 and 5) would start up to four bot rounds on code
+   the next phase is about to change.
 
 5. **The orchestrator never parrots sub-agent labels.** When a phase returns flagged
    findings, evaluate each one independently using inter-phase triage (below). A
@@ -350,7 +351,7 @@ sequential thinking forces you to deliberate instead of relaying.
 
    | Category | Fix | Action |
    |-----------|-----|--------|
-   | Uncertain diagnosis | Trivial (< 5 lines, no interface change) | Fix — safe even if diagnosis is wrong |
+   | Uncertain diagnosis | Trivial (< 5 lines, no interface change, no behavioral risk) | Fix — safe even if diagnosis is wrong |
    | Uncertain diagnosis | Complex or risky | Defer to user |
    | Complex fix | 10 lines or fewer, no interface change (after grep — step 2) | Fix — the sub-agent overestimated |
    | Complex fix | More than 10 lines, or an interface change | Defer to user |
@@ -359,8 +360,9 @@ sequential thinking forces you to deliberate instead of relaying.
    | Any | Needs design decision | Always defer to user |
 
 4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. Do
-   not push: "Push the fixes" pushes after Phase 5, and in Phase 6 pr-monitor's
-   next push carries the commit.
+   not push: "Push the fixes" pushes after Phase 5, and in Phase 6 the delta
+   review's push ("Pre-merge delta review", step 5) or pr-monitor's next push
+   carries the commit.
    **In comment mode**: instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
@@ -380,7 +382,8 @@ sequential thinking forces you to deliberate instead of relaying.
 safe, apply it anyway. The cost of a no-op 3-line fix is near zero; the cost of leaving
 a real bug is not.
 
-Only defer when the **fix itself** is uncertain, risky, or requires a design decision.
+Only defer when the **fix itself** is uncertain, risky, too large for the triage
+matrix's fix rows (step 3), or requires a design decision.
 
 ### Effort assessment is not optional
 
@@ -448,8 +451,10 @@ the pipeline pushes nothing).
 5. **Push the delta review's fixes, then advance the reviewed SHA.** The delta
    agents commit without pushing, as the phase template tells them. Once the delta
    review and its triage fixes are committed, push them in one `git push` and run
-   pr-monitor's follow-up check for that push. Then set the reviewed SHA to the new
-   head and repeat step 2 on later passes. Deltas shrink, so this converges.
+   pr-monitor's follow-up check for that push. When the push fails, stop and show
+   the user the error and the unpushed commits; never force-push or rebase on your
+   own ("Push the fixes", step 2). Then set the reviewed SHA to the new head and
+   repeat step 2 on later passes. Deltas shrink, so this converges.
 6. **Re-review tool text before every merge-ready verdict**, after steps 3-5 and
    their fixes: run the re-review in "Tool-definition review (conditional)". Run it
    even when step 2 of this section found the delta trivial — the re-review's own
@@ -954,9 +959,14 @@ for a decision before any verdict.
 
 Run this once, after Phase 5, its triage and the tool-definition review's triage
 fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
-(Phase discipline item 4).
+(Phase discipline item 4). `--skip` and `--only` never skip this step: when they
+leave Phase 5 out, run it after the last selected phase and its triage instead
+(with `--only pr-review`, it pushes Phase 1's commits).
 
 1. Count the commits not pushed yet: `git rev-list --count @{upstream}..HEAD`.
+   In PR mode, when this fails with `no upstream`, stop before Phase 6 and show
+   the user the error, as for a failed push (step 2). Local mode skips the push
+   instead (step 3).
 2. When the count is above 0, run `git push`, check its exit code, and note the
    pushed head SHA for the summary. When the push fails (for example, rejected
    because the remote branch moved), stop before Phase 6 and show the user the
@@ -1046,10 +1056,10 @@ Ship check complete:
 
 If any findings remain deferred at the end of Phases 1-5 and the tool-definition
 review, and a `triage-finding` skill is available, run it once with them first,
-passing this run's mode (PR, `--report`, local on main, or local on a branch) and
-what the run may do. It returns one result per finding, such as `Fix` (the
-caller applies the fix), `Recommended fix` (the fix described, for a caller that
-may not edit), a logged dismissal (`False positive (logged)` or
+passing this run's mode (PR, `--report`, local on main or a detached HEAD, or local
+on a branch) and what the run may do. It returns one result per finding, such as
+`Fix` (the caller applies the fix), `Recommended fix` (the fix described, for a
+caller that may not edit), a logged dismissal (`False positive (logged)` or
 `Logged: not worth doing`), or the finding left for the user. Count each `Fix` it
 returns as fixed once applied (a `Recommended fix` when the run may not edit),
 each logged dismissal under Dismissed with its evidence, and each finding it

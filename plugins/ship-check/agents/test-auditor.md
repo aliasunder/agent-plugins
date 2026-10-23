@@ -179,7 +179,7 @@ Test audit complete:
   - Coverage regressions: F
 - Coverage gaps found: K
 - Tests written: J
-- Production bugs reported: P (each with the failing test that proves it; not fixed here)
+- Production bugs reported: P (each with its flag category and the failing test that proves it; not fixed here)
 - Mutation-tested: L
 - Suite: passing / N failures (total test count)
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")

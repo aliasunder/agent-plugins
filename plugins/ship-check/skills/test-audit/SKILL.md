@@ -300,8 +300,8 @@ is the primary audit. It answers: "should there be tests for what changed?"
    categorically exclude config files (`.config.ts`, `sst.config.ts`, etc.) —
    check whether existing tests cover them first, by searching the test files for
    the config file's name (for `sst.config.ts`:
-   `rg -l "sst.config" -g "*.test.ts" -g "*.spec.ts"`). If a config file has
-   tests, it's in scope.
+   `rg -l "sst\.config" -g "*.test.*" -g "*.spec.*" -g "**/__tests__/**"`). If a
+   config file has tests, it's in scope.
 
 2. **For each changed non-test file**, read the diff (`git diff <range> -- <file>`)
    and classify each change:
@@ -317,7 +317,8 @@ is the primary audit. It answers: "should there be tests for what changed?"
      reverting it would fail)
 
 3. **Check for existing coverage**: for each gap candidate, search for existing tests
-   that cover it (`grep -rn "functionName\|describe.*ModuleName" --include="*.test.ts"`).
+   that cover it, in every test file the step 1 definition covers
+   (`rg -n "functionName|describe.*ModuleName" -g "*.test.*" -g "*.spec.*" -g "**/__tests__/**"`).
    A function may already be tested even if its test file wasn't changed.
 
 4. **Report each gap as a one-liner, then write the test.** A `hard gap` is code no
