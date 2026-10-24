@@ -1139,6 +1139,30 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
    user's earlier decisions stand for text that did not change.
 6. Record the new tool-review commit as in step 9.
 
+- **A reorder-only edit may skip its dispatch, at your judgement.** At step 4,
+  before dispatching, read each `reviewOnly` tool's diff against the plan's
+  `base` (`bun <script> --current <current> --base <base>`). Leave a tool out of
+  the dispatch when every change to it only reorders text the last review
+  already read, so each claim reads the same before and after the edit:
+  - a clause or sentence moved, or sentences joined or split;
+  - the words around a moved part changed only to fit the new sentence: a
+    connective, a pronoun, or a verb's form.
+
+  A changed word that carries a fact (a tool or parameter name, a number, a
+  condition, a remedy, an error message) is not a reorder: dispatch that tool.
+  - Wrong: dispatching the reviewer because "Properties are kept as written, and
+    CRLF line breaks are saved as LF — properties must be edited via X" became
+    "Properties are kept as written — edit them via X. CRLF line breaks are
+    saved as LF."
+  - Right: skipping that tool, and dispatching it when the same edit also adds
+    "or Y" to the editors it names.
+
+  When you skip a tool:
+  1. Name it in the step's `Tool Definitions:` summary line:
+     `not dispatched: reorder only (<tools>)` when you skip every tool, or
+     `; reorder only, not dispatched: <tools>` after the outcome otherwise.
+  2. Record the new tool-review commit as in step 6, so the next re-review
+     diffs from the reordered text.
 - No recorded tool-review commit, or one git cannot find (the gate's `git diff`
   reports a bad object, or the script exits 2 with "not a commit") → run the step in
   full and say so in the summary.
