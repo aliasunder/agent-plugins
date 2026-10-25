@@ -52,6 +52,8 @@ starting"; it never relaunches itself or changes its model or effort.
    Read the unique result with `vault_read_note`. Conflicting results require
    resolving the project pointer. If access or a result is absent, report the
    fallback and use `gpt-6.1-sol` in Codex or `opus` in Claude, at `xhigh`.
+   OpenCode has no portable fallback here. If the guide is unavailable, request
+   an eligible concrete `provider/model#variant` before dispatch.
 2. Select guidance's **adversarial review** values. Explicit user choices override
    guidance. Choose the initial model through task-fit guidance and any
    user-stated constraints, and record the reason. Do not silently switch models
@@ -85,7 +87,26 @@ starting"; it never relaunches itself or changes its model or effort.
    |---|---|
    | Codex | `agent_type: "plan-check:plan-reviewer"`, `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Put the label in the message when the tool has no description field. |
    | Claude | `subagent_type: "plan-check:plan-reviewer"`, supported `model` and `effort`. If the tool has no effort field, use a verified setting on that same dedicated role only when it matches the intended effort; otherwise report that the requested dispatch cannot be expressed. Never substitute a generic effort role. |
-   | OpenCode | Task selects `plan-check--plan-reviewer` without per-call model/effort fields. Read that role's configured model and supported variant. When the role has no configured model, verify the inherited parent model and variant. Label the effective controls and report any requested choice the role cannot realize. Never invent Task parameters or replace the reviewer role. |
+   | OpenCode | Use native `subagent({ agent: "plan-check--plan-reviewer", description, prompt, model: "<verified provider/model#variant>", background: false })`. Resolve and label model/variant as described below. Never replace the dedicated reviewer role. |
+
+OpenCode V2 uses native `subagent({ agent, description, prompt, model, background: false })`
+with the exact dedicated role ID and a concrete `provider/model#variant` reference.
+Choose model and effort deliberately from the shared model guide for every
+dispatch; generated reviewer roles remain model-free. Use a non-Anthropic,
+non-OpenAI model in OpenCode and never Grok. Verify the concrete model ID and
+native variant through `tools.opencode.models` (Code Mode permission action
+`opencode_models`), following pagination or exact-ID lookup before declaring a
+choice absent. Label the actual supported variant; never guess that a vendor's
+variant means `high` or `xhigh`. Stop on an explicit unsupported choice.
+
+The models tool enumerates configured provider models and supported variants;
+it does not identify the parent's current model or variant. Do not infer parent
+identity from catalog/provider order, config or self-description. A requested
+parent match, inheritance or effort-only change that must retain the parent
+model requires trusted runtime/caller metadata naming that identity. If it is
+unavailable, stop and request a concrete model reference. Default selection
+chooses an eligible model deliberately from the guide and catalog. Omit controls
+only for deliberate inheritance whose required values are verified.
 
 For example, a Codex cold review uses:
 
@@ -207,7 +228,7 @@ it, then classify it: *verified in the plan* (evidence cited), *checkable now*
 - **Compute, don't gesture.** Using the plan's own numbers (rate limits, cap
   sizes, window lengths, timeouts), calculate the cheapest path for an
   unauthorized party to trigger the control. If the plan supplies a rate and a
-  cap, the time-to-fill is one multiplication — do it in the review.
+  cap, calculate `time to fill = cap / rate`, using consistent units.
 - **Who pays when it fires?** If tripping the control is cheap for an attacker
   and expensive for the owner (lockout, data loss, manual recovery), the control
   is a denial vector, not a defense. That is a **blocker**, not a nitpick.

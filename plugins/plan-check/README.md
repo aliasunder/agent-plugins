@@ -48,6 +48,8 @@ and session logs), not from first principles.
 
 ## Usage
 
+In Claude Code with the plan-check plugin enabled:
+
 ```
 /plan-check:plan-review                 # inline, reviews the plan in context
 ```
@@ -60,6 +62,11 @@ Before spawning the dedicated reviewer, read the
 [plan-review skill's Dispatcher guidance](skills/plan-review/SKILL.md#dispatcher-guidance).
 An already-running reviewer does not relaunch itself. The inline skill invocation
 above retains the current session's model and effort.
+
+In Tanisha's OpenCode V2 setup, follow the setup and `--write` procedure in
+`~/.agents/skills/sync-opencode-plugins/SKILL.md`, then verify the dedicated
+reviewer in a fresh session. Use `/plan-review <plan path>` to dispatch it.
+The plugin marketplace does not install this adapter or command.
 
 Like ship-check, the agents load personal context (vault-cortex MCP, fable-mode
 skill) and won't work for anyone else without adaptation — the structure and
@@ -90,9 +97,24 @@ Guidance overrides these defaults; explicit user choices override guidance.
 Codex keeps `agent_type: "plan-check:plan-reviewer"` with `fork_turns: "none"`
 and explicit `model` and `reasoning_effort`. Claude keeps the dedicated
 `subagent_type` with supported `model` and `effort`; if the tool lacks effort, a
-verified matching setting on that same role is required. OpenCode Task has no
-per-call model/effort fields. The dispatcher reads `plan-check--plan-reviewer`'s
-configured model and supported variant; when no model is configured, it verifies
-the inherited parent model and variant. It labels the effective controls and
-reports requested choices the role cannot realize. Unsupported choices are
-reported without substitution. Every dispatch label names model and effort.
+verified matching setting on that same role is required.
+
+OpenCode V2 uses native `subagent` with `agent: "plan-check--plan-reviewer"`,
+`description`, `prompt`, a verified `model: "provider/model#variant"` and
+`background: false`. The `/plan-review` command runs in OpenCode's build agent to resolve
+an explicit target or an unambiguous artifact in the current conversation, then
+calls a fresh dedicated reviewer and relays its complete report verbatim. Missing
+or ambiguous targets are resolved before dispatch; role, permission and depth
+failures stop without an inline substitute.
+
+The OpenCode dispatcher chooses model and effort deliberately from the shared
+model guide, using non-Anthropic/non-OpenAI models and never Grok. It verifies
+model IDs and supported variants through `tools.opencode.models` (Code Mode
+`opencode_models`), including pagination or exact-ID lookup before declaring a
+choice absent. It labels the native variant and stops on unsupported explicit
+controls; vendor variants are never guessed to equal `high` or `xhigh`.
+Generated roles remain model-free. The catalog does not identify the parent's
+current model or variant. Parent matching or inheritance requires trusted
+runtime/caller identity metadata; without it, the dispatcher requests a concrete
+model reference instead of guessing from config, catalog order or self-description.
+Every dispatch label names the resolved model and effort.

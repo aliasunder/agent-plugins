@@ -3,7 +3,7 @@ name: ship-check
 description: >
   Run the full post-implementation review pipeline: pr-review -> fresh-eyes ->
   code-quality -> test-audit -> bug-check -> pr-monitor. Phases 1-5 run as
-  dedicated agent types (ship-check plugin) with skills preloaded — genuine fresh
+  dedicated agent types (ship-check plugin) with their source-declared skills — genuine fresh
   eyes with no inherited context. Phase 6 (pr-monitor) runs inline for user
   interaction. A report-only design pass reads the whole PR after Phase 5, and
   again in Phase 6 when code changed since. When a change touches a committed MCP
@@ -20,9 +20,10 @@ description: >
 Orchestrate the full review pipeline. Phases 1-5 dispatch **dedicated agent types**
 from the ship-check plugin (not forks, which inherit this session's context) so each
 reviewer approaches the code as a genuine stranger — no inherited context, no
-authorship bias. Each agent has its review skill and fable-mode (a skill for staged,
-verified execution) preloaded via the `skills:` frontmatter, and loads project
-conventions (CLAUDE.md, AGENTS.md, CLAUDE.local.md) and vault memory independently.
+authorship bias. In Claude Code, each agent preloads its review skill and fable-mode through
+`skills:` frontmatter. Generated OpenCode agents load those skills with native
+`skill({ id })` before starting. Reviewers load project conventions (CLAUDE.md,
+AGENTS.md, CLAUDE.local.md) and vault memory independently.
 Phase 2 (fresh-eyes) is the exception: it deliberately loads no conventions, no
 memory, and no shell — only Read/Grep/Glob — so its pauses reflect what a newcomer
 experiences, not what the project allows.
@@ -570,7 +571,9 @@ the pipeline pushes nothing).
    Read the unique result with `vault_read_note`. Conflicting results require
    resolving the project pointer (the guidance note the project instructions name)
    before dispatch. If access or a result is absent, use the portable defaults
-   below and report that fallback.
+   below and report that fallback. OpenCode has no portable fallback here; if
+   the guide is unavailable, request an eligible concrete `provider/model#variant`
+   before dispatch.
 2. Map each review to its task class. Guidance owns the values; the table below
    supplies values only when guidance is unavailable. Explicit user controls win.
 
@@ -625,7 +628,26 @@ label placeholders before invoking a tool; never dispatch literal placeholders.
 |---|---|
 | Codex | Keep the dedicated `agent_type`; use `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Prepend `Attribution model ID: <resolved exact model>` to the prompt. |
 | Claude | Keep the dedicated `subagent_type`; pass supported `model` and `effort`. If the exposed tool lacks effort, use a verified setting on that same dedicated role only when it matches the intended effort. Otherwise report that the dispatch cannot express the choice. Never substitute a generic effort role. |
-| OpenCode | Keep the dedicated role, such as `ship-check--bug-checker`. Task has no per-call model or effort fields: read that role's configured model and supported variant. When the role has no configured model, verify the inherited parent model and variant. Label the effective controls and report any requested choice the role cannot realize; never invent Task parameters or replace the reviewer role. |
+| OpenCode | Use native `subagent({ agent: "ship-check--bug-checker", description, prompt, model: "<verified provider/model#variant>", background: false })`, selecting the exact role for each phase. Resolve and label model/variant as described below. Never replace the dedicated reviewer role. |
+
+OpenCode V2 uses native `subagent({ agent, description, prompt, model, background: false })`
+with the exact dedicated role ID and a concrete `provider/model#variant` reference.
+Choose model and effort deliberately from the shared model guide for every
+dispatch; generated reviewer roles remain model-free. Use a non-Anthropic,
+non-OpenAI model in OpenCode and never Grok. Verify the concrete model ID and
+native variant through `tools.opencode.models` (Code Mode permission action
+`opencode_models`), following pagination or exact-ID lookup before declaring a
+choice absent. Label the actual supported variant; never guess that a vendor's
+variant means `high` or `xhigh`. Stop on an explicit unsupported choice.
+
+The models tool enumerates configured provider models and supported variants;
+it does not identify the parent's current model or variant. Do not infer parent
+identity from catalog/provider order, config or self-description. A requested
+parent match, inheritance or effort-only change that must retain the parent
+model requires trusted runtime/caller metadata naming that identity. If it is
+unavailable, stop and request a concrete model reference. Default selection
+chooses an eligible model deliberately from the guide and catalog. Omit controls
+only for deliberate inheritance whose required values are verified.
 
 For example, the Codex Phase 1 call is:
 
@@ -1382,8 +1404,9 @@ The user can customize the pipeline:
 - `/ship-check --model <name>` — override the model for all phase agents for this run.
   Use a selector the active runtime accepts: Claude aliases such as `opus`, exact Codex
   IDs such as `gpt-6.1-sol`. `inherit` alone preserves verified parent model AND
-  effort; a supplied `--effort` controls effort separately. OpenCode Task cannot
-  override the configured dedicated role's model: report that limitation.
+  effort; a supplied `--effort` controls effort separately. OpenCode V2 passes a
+  verified `provider/model#variant` to native `subagent`; resolve both controls
+  under Execution before dispatch.
 - `/ship-check --effort <level|inherit>` — override effort for every cold review,
   including delta and tool-definition reviews. Validate the level for the model
   and runtime. `inherit` uses verified parent effort independently of model.
