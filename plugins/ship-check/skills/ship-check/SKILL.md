@@ -894,8 +894,8 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
 
 For the final pass's trigger, compare these two file lists:
 
-1. `git diff --name-only <the head "Push the fixes" pushed> HEAD` lists what changed
-   since the phases' push.
+1. `git diff --name-only <PHASE6_START_HEAD> HEAD` lists what changed since Phase 6
+   began. "Push the fixes" records this SHA even when no push is needed.
 2. `git diff --name-only <a fresh DESIGN_BASE>...HEAD` lists the PR's own files.
 
 Run the final pass only when the same non-test code, CI, config or
@@ -1259,11 +1259,13 @@ leave Phase 5 out, run it after the last selected phase and its triage instead
    - the count is 0: no phase committed anything;
    - local mode on a branch with no upstream (step 1 fails with `no upstream`):
      the fixes stay committed locally, and the summary says they are not pushed.
+4. Record `git rev-parse HEAD` as PHASE6_START_HEAD, including when the push was
+   skipped. The final design pass compares later changes against this SHA.
 
-Phase 6 starts from this push: pr-monitor's checks and bot rounds read the head it
-pushed. Treat it as a push made during pr-monitor's run: Phase 6 runs pr-monitor's
-Step 4 follow-up check for it (the Step 4 bullet under Phase 6 below) before any
-Step 5 report.
+Phase 6 starts from PHASE6_START_HEAD. Complete pr-monitor's Step 4 follow-up check
+(the Step 4 bullet under Phase 6 below) before any Step 5 report, including when
+the push was skipped. A successful push here counts as a push made during
+pr-monitor's run.
 
 ### Phase 6: PR Monitor (inline — does not end)
 

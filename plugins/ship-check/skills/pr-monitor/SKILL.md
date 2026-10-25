@@ -61,21 +61,26 @@ Report: approved / changes-requested / pending. List reviewers.
 
 ### 2c. Unresolved review threads
 ```
-gh api graphql -f query='{
+gh api graphql --paginate -f query='query($endCursor: String) {
   repository(owner: "OWNER", name: "REPO") {
     pullRequest(number: NUMBER) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $endCursor) {
         nodes {
           id isResolved
           comments(first: 5) {
             nodes { databaseId author { login } body path position createdAt }
           }
         }
+        pageInfo { hasNextPage endCursor }
       }
     }
   }
 }'
 ```
+The query paginates all threads and previews the first five comments per thread.
+Read every inline comment from 2d's paginated endpoint for the complete replies;
+the preview does not establish full comment coverage.
+
 List each UNRESOLVED thread: author, file/line, summary, and classify as one of:
 - **Bot** -- author is a known review bot (qodo-merge-pro, coderabbitai, umm-actually, etc.)
 - **Claude** -- author is a human account but the comment body contains a Claude
@@ -169,13 +174,12 @@ against the review/comment IDs recorded on prior passes and against your
 own footer-marked replies. **Record the IDs of items you handle** so
 follow-up passes don't re-litigate them.
 
-**New-ness is decided by timestamps and ids, never by body text.** After
-any re-review event, list comments from BOTH endpoints (inline review
-comments and issue comments) with `id` and `created_at`, and treat a
-comment as new only if its `created_at` postdates the run that supposedly
-produced it. An identical body with a familiar tracking marker is evidence
-you re-read the SAME comment — a "duplicate posting" verdict requires two
-distinct comment ids. The known failure this prevents: an
+**Evaluate every unhandled ID, regardless of timestamp.** After any re-review
+event, list comments from BOTH endpoints (inline review comments and issue
+comments) with `id` and `created_at`. Use timestamps to associate comments with
+re-review or push events, never to exclude an unhandled ID. Repeated body text
+alone does not establish that you re-read the same comment — a "duplicate posting"
+verdict requires two distinct comment IDs. The known failure this prevents: an
 issue-comments-only query re-read a round-1 comment as a "duplicate" on
 two consecutive re-reviews while the bot's actual new findings — posted as
 inline review comments — went unseen and unhandled.
@@ -315,11 +319,15 @@ For each unresolved bot thread, do ALL of these in order:
    Since `gh` posts as the user's account, every reply MUST include an attribution
    footer. Use the pipeline's verified `Attribution model ID` when ship-check supplied
    one. A standalone run uses the current session's exact runtime model: Claude reads
-   the family ID from system context; OpenCode uses its exact runtime identifier; Codex
-   matches its own `CODEX_THREAD_ID` to `session_meta.payload.id` before reading
-   `session_meta.payload.base_instructions.provenance.model`. Never select a rollout by
-   recency, cwd, or display name. If the exact ID cannot be verified, keep monitoring
-   but stop before posting and report the attribution blocker. The footer format is:
+   the family ID from system context; OpenCode uses its exact runtime identifier.
+   Codex finds its own rollout under `~/.codex/sessions/` by matching its full
+   `CODEX_THREAD_ID` to `session_meta.payload.id`. Read `turn_context.payload.model`
+   from the latest turn at or before the post. Use
+   `session_meta.payload.base_instructions.provenance.model` only when that turn
+   has no model and no later rollout entry records a change of model. Never select
+   a rollout by recency, cwd, or display name. If the exact ID cannot be verified,
+   keep monitoring but stop before posting and report the attribution blocker.
+   The footer format is:
    `\n\n---\n*🔍 ship-check · pr-monitor · <model-id>*`
 
    ```
@@ -468,7 +476,7 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
      prompt: "/pr-monitor")
    ```
    In Codex, use the active-turn `clock.sleep` procedure below. In OpenCode, use
-   **OpenCode loop scheduling** below with a `3m` follow-up measured from this push.
+   **OpenCode loop scheduling** below: arm a `3m` follow-up after this push.
 
 3. On wake: **re-run Step 2 in full** — all five checks (2a through 2e), including
    **all three endpoints in 2d** (`pulls/NUMBER/reviews`, `issues/NUMBER/comments`,
@@ -478,8 +486,8 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
    entirely. Compare the unresolved thread count to what it was before pushing,
    and compare 2d's review/comment IDs and per-surface timestamps
    (`submitted_at` for review bodies, `created_at` for issue and inline comments)
-   against the ones you've already handled — new-ness is decided by id and
-   timestamp, never by body text (see 2d).
+   against the ones you've already handled. Evaluate every unhandled ID regardless
+   of timestamp; timestamps associate findings with review events (see 2d).
 
 4. **New unresolved threads or new non-thread bot findings exist** -- go to Step 3
    (reply, fix, resolve, push). If Step 3 pushes more code, return here and repeat
@@ -545,10 +553,14 @@ checklist or a personal command-file path.
 
 | State | Next interval |
 | --- | --- |
-| A fix was pushed, or a changed PR head was discovered | `3m` follow-up from this push or discovery |
+| A fix was pushed, or a changed PR head was discovered | Arm a `3m` follow-up after the push or discovery |
 | Continuous monitoring with less than one quiet hour | `4m` |
 | Continuous monitoring after at least one quiet hour | `30m` |
 | User specified a continuous-monitoring interval | That interval; retain the post-push follow-up |
+
+The `3m` interval starts when `loop_start` successfully arms the timer, after the
+push or head discovery. Its wake therefore occurs at least 180 seconds after that
+event, even when preparing the prompt takes time.
 
 Compare the head read at the start of Step 2 with `last_head` so
 pushes by other authors also restore the fast cadence when the next poll discovers
