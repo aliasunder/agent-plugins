@@ -1280,6 +1280,9 @@ follow ALL steps through Step 5, including:
   180 seconds have elapsed, sending the user an update between waits so no
   60 seconds pass without one, then re-run the full status pass. Do NOT reason
   about why monitoring can be skipped or end a Codex turn while it is active.
+  In OpenCode, follow pr-monitor's **OpenCode loop scheduling** procedure for the
+  post-push wake, adaptive intervals and exact loop ownership. End the OpenCode
+  turn after arming so its timer can resume the same inline session.
 - **Step 5**: Continue monitoring — never auto-terminate
 
 As part of this phase, the primary agent also ensures PR visibility for non-inline

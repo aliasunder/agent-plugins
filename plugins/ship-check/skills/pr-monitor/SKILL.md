@@ -176,6 +176,10 @@ inline review comments — went unseen and unhandled.
 Summarize blockers: failing CI, missing approvals, unresolved threads,
 unanswered non-thread bot findings, conflicts.
 
+In OpenCode, complete the required Step 3 work this pass is authorized to perform.
+If checks or approvals remain pending, use **OpenCode loop scheduling** below and
+end the turn; do not repeatedly poll inside a busy turn.
+
 ## Step 3: Handle findings
 
 > **Every reply this step posts carries the pipeline attribution footer**
@@ -455,7 +459,8 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
    ScheduleWakeup(delaySeconds: 180, reason: "waiting for bot reviews after push",
      prompt: "/pr-monitor")
    ```
-   In Codex, use the active-turn `clock.sleep` procedure below.
+   In Codex, use the active-turn `clock.sleep` procedure below. In OpenCode, use
+   **OpenCode loop scheduling** below with a `3m` follow-up measured from this push.
 
 3. On wake: **re-run Step 2 in full** — all five checks (2a through 2e), including
    **all three endpoints in 2d** (`pulls/NUMBER/reviews`, `issues/NUMBER/comments`,
@@ -473,6 +478,93 @@ Do NOT go to Step 5 without completing at least one follow-up pass after the las
    Step 4 from the top.
 
 5. **Nothing new** -- go to Step 5.
+
+### OpenCode loop scheduling
+
+Use this procedure for post-push follow-up and continuous monitoring in OpenCode.
+It uses the optional `loop_start`, `loop_list`, and `loop_stop` tools. If any needed
+tool is absent or refuses the operation, run the immediate full Step 2 pass and
+report the concrete scheduling limit. Never claim a wake was armed from a failed
+tool result, or recommend `/loop` when its underlying tools are absent.
+
+**Preflight once in the attended pass.** Verify lasting permission for the status
+checks, a real clock (`date +%s`), and UUID generation (for example,
+`node -p 'require("node:crypto").randomUUID()'`). A one-time permission answer is
+insufficient for later wakes. Use existing session rules or the user's explicit
+always-approval; do not broaden global permissions. A new operation needed for a
+later fix can still need approval and remains a visible blocker.
+
+**Recover this run before creating a loop.** Call `loop_list`, which lists loops
+across the current project instance. Reuse the carried run marker if present;
+generate a UUID only for a genuinely new run. Another checkout has an independent
+registry, so this check does not establish ownership across checkouts.
+
+- Match an existing loop by the exact `pr-monitor-run:<UUID>` marker in its prompt.
+  Retain its returned ID; a PR URL alone is not ownership proof.
+- A native fired prompt that exactly matches one unique listed prompt can recover
+  that loop's ID and marker. For a legacy user-armed loop, preserve its interval
+  as an explicit override when adopting it.
+- When neither an exact marker nor a unique native-prompt match establishes
+  ownership, treat any possible monitor for this PR as ownership-unknown, including
+  one with a different marker after context loss. Ask for the exact loop ID before
+  arming alongside it, adopting it, or stopping it.
+- An existing loop ID explicitly supplied by the user may be adopted after checking
+  it in the list. Preserve the user's interval as a continuous-monitoring override.
+- If a marker or exact prompt matches multiple loops, report the ambiguity instead
+  of selecting one. Never stop all loops or another session's loop.
+
+**Carry the run in every wake prompt.** Include the exact PR URL and this record:
+
+```text
+pr-monitor-run:<UUID>
+quiet_since=<epoch seconds>; last_head=<PR head SHA>
+mode=<continuous|one-shot-follow-up>; cadence_override=<interval|none>
+```
+
+The prompt must tell this same session to load pr-monitor, run Step 2 in full, and
+continue Steps 3-5 within the existing user-authorized scope. Preserve handled
+finding IDs, attribution, pipeline review state, user decisions and cuts through
+compaction. Footer-marked GitHub replies help reconstruct handled findings; they
+do not replace user decisions. Reference the skill rather than copying its
+checklist or a personal command-file path.
+
+**Choose the next interval from real state:**
+
+| State | Next interval |
+| --- | --- |
+| A fix was pushed, or a changed PR head was discovered | `3m` follow-up from this push or discovery |
+| Continuous monitoring with less than one quiet hour | `4m` |
+| Continuous monitoring after at least one quiet hour | `30m` |
+| User specified a continuous-monitoring interval | That interval; retain the post-push follow-up |
+
+Read PR state and head SHA on every full pass, for example with
+`gh pr view <PR-URL> --json state,headRefOid`. Compare the head with `last_head` so
+pushes by other authors also restore the fast cadence when the next poll discovers
+them. Stop a merged/closed PR's monitor before handling more findings or scheduling
+another pass. Reset `quiet_since` after a push or new actionable finding; unchanged CI
+state does not reset it. Compute quiet time from the clock, never loop fire counts.
+
+Before changing the timer, check `loop_list` again. Reuse the known owned loop only
+when its interval and carried state are current. Otherwise stop that exact ID and
+start its replacement with the updated prompt. A changed quiet timestamp or head
+requires replacement even when the interval is unchanged, so a later wake cannot
+restore stale state. Check actual tool output and the list before reporting success.
+
+**Stopping and one-shot runs:**
+
+- User stop or a merged/closed PR stops only this run's identified loop.
+- A merge-ready snapshot keeps continuous monitoring armed.
+- A one-shot invocation arms no continuous loop. If it pushes a fix, use a temporary
+  `3m` follow-up with `mode=one-shot-follow-up`. Stop that loop at the start of its
+  fired pass, then run the full check. Another push gets another temporary follow-up;
+  otherwise finish with no monitor armed.
+- If the delayed follow-up cannot be armed, the immediate pass does not satisfy
+  Step 4. Report the incomplete follow-up and do not claim merge-ready.
+
+After successfully arming or reusing the next wake, report the status snapshot and
+**end the OpenCode turn** so the session becomes idle. The loop skips busy sessions;
+remaining in the active turn prevents unattended checks. The wake returns to the
+same session, including ship-check's inline Phase 6 session.
 
 ### If ScheduleWakeup is not available
 
@@ -582,6 +674,8 @@ report, not a termination signal. The user will say stop when they're done. If t
 user doesn't respond, keep the monitoring loop running.
 In Codex, report this snapshot in commentary and stay in the active turn; a
 final response ends the timed monitoring loop.
+In OpenCode, arrange the next wake with **OpenCode loop scheduling**, then end the
+turn so the armed loop can fire.
 
 ## Continuous monitoring
 
@@ -592,6 +686,10 @@ Continue monitoring after Step 5 — whether invoked via `/loop` or not:
   between waits, then run the full Step 2 pass. If new user input interrupts a
   wait, count only its elapsed time, respond, and resume unless the user
   explicitly stops monitoring.
+- In OpenCode, use **OpenCode loop scheduling** to arm or reuse this run's loop,
+  with `4m` checks during the first quiet hour and `30m` afterward. Preserve explicit
+  user cadence overrides and restore the `3m` follow-up after a push. End the turn
+  after scheduling; the timer, not an active-turn sleep, resumes this session.
 - **On each wake, run Step 2 in full — all five checks (2a–2e) with all three 2d
   endpoints.** No shortened version of Step 2 exists. The dominant pr-monitor failure
   is steady-state narrowing: degrading to `gh pr view --json state` or CI + thread
