@@ -40,7 +40,7 @@ Design pass: ship-check:code-quality-reviewer -> whole-PR design (report only); 
 Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (the reviewer reports; triage fixes)
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
-Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until ready
+Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until stopped, merged or closed
 ```
 
 ## Attribution
@@ -179,8 +179,11 @@ reviewing a PR it isn't responsible for.
 
 ### Dispatch prompt addition
 
-When `--comment` is active, prepend this block to every phase's dispatch prompt.
-The phase prompt's `PR #<number>` gives the skills their PR_NUMBER.
+When `--comment` is active, prepend this block to the posting phases' dispatch
+prompts (Phases 1 and 3-5). Phase 2 remains report-only and never posts. The phase
+prompt's `PR #<number>` gives the skills their PR_NUMBER. The design and
+tool-definition passes keep their own report-only dispatches; the orchestrator
+posts their findings.
 
 ```
 COMMENT MODE: Do NOT edit any files, commit, or push. Instead, collect all findings
@@ -886,8 +889,20 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
 | Pass | When | Reads | Its proposals |
 |---|---|---|---|
 | First | After Phase 5 and its triage, before the tool-definition review and "Push the fixes", so the tool-definition review reads the text the pass's triage fixes leave | The whole PR | Triage as step 5 says |
-| Final | In Phase 6, at the first of these: asking the user to test the change live, or the first merge-ready verdict. After the delta review, before the tool-definition re-review. Only when a non-test code, CI, config or shipped-instruction file (code-quality dimension 8, read procedure step 2) is in both `git diff --name-only <the head "Push the fixes" pushed> HEAD` (what changed since the phases' push) and `git diff --name-only <a fresh DESIGN_BASE>...HEAD` (the PR's own files), so the first pass's own triage fixes and base-branch merges do not trigger it | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
+| Final | In Phase 6, before the first live-test request or merge-ready verdict, when the file comparison below finds an eligible file. Run after the delta review and before the tool-definition re-review | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
 | Any later one | Only when the user asks (`--only design-pass`) | The whole PR | As the final pass |
+
+For the final pass's trigger, compare these two file lists:
+
+1. `git diff --name-only <the head "Push the fixes" pushed> HEAD` lists what changed
+   since the phases' push.
+2. `git diff --name-only <a fresh DESIGN_BASE>...HEAD` lists the PR's own files.
+
+Run the final pass only when the same non-test code, CI, config or
+shipped-instruction file appears in both lists (code-quality dimension 8, read
+procedure step 2). This excludes the first pass's own triage fixes and base-branch
+changes outside the PR. For example, a later edit to a skill that this PR changes
+appears in both lists; a base-branch-only file does not.
 
 No further pass runs on its own, so the pass cannot loop. Approved fixes from the
 final pass enter the normal delta review. No step in this skill asks the user to
@@ -1262,6 +1277,10 @@ follow-up and human comment decisions need the primary agent.
 
 Carry the orchestrator's verified attribution model ID into pr-monitor. A standalone
 pr-monitor run resolves the current session's exact model under the Attribution rules.
+Also carry the run's mode and permitted operations into pr-monitor and every wake
+prompt. With `--report`, Phase 6 checks and reports only: no edits, commits, pushes,
+replies, thread resolutions, PR comments, or merge-ready inbox posts. This restriction
+overrides the action instructions below and in pr-monitor.
 
 **Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when

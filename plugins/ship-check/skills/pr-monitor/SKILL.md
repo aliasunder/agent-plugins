@@ -21,8 +21,10 @@ Follow Steps 1-5 in order. **You may NOT report merge-ready or "ship" until Step
 and Step 5 has prerequisites that reference every prior step.** Skipping ahead means
 the prerequisites fail and you must go back.
 
-This skill ALWAYS evaluates, replies to, and resolves bot review threads (qodo,
-CodeRabbit) as part of the workflow. That is core, not optional.
+This skill evaluates, replies to, and resolves bot review threads (qodo,
+CodeRabbit) as part of the authorized workflow. When ship-check carries `--report`,
+evaluate and report only: do not edit, commit, push, reply, resolve, or post PR
+comments. Preserve that restriction in every wake prompt.
 
 ## Step 1: Determine the PR
 
@@ -39,6 +41,11 @@ Record `owner`, `repo`, and PR `number` for API calls below.
 
 Run all five checks. You re-run this exact step during follow-up (Step 4), so be
 consistent.
+
+In OpenCode, begin each pass by reading the PR's state and head SHA, for example
+with `gh pr view <PR-URL> --json state,headRefOid`. Stop this run's identified loop
+if the PR is merged or closed, before handling findings or scheduling another pass.
+For an open PR, use the head SHA in **OpenCode loop scheduling** below.
 
 ### 2a. CI checks
 ```
@@ -95,7 +102,8 @@ Comments" in the review BODY, and qodo and others post PR-level issue
 comments. Neither appears in `reviewThreads`, so a thread-only pass silently
 misses them. **This step is mandatory** — it is not supplementary to 2c.
 
-Fetch both surfaces with pagination to ensure no comments are missed:
+Fetch all three surfaces with pagination: review bodies, PR-level issue comments,
+and inline review comments. The inline endpoint supplements 2c's thread view.
 
 ```
 gh api repos/OWNER/REPO/pulls/NUMBER/reviews --paginate --jq '.[] | {id, user: .user.login, submitted_at, body}'
@@ -272,11 +280,11 @@ For each unresolved bot thread, do ALL of these in order:
    same missing guard on another entry point — then fix every instance in the SAME
    commit.
 
-   **Run the search, don't recall it.** Name the corrected text, then search the whole
-   repo for it:
+   **Run the search, don't recall it.** Name a search term that finds the flagged
+   pattern, such as the old value or the code shape, then search the whole repo:
 
    ```
-   rg -n "<the exact corrected term, path, default, env var, or code shape>" .
+   rg -n "<the flagged term, path, default, env var, or code shape>" .
    ```
 
    The search is repo-wide and unfiltered. Do NOT narrow it to the PR's changed files,
@@ -289,7 +297,7 @@ For each unresolved bot thread, do ALL of these in order:
 
    Print the receipt before committing — this line is mandatory:
    ```
-   Sweep "<corrected term>": N hits repo-wide — fixed in <surface, surface>; M hits already correct; K coincidental matches
+   Sweep "<search term>": N hits repo-wide — fixed in <surface, surface>; M hits already correct; K coincidental matches
    ```
 
    **Wrong:** fix the README, commit, push. `.env.example` and `server.json` still
@@ -428,7 +436,7 @@ If the user provides a response, reply on their behalf and resolve.
 
 **Before pushing, run one final repo-wide pass over every class the bot has
 flagged on this PR so far** — this cycle's and earlier cycles'. Item 4's sweep
-searches the whole repo for one corrected claim; this pass is the same kind of
+searches the whole repo for one flagged pattern; this pass is the same kind of
 search across the union of classes, not a diff review. Each push triggers a
 complete re-review, so any instance the per-finding sweeps missed comes back as a
 review bot comment on the next pass. The target is convergence in one or two
@@ -490,9 +498,10 @@ tool result, or recommend `/loop` when its underlying tools are absent.
 **Preflight once in the attended pass.** Verify lasting permission for the status
 checks, a real clock (`date +%s`), and UUID generation (for example,
 `node -p 'require("node:crypto").randomUUID()'`). A one-time permission answer is
-insufficient for later wakes. Use existing session rules or the user's explicit
-always-approval; do not broaden global permissions. A new operation needed for a
-later fix can still need approval and remains a visible blocker.
+insufficient for later wakes. Inspect the matching session permission rules or
+the user's explicit always-approval; a successful probe alone does not prove
+lasting permission. Do not broaden global permissions. A new operation needed for
+a later fix can still need approval and remains a visible blocker.
 
 **Recover this run before creating a loop.** Call `loop_list`, which lists loops
 across the current project instance. Reuse the carried run marker if present;
@@ -521,6 +530,10 @@ quiet_since=<epoch seconds>; last_head=<PR head SHA>
 mode=<continuous|one-shot-follow-up>; cadence_override=<interval|none>
 ```
 
+For a new run, initialize `quiet_since` from the real clock and `last_head` from
+the head read at the start of this pass. A recovered run retains its carried values
+until a reset condition below applies.
+
 The prompt must tell this same session to load pr-monitor, run Step 2 in full, and
 continue Steps 3-5 within the existing user-authorized scope. Preserve handled
 finding IDs, attribution, pipeline review state, user decisions and cuts through
@@ -537,11 +550,9 @@ checklist or a personal command-file path.
 | Continuous monitoring after at least one quiet hour | `30m` |
 | User specified a continuous-monitoring interval | That interval; retain the post-push follow-up |
 
-Read PR state and head SHA on every full pass, for example with
-`gh pr view <PR-URL> --json state,headRefOid`. Compare the head with `last_head` so
+Compare the head read at the start of Step 2 with `last_head` so
 pushes by other authors also restore the fast cadence when the next poll discovers
-them. Stop a merged/closed PR's monitor before handling more findings or scheduling
-another pass. Reset `quiet_since` after a push or new actionable finding; unchanged CI
+them. Reset `quiet_since` after a push or new actionable finding; unchanged CI
 state does not reset it. Compute quiet time from the clock, never loop fire counts.
 
 Before changing the timer, check `loop_list` again. Reuse the known owned loop only
@@ -599,7 +610,7 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 
 ## Step 5: Final report
 
-**Prerequisites -- ALL must be true before you may report:**
+**Merge-ready prerequisites -- ALL must be true before that verdict:**
 - All CI checks passing (or only known-flaky / unrelated failures)
 - All bot threads resolved (each one replied to before resolving), except findings
   `triage-finding` left pending, which stay unresolved and are listed as blockers
@@ -637,7 +648,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     catch or option she did not approve: each one it finds goes to her as a new
     proposal.
 
-If any prerequisite is not met, go back to the relevant step.
+If any prerequisite is not met, report a blocked status snapshot and return to the
+relevant step. Pending CI or approvals use the runtime's monitoring procedure;
+they do not prevent a status report.
 
 Report:
 ```
@@ -669,9 +682,9 @@ bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> -
 - Codex runs it outside its sandbox, as it does `cmux`.
 - pr-monitor run on its own, outside ship-check, posts nothing.
 
-After reporting, **continue monitoring** — do not stop. "Merge-ready" is a status
-report, not a termination signal. The user will say stop when they're done. If the
-user doesn't respond, keep the monitoring loop running.
+After reporting, **continue monitoring** unless the user requested a one-shot check,
+said stop, or the PR is merged or closed. "Merge-ready" is a status report, not a
+termination signal. Silence from the user keeps continuous monitoring running.
 In Codex, report this snapshot in commentary and stay in the active turn; a
 final response ends the timed monitoring loop.
 In OpenCode, arrange the next wake with **OpenCode loop scheduling**, then end the
@@ -679,7 +692,8 @@ turn so the armed loop can fire.
 
 ## Continuous monitoring
 
-Continue monitoring after Step 5 — whether invoked via `/loop` or not:
+One-shot runs finish after any required Step 4 follow-up. For continuous runs,
+keep monitoring after Step 5 — whether invoked via `/loop` or not:
 - In Claude Code, call `ScheduleWakeup` with `delaySeconds: 240` (stays in prompt cache).
 - In Codex, remain in the active turn and use `clock.sleep({ duration_ms: 50000 })`
   in repeated intervals until 240 seconds have elapsed. Send commentary updates
