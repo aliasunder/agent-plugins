@@ -36,6 +36,8 @@ comments. Preserve that restriction in every wake prompt.
 - If no PR exists, say so and stop.
 
 Record `owner`, `repo`, and PR `number` for API calls below.
+Use that repository throughout: add `-R OWNER/REPO` to the `gh pr` and `gh run`
+commands below. The REST paths and GraphQL query already name the repository.
 
 ## Step 2: Run a full status pass
 
@@ -91,11 +93,13 @@ List each UNRESOLVED thread: author, file/line, summary, and classify as one of:
 
 #### Claude comment detection
 
-A comment is from another Claude instance if its body contains any of these strings
-(case-insensitive, typically in the last few lines):
+Classify a comment as Claude only when its own unquoted attribution footer contains
+one of these strings (case-insensitive):
 - `Claude Code`
 - `Co-Authored-By: Claude`
 - `Generated with Claude`
+
+A prose mention or quoted footer remains Human unless agent authorship is established.
 
 These comments come from human-owned GitHub accounts but were authored by a Claude
 agent. They are classified separately so they can be auto-handled like bot comments.
@@ -185,8 +189,11 @@ two consecutive re-reviews while the bot's actual new findings — posted as
 inline review comments — went unseen and unhandled.
 
 ### 2e. Merge readiness
+```
+gh pr view <number> --json mergeable,mergeStateStatus
+```
 Summarize blockers: failing CI, missing approvals, unresolved threads,
-unanswered non-thread bot findings, conflicts.
+unanswered non-thread bot findings, conflicts. Unknown mergeability remains a blocker.
 
 In OpenCode, complete the required Step 3 work this pass is authorized to perform.
 If checks or approvals remain pending, use **OpenCode loop scheduling** below and
@@ -562,10 +569,11 @@ The `3m` interval starts when `loop_start` successfully arms the timer, after th
 push or head discovery. Its wake therefore occurs at least 180 seconds after that
 event, even when preparing the prompt takes time.
 
-Compare the head read at the start of Step 2 with `last_head` so
-pushes by other authors also restore the fast cadence when the next poll discovers
-them. Reset `quiet_since` after a push or new actionable finding; unchanged CI
-state does not reset it. Compute quiet time from the clock, never loop fire counts.
+Compare the head read at the start of Step 2 with `last_head`. A changed head,
+including another author's push, resets `quiet_since` and gets the `3m` follow-up.
+After this pass, set `last_head` to the latest observed head, including any fix
+this pass pushed. Reset `quiet_since` after a push or new actionable finding;
+unchanged CI state does not reset it. Compute quiet time from the real clock.
 
 Before changing the timer, check `loop_list` again. Reuse the known owned loop only
 when its interval and carried state are current. Otherwise stop that exact ID and
@@ -624,6 +632,7 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 
 **Merge-ready prerequisites -- ALL must be true before that verdict:**
 - All CI checks passing (or only known-flaky / unrelated failures)
+- No missing required approvals or merge conflicts; mergeability is known
 - All bot threads resolved (each one replied to before resolving), except findings
   `triage-finding` left pending, which stay unresolved and are listed as blockers
 - **Every fix in this run reports its sweep receipt.** A fix with no
