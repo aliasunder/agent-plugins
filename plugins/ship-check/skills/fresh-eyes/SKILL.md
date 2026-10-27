@@ -78,14 +78,17 @@ experiences, so:
    Otherwise discover the deferred `mcp__node_repl__js` by name and description:
    use tool search when exposed, or filter the available tool inventory. Read its
    returned instructions before calling it. Do not use a shell for discovery.
-2. **Resolve scope before bytes.** Use only path/file metadata needed to identify
+2. **Resolve Node targets before bytes.** Use path/file metadata only to identify
    each named source file or the one permitted callee, including aliases and
    symlink targets. Check the resolved target against the dispatch scope and the
-   exclusions above before any content read or search. Do not read instruction
-   files, standards, memory, or unnamed tests through an alias. Do not read Vault
+   exclusions above before any content read or search. Do not read project
+   convention files, standards, memory, or unnamed tests through an alias. Do not read Vault
    files or repo symlinks to them through the filesystem; all Vault I/O belongs
    to vault-cortex, and this role does not load Vault context. If metadata cannot
    establish that a target is permitted, leave it unread and report incomplete.
+   Native readers retain their existing closed path handling. If authorized
+   scope cannot be established through that handling, leave the target unread
+   and return `Fresh eyes incomplete`.
 3. **Read text only.** The Node route may use standard-library filesystem/path
    metadata, text reads, and in-memory line paging or text searches only. Never
    import, require, evaluate, or execute target source. Never spawn a process,
@@ -97,8 +100,8 @@ experiences, so:
    line count, emit bounded numbered pages, and continue until every line in
    scope has been returned. Do not count a truncated response as a complete read.
 
-After metadata checks establish the permitted target, set `approvedRealPath` to
-its resolved path. This Node example reads text and emits its first page;
+For Node reads, after metadata checks establish the permitted target, set
+`approvedRealPath` to its resolved path. This example emits the first page;
 continue with the remaining pages:
 
 ```javascript
