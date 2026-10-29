@@ -929,14 +929,23 @@ ask, run the final pass first when its trigger fires.
 
 Run this after Phase 5, its triage and the design pass's first pass: Phase 3 and
 Phase 5 rewrite tool text, triage can apply design fixes, and this review must read
-the text they leave. It dispatches
-`ship-check:tool-definition-reviewer` (report only) for each MCP tool whose
-definition changed in a **tool-list file**: the JSON a server's `tools/list`
-returns, committed to the repository (for example, the vault-cortex MCP server
-commits one such file for each of its server configurations under
-`__snapshots__/tool-surface/`). It is not a numbered phase. It runs only when
-the gates in step 2 pass, and only `--skip tool-definitions` or an `--only` list
-without `tool-definitions` turns it off.
+the text they leave. It reviews each MCP tool whose definition changed in a
+**tool-list file**: the JSON a server's `tools/list` returns, committed to the
+repository (for example, the vault-cortex MCP server commits one such file for
+each of its server configurations under `__snapshots__/tool-surface/`). It is not
+a numbered phase. It runs only when the gates in step 2 pass, and only
+`--skip tool-definitions` or an `--only` list without `tool-definitions` turns it
+off.
+
+The review splits by file:
+
+- **The first file in the plan** (the one with the most changed tools; in
+  vault-cortex, `default.json`) goes to `ship-check:tool-definition-reviewer`
+  (report only) for the full review.
+- **Every other tool-list file** gets no dispatch. You proofread the lines its
+  configuration words differently (step 6), for typos and broken sentences only.
+  A full review per configuration costs a dispatch each and finds little that the
+  first file's review missed.
 
 1. **Resolve the base.** Call the base commit MERGE_BASE and the head commit HEAD_SHA.
    Write both as full commit SHAs (`git rev-parse <ref>`), never as a symbolic ref
@@ -990,20 +999,22 @@ without `tool-definitions` turns it off.
    - The step **fails** when the script exits non-zero (its reason is on standard
      error), Bun is missing, or the parent folder cannot be created.
 4. **Read the plan.** The script prints JSON. The fields this step uses are
-   `records`, `files` (each with `current`, `base`, `reviewOnly`, `withRoot`,
-   `coldDispatch`, `batches`, `alsoChangedOnBaseBranch`), `filesWithNoToolChange`,
-   `broken`, `removed`, `removedTools`, `addedThenDropped`, and `notToolLists`.
-   - `records`: the number of tool definitions to review across all files. A
+   `records`, `files` (each with `current`, `base`, `reviewOnly`, `coldDispatch`,
+   `batches`, `alsoChangedOnBaseBranch`), `filesWithNoToolChange`, `broken`,
+   `removed`, `removedTools`, `addedThenDropped`, `notToolLists`, and `proofread`.
+   - `records`: the number of changed tool definitions across all files. A
      definition shared by several files counts once.
-   - `reviewOnly`: the names of the tools this file's dispatches review.
-   - `withRoot`: true when one of those tools carries an edit that no earlier file
-     in `files` holds. The reviewer traces each edit once, following the failures
-     it describes into the server's source, so these dispatches need the
-     repository root.
+   - `reviewOnly`: the changed tools in this file that no earlier file in `files`
+     holds with the same definition. The first file's dispatches review them;
+     later files' tools reach you only through `proofread`.
    - `coldDispatch`: true when `reviewOnly` holds more than eight tools. Eight is
      the most tools one dispatch takes through the diff read, a limit the
      tool-definition-review skill sets; the cold read has no limit.
    - `batches`: `reviewOnly` split into runs of at most eight names.
+   - `proofread`: for each file after the first in `files`, the description lines
+     and schema sentences its tools add that no earlier file adds to the same
+     tool, as `{ path, tools: [{ name, lines }] }`. A later file whose added text
+     all repeats earlier text is left out. Step 6 uses it.
    - `records` is 0 → `not dispatched`, with one reason for each non-empty list:
 
      | Non-empty list | Reason |
@@ -1037,27 +1048,28 @@ without `tool-definitions` turns it off.
      in its file (step 8).
      - Wrong: `Intended tools: vault_search` for a file whose only record is `vault_search`.
      - Right: the full list from this step, in every dispatch.
-6. **Dispatch.** The reviewer reads each tool twice: a cold read of the current
-   definition alone, then a diff read against the base. A `Pass: cold` or
-   `Pass: diff` line limits a dispatch to one of the two; without the line it does
-   both. For each entry in `files`:
+6. **Dispatch the first file; proofread the rest.** Only the FIRST entry in
+   `files` goes to the reviewer. NEVER dispatch the reviewer for a later entry:
+   the proofread at the end of this step covers it.
+
+   The reviewer reads each tool twice: a cold read of the current definition
+   alone, then a diff read against the base. A `Pass: cold` or `Pass: diff` line
+   limits a dispatch to one of the two; without the line it does both. For the
+   first entry in `files`:
    - `coldDispatch` false → one dispatch for the file's single batch, with no
      `Pass:` line.
    - `coldDispatch` true → one `Pass: cold` dispatch carrying only the current file
      and every name in `reviewOnly`, plus one `Pass: diff` dispatch per batch.
-   - `withRoot` true → include the `Repository root:` line. `withRoot` false → omit
-     it: those tools repeat an edit another file's dispatch traces, so the reviewer
-     skips its error-entry and project-conventions checks for them (both read the
-     repository; the tool-definition-review skill defines them) and can still
-     report `complete`.
+   - Include the `Repository root:` line, so the reviewer traces each edit's
+     failures into the server's source.
    - Number the report files with one counter across the whole step:
      `report-1.md`, `report-2.md`, … in the parent folder. The `batch <n>` in each
-     description counts within its file.
+     description counts within the file.
    - In local mode, change the prompt's `branch <branch>` and `PR #<number>` the way
      "Dispatch prompt changes" under Local review mode says.
 
-   The two parenthesized `(only when …)` notes in this template are instructions
-   to you, not prompt text: keep the line, without the note, when its condition
+   The parenthesized `(only when …)` note in this template is an instruction to
+   you, not prompt text: keep the line, without the note, when its condition
    holds, and drop the whole line otherwise.
 
    ```
@@ -1066,7 +1078,7 @@ without `tool-definitions` turns it off.
      model: "<resolved model>",
      effort: "<resolved tool-definition effort>",
      description: "Tool definitions — <file name>, batch <n> — <resolved model> / <resolved tool-definition effort>",
-     prompt: "Review the MCP tool definitions changed on branch <branch> (PR #<number>).\nCurrent surface: <current>\nBase surface: <base, or: none>\nIntended tools: <step 5's list, the same in every dispatch, or: not stated>\nRepository root: <repository root>   (only when withRoot is true)\nReview only: <the batch's names>\nPass: diff   (only when coldDispatch is true)\nReport file: <parent>/report-<n>.md\nReturn the Defects list, the Unintended text changes list, and the Unfinished entries and Status lines."
+     prompt: "Review the MCP tool definitions changed on branch <branch> (PR #<number>).\nCurrent surface: <current>\nBase surface: <base, or: none>\nIntended tools: <step 5's list, the same in every dispatch, or: not stated>\nRepository root: <repository root>\nReview only: <the batch's names>\nPass: diff   (only when coldDispatch is true)\nReport file: <parent>/report-<n>.md\nReturn the Defects list, the Unintended text changes list, and the Unfinished entries and Status lines."
    })
    ```
 
@@ -1098,6 +1110,26 @@ without `tool-definitions` turns it off.
      error fails the step.
    - A reviewer that cannot write its report file returns the report inline, under
      a `Report file not written:` line. Save it to the named path yourself.
+
+   **Proofread the later files yourself**, from the plan's `proofread` list. Each
+   line there is text a later file adds that no earlier file adds to the same
+   tool, so the reviewer never reads it. Read every line and flag ONLY:
+   - a typo or misspelled word;
+   - a grammar error: a missing, doubled, or wrong word;
+   - a sentence the configuration left broken by dropping a clause, such as a
+     dangling "or", an empty list, or a "see" with no target;
+   - a tool name the file does not serve. The file's own tool names are the
+     `inScope` list of `bun <script> --current <current> --names`, where
+     `<current>` is the `files` entry with the same `path`.
+
+   Do NOT judge facts, length, routing, or rubric dimensions in these lines; the
+   first file's review covers the wording the files share.
+   - Wrong: flagging "this line repeats the schema" in a `readonly.json` line.
+   - Right: flagging `Prefer  to change part of a note.` where the
+     configuration dropped the tool name.
+
+   Write each finding as a Defect with the file path, the tool, the line, and the
+   corrected text. An empty `proofread` list means there is nothing to proofread.
 7. **Unfinished entries.** A report whose `Unfinished entries:` count is above 0
    names its unfinished tools on that line. For each such report, send ONE
    continuation dispatch: the same file and inputs as that report's dispatch,
@@ -1108,7 +1140,8 @@ without `tool-definitions` turns it off.
    send a second continuation.
 8. **Triage the findings.** The reviewer reports without flag categories, so give
    each Defect one of inter-phase triage's four categories (its step 1) yourself,
-   then run inter-phase triage on each report's Defects:
+   then run inter-phase triage on each report's Defects and on your proofread
+   Defects:
    - A fix that edits only description text is not an interface change. A fix that
      edits an input schema (a type, `required`, `enum`, or a parameter name) is an
      interface change, so its finding goes to the user.
@@ -1128,8 +1161,9 @@ without `tool-definitions` turns it off.
      say so with any finding on it, since its diff can hold the base branch's edit.
    - Fixes follow the mode's rule in the table below. The re-review covers them.
 9. **Record the tool-review commit.** Write HEAD_SHA and MERGE_BASE into the step's
-   `Tool Definitions:` summary line (see Reporting; its "N reviews" is the plan's
-   `records`) on every outcome: not dispatched (including `records` 0), complete,
+   `Tool Definitions:` summary line (see Reporting; "N reviews" is the first
+   file's `reviewOnly` count, and "P lines proofread in M files" counts the lines
+   and entries in `proofread`) on every outcome: not dispatched (including `records` 0), complete,
    or partial or failed once the user accepted the missing coverage. A partial or
    failed step the user has not accepted keeps the previous tool-review commit, so
    its tools are reviewed again next time.
@@ -1160,8 +1194,8 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
    ```
    bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --since TOOL_REVIEW_SHA --since-from OLD_MERGE_BASE --out <new parent>/plan
    ```
-4. Read the plan, collect the intended tools, dispatch, and send continuations as
-   in steps 4-7. A non-null `base` is a file the script composes from several
+4. Read the plan, collect the intended tools, dispatch the first file, proofread
+   the rest, and send continuations as in steps 4-7. A non-null `base` is a file the script composes from several
    commits: for each tool under review, the version its diff starts from, and the
    current version of every other tool. For example, when `vault_search` changed
    since the review, `vault_read_note` did not, and the base branch changed
@@ -1339,7 +1373,7 @@ Ship check complete:
 - Bug Check:    N findings, M fixed (by dimension)
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
-- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
 - PR Monitor:   CI status, N bot comments resolved
@@ -1379,7 +1413,7 @@ Ship check complete (comment mode):
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
-- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">

@@ -600,6 +600,8 @@ type ReviewRecord = {
   edit: string
   // The tool's whole definition at `--to`, which dropToolsShippedElsewhere looks for in other files.
   definition: string
+  // The description lines and schema sentences the change added: every one, for an added tool.
+  addedText: string[]
   alsoChangedOnBaseBranch: boolean
 }
 
@@ -654,7 +656,12 @@ export type PlanResult = {
   removedTools: { path: string; tools: string[] }[]
   addedThenDropped: { path: string; tools: string[] }[]
   notToolLists: string[]
+  // For each planned file after the first, the text its tools add that no earlier planned file adds to the same tool.
+  // Only the first file goes to the reviewer; the dispatcher proofreads these lines. A file adding nothing new is left out.
+  proofread: ProofreadFile[]
 }
+
+export type ProofreadFile = { path: string; tools: { name: string; lines: string[] }[] }
 
 // The MCP specification's order for a tool's parts. Every comparison sorts keys, so only the composed base file that
 // writePlan writes shows this order.
@@ -741,6 +748,14 @@ const editKey = (base: Tool | undefined, current: Tool): string => {
   ])
 }
 
+const addedText = (base: Tool | undefined, current: Tool): string[] => {
+  if (!base) return [...descriptionLines(current), ...schemaSentences(current)]
+
+  const lines = textChange(descriptionLines(base), descriptionLines(current))
+  const sentences = textChange(schemaSentences(base), schemaSentences(current))
+  return [...lines.added, ...sentences.added]
+}
+
 const recordFor = ({
   base,
   current,
@@ -755,6 +770,7 @@ const recordFor = ({
     key: JSON.stringify([current.name, toolKey(base), toolKey(current)]),
     edit: editKey(base, current),
     definition: toolKey(current),
+    addedText: addedText(base, current),
     alsoChangedOnBaseBranch,
   }
 }
@@ -969,15 +985,17 @@ const dropToolsShippedElsewhere = (reviews: readonly FileReview[]): FileReview[]
  * Gives each record to the first file in the order that holds it, and the repository root to each file holding a new edit.
  * A file's records are already distinct, since each carries a different tool name.
  */
-const assignRecords = (reviews: readonly FileReview[]): PlannedFile[] => {
+const assignRecords = (reviews: readonly FileReview[]): { planned: PlannedFile[]; proofread: ProofreadFile[] } => {
   const ordered = reviews.toSorted(
     (left, right) => right.records.length - left.records.length || byCodeUnit(left.path, right.path),
   )
 
-  // Both sets grow across files: a record or an edit belongs to the first file in the order that holds it.
+  // These grow across files, so a record, an edit, or an added line belongs to the first file in the order that holds it.
   const assignedKeys = new Set<string>()
   const tracedEdits = new Set<string>()
+  const seenTextByTool = new Map<string, Set<string>>()
   const planned: PlannedFile[] = []
+  const proofread: ProofreadFile[] = []
 
   for (const review of ordered) {
     const assigned: ReviewRecord[] = []
@@ -997,6 +1015,19 @@ const assignRecords = (reviews: readonly FileReview[]): PlannedFile[] => {
       tracedEdits.add(record.edit)
     }
 
+    const proofreadTools = assigned.flatMap((record) => {
+      const seenText = seenTextByTool.get(record.name) ?? new Set<string>()
+      const lines = record.addedText.filter((line) => !seenText.has(line))
+
+      seenTextByTool.set(record.name, new Set([...seenText, ...lines]))
+      return lines.length > 0 ? [{ name: record.name, lines }] : []
+    })
+
+    // The first file is the one the reviewer reads, so only later files need their text proofread.
+    if (planned.length > 0 && proofreadTools.length > 0) {
+      proofread.push({ path: review.path, tools: proofreadTools })
+    }
+
     const names = assigned.map((record) => record.name)
 
     planned.push({
@@ -1010,7 +1041,7 @@ const assignRecords = (reviews: readonly FileReview[]): PlannedFile[] => {
     })
   }
 
-  return planned
+  return { planned, proofread }
 }
 
 /** A path with its tools, or nothing when it has none, for the plan's per-file tool lists. */
@@ -1033,7 +1064,7 @@ export const planReview = (files: readonly ChangedFile[]): PlanResult => {
 
   const reviewResults = classified.flatMap(({ path, result }) => (result.kind === "review" ? [{ path, ...result }] : []))
   const eligible = dropToolsShippedElsewhere(reviewResults.map(({ review }) => review))
-  const planned = assignRecords(eligible)
+  const { planned, proofread } = assignRecords(eligible)
   const eligibleCounts = new Map(eligible.map((review) => [review.path, review.records.length]))
 
   const filesWithNoToolChange = reviewResults.filter(({ path, removedTools, addedThenDropped }) => {
@@ -1055,6 +1086,7 @@ export const planReview = (files: readonly ChangedFile[]): PlanResult => {
     // because a removed file is always a finding, and a removed tool is one only when the change does not mention it.
     addedThenDropped: [...droppedFiles, ...droppedTools],
     notToolLists: classified.filter(({ result }) => result.kind === "notToolList").map(({ path }) => path),
+    proofread,
   }
 }
 

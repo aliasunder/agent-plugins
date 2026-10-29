@@ -111,8 +111,8 @@ description with its own line breaks, then the schemas.
 
 `--variants` answers one question: which tools does another configuration's file
 word differently from this one? Run it when the project keeps several surface
-files, and name in your report the files that differ, so the dispatcher can send
-them for their own review.
+files, and name in your report the files that differ, so the dispatcher can
+proofread the lines they word differently.
 
 ## Scope
 

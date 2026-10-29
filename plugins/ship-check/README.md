@@ -33,9 +33,11 @@ The pipeline dispatches `tool-definition-reviewer` when a change touches a commi
 tool-list file (a server's `tools/list` saved as JSON):
 
 1. After Phase 5, the `ship-check` skill runs `surface-diff.ts --plan` to find each
-   tool whose definition changed, and dispatches the reviewer for them. A tool
-   with the same definition before and after in several tool-list files is
-   reviewed once.
+   tool whose definition changed, and dispatches the reviewer for the tool-list
+   file with the most changed tools. A tool with the same definition before and
+   after in several tool-list files is reviewed once. In every other tool-list
+   file, the pipeline proofreads only the lines that file words differently, for
+   typos and broken sentences.
 2. Before each merge-ready verdict, it reviews again any tool text edited since
    the last tool review.
 

@@ -970,6 +970,7 @@ const NO_PLAN_FINDINGS = {
   removedTools: [],
   addedThenDropped: [],
   notToolLists: [],
+  proofread: [],
 }
 
 /** The plan with each base reduced to its kind and path; a composed base's tools are checked by their own tests. */
@@ -1055,7 +1056,25 @@ describe("planReview", () => {
       records: 2,
       files: [plannedFile("default.json", ["list_notes"]), plannedFile("obsidian-sync.json", ["list_notes"])],
       ...NO_PLAN_FINDINGS,
+      proofread: [{ path: "obsidian-sync.json", tools: [{ name: "list_notes", lines: ["List every note. Sync may lag by a minute."] }] }],
     })
+  })
+
+  it("proofreads each later file's added text once, leaving out text an earlier file adds to the same tool", () => {
+    const toolWithLines = (lines: string[]) => rawTool({ description: ["List notes.", ...lines].join("\n") })
+    const fileAdding = (path: string, lines: string[]) => changedFile(path, toolListSide([toolWithLines([])]), toolListSide([toolWithLines(lines)]))
+
+    const result = planReview([
+      fileAdding("default.json", ["Shared fact.", "Use read_note next."]),
+      fileAdding("readonly.json", ["Shared fact.", "Read-only."]),
+      fileAdding("memory-off.json", ["Shared fact.", "Read-only.", "No memory tools."]),
+    ])
+
+    // Each file holds one record, so path order decides: default.json, memory-off.json, then readonly.json.
+    assert.deepStrictEqual(result.files.map((file) => file.path), ["default.json", "memory-off.json", "readonly.json"])
+    assert.deepStrictEqual(result.proofread, [
+      { path: "memory-off.json", tools: [{ name: "list_notes", lines: ["Read-only.", "No memory tools."] }] },
+    ])
   })
 
   it("treats a new parameter as a different edit from another new parameter, even when both are empty objects", () => {
@@ -1187,6 +1206,7 @@ describe("planReview", () => {
       records: 2,
       files: [plannedFile("default.json", ["list_notes"]), plannedFile("readonly.json", ["list_notes"], { base: null })],
       ...NO_PLAN_FINDINGS,
+      proofread: [{ path: "readonly.json", tools: [{ name: "list_notes", lines: ["List notes, read-only."] }] }],
     })
   })
 
@@ -1241,6 +1261,7 @@ describe("planReview", () => {
       removedTools: [{ path: "lost.json", tools: ["read_note"] }],
       addedThenDropped: [],
       notToolLists: ["package.json"],
+      proofread: [],
     })
   })
 
