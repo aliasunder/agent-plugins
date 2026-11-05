@@ -367,7 +367,7 @@ sequential thinking forces you to deliberate instead of relaying.
    finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`,
    `pre-existing gap`, or `unevidenced or low-cost`. Code-quality's proposals (fixes it
    reverted because they would change behavior) and test-audit's production bugs carry
-   these categories too. Whatever the category, ask first what the finding asks for:
+   the first four of these categories. Whatever the category, ask first what the finding asks for:
    a fix to a **defect** (code wrong for what its own contract covers, whatever
    today's callers do) stays in its category; **new handling** for a scenario outside
    that contract with no evidence that the scenario is realistic (a traced code path,
@@ -1433,7 +1433,7 @@ Ship check complete (comment mode):
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
-- Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred
+- Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
 - Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")

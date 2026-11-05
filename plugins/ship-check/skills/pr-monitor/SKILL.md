@@ -261,7 +261,7 @@ For each unresolved bot thread, do ALL of these in order:
    - **After the review cap, small fixes with no user-visible impact stop.** This
      skill carries a default cap on bot review rounds per PR (see "The review
      cap", at the end of item 4). From the round after the cap, a valid finding
-     whose fix changes nothing a user can see (wording, a comment, a name, a
+     whose small fix changes nothing a user can see (wording, a comment, a name, a
      formatting choice) is reported with the round count, not fixed; behavior
      defects are still fixed.
 
@@ -302,8 +302,8 @@ For each unresolved bot thread, do ALL of these in order:
    Thread 3 (truncated sentence): False positive — line 621 is complete
    ```
 
-3. If valid, a defect or evidenced handling, and not a no-impact fix past the review
-   cap (item 1): **make the code fix**.
+3. If valid, a defect or evidenced handling, and not a small no-impact fix past the
+   review cap (item 1): **make the code fix**.
    If the lift is unclear, assess it first (how many lines? does it need tests? does it
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through

@@ -101,10 +101,10 @@ reviewer of mechanisms will pronounce a flawed design well-built.
    commit. The plan's author revises; you critique.
 7. Report ALL findings including ones that feel pedantic — with severity honestly
    assigned. Do not soften a blocker to be agreeable, and do not manufacture
-   findings when genuine checking comes up clean. One exception: a request that
-   the plan handle a scenario with no evidence that it is realistic (dimension 2's
-   last bullet) goes under "Proof of dismissal" with the missing evidence named,
-   not among the findings.
+   findings when genuine checking comes up clean. One exception: a request you
+   would make that the plan handle a scenario with no evidence that it is realistic
+   goes under "Proof of dismissal" with the missing evidence named, not among the
+   findings, unless the boundary of dimension 2's last bullet keeps it there.
 
 ## Orientation (do this first, every time)
 
