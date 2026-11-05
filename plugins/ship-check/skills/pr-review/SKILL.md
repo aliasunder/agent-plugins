@@ -273,7 +273,8 @@ comment mode.
    - `unevidenced or low-cost` — new handling for a scenario with no evidence that
      it is realistic (step 2's first bullet); note whether its cost when hit is small
      or noticeable. Never an edit, whatever the fix size.
-4. **Run tests** after all fixes to confirm no behavior change.
+4. **Run tests** after all fixes to confirm they change nothing beyond the findings
+   they fix.
 5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).
 
