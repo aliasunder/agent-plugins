@@ -712,6 +712,29 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     follow-up check, like this skill's own fixes. The sweep removes no guard, check,
     catch or option she did not approve: each one it finds goes to her as a new
     proposal.
+- **Verification**, in ship-check's Phase 6 and in a standalone run, checked last.
+  When the project's `CLAUDE.local.md` has a `## Verification profile` (read fresh on
+  every pass; unreadable withholds the verdict as `profile unreadable`) and
+  the profile's `Gate:` script reports `artifact change` or `local change` for the
+  PR's range, all of these hold:
+  - the PR body carries the profile's `Evidence:` section, its first line
+    `Head: <full SHA>`;
+  - its "On the instance" text names a test-deploy run id, the image revision and
+    the digest (the local route writes `Image: none (local probes)` instead), and
+    `gh run view <id>` shows the profile's test-deploy workflow at that head with
+    `status: completed`, `conclusion: success` and a build job;
+  - the gate script with `--range tested --from <Head> --to <headRefOid>` reports
+    `no artifact change` or `exempt`, or a `Reuse:` line names `<headRefOid>` with the
+    maintainer's words;
+  - every `Stand-in audit:` row reads `probed live`, `probed locally` or
+    `read from source` (an `unverified` row is a deferred finding).
+
+  Refresh `headRefOid` and the body right before the verdict; fetch a missing
+  `<Head>` with `git fetch origin <Head>`, then fail closed. `--skip verification`
+  records "the user declined it" and satisfies this entry. Otherwise the snapshot
+  names what is missing, and a standalone run reads the ship-check skill's
+  "Verification (conditional)" section and runs it from there in default mode; a
+  read-only run reports the gap and stops.
 
 If any prerequisite is not met, report a blocked status snapshot and return to the
 relevant step. Pending CI or approvals use the runtime's monitoring procedure;

@@ -196,9 +196,20 @@ const classifyWorkflow = (input: GateInput, path: string, old: string): Verdict 
   return "action"
 }
 
+// With elimination or shaking on, two sources that differ only in code the transpiler drops would
+// compare equal, so a real change could pass as comment-only; every such option stays off. No
+// macros are configured, so the PR's text is parsed, never run.
+const TRANSPILE_OPTIONS = {
+  deadCodeElimination: false,
+  treeShaking: false,
+  trimUnusedImports: false,
+  minifyWhitespace: false,
+  inline: false,
+} as const
+
 const stripComments = (text: string, loader: Loader): string | undefined => {
   try {
-    return new Bun.Transpiler({ loader }).transformSync(text)
+    return new Bun.Transpiler({ loader, ...TRANSPILE_OPTIONS }).transformSync(text)
   } catch {
     return undefined
   }

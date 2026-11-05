@@ -374,6 +374,31 @@ is the primary audit. It answers: "should there be tests for what changed?"
    [weakened] file.test.ts:88 — toBe → toBeDefined, expected value is known → fixed
    ```
 
+## Stand-in audit
+
+Runs when the dispatch carries an `Audit paths:` line (the project's verification
+profile supplies it) and the diff changes executable code under those paths. It answers
+"do the tests exercise this against the real dependency, or against text the tests
+wrote?" Report only: it writes no test, runs no suite and commits nothing. Add its table
+to the normal Phase 4 report; a dispatch that says `Stand-in audit:` runs this section
+alone, skips the Fast exit and the other dimensions, and returns only the table.
+
+1. **List each changed behaviour** from the diff, not from the PR description.
+2. **For each one, name the layer that exercises it and what stands in for the real
+   dependency there**: a stub whose return values the tests wrote, a fake script, a
+   recorded fixture, or the real thing.
+3. **Find each boundary where test-authored text meets real parsing.** A stub that
+   returns the shape the code expects tests the code's assumption, not the dependency
+   (a parser that has only ever read output the tests wrote).
+4. **Say how each boundary can be checked**: `probe live` (through the deployed
+   service), `probe locally` (a throwaway local resource, such as a container never
+   started), or `read source` (the dependency is not installed; its source shows the
+   format). Boundary: a stub around a dependency the repo's own tests already run for
+   real elsewhere is not a finding; name that test.
+
+Report as a table: behaviour | layer | stand-in | boundary | check. The verification step
+runs the probes; this audit only names them.
+
 ## Mutation testing
 
 For each finding where a test's reliability is in question, verify by mutation:

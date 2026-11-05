@@ -40,6 +40,9 @@ Every `it()` block gets individual evaluation. No shortcuts, no "the rest look f
 - **Ship-check Phase 4.** The ship-check orchestrator dispatches you after code quality
   has committed its fixes. You audit all changed test files against convention dimensions
   AND run coverage gap analysis on changed production files to find missing tests.
+  When the dispatch carries an `Audit paths:` line, you also run the skill's stand-in
+  audit on executable code under those paths and add its table to the report; a
+  dispatch that says `Stand-in audit:` runs that section alone, report only.
 - **Ship-check pre-merge delta review.** In Phase 6, when commits added after
   Phase 5 add or change test files, the orchestrator dispatches you with a
   `Range:` line in place of the `Base:` line. You audit only the files those

@@ -14,7 +14,7 @@ can also be dispatched on demand.
 | `pr-reviewer` | 1 | cyan | Correctness, security, conditional checks (tool-definition changes handed to `tool-definition-reviewer`, feature surface, stale paths) |
 | `fresh-eyes` | 2 | purple | Stranger read: every place a newcomer pauses, per function. Report only — no conventions, no edits, no history. Pauses feed into Phase 3. |
 | `code-quality-reviewer` | 3; design pass after 5, and in 6 when code changed since | green | Naming, structure, comments, simplicity, module conventions. Resolves fresh-eyes pauses. In the design pass, reads the whole PR for duplicated logic, redundant mechanisms and guards that don't earn their place; report only. |
-| `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests) |
+| `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests); a stand-in audit of stubbed dependencies when the project has a verification profile |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
 | `tool-definition-reviewer` | after 5, when a tool list changed; or on demand | orange | MCP tool definitions read as the client receives them: rubric marks from Glama's Tool Definition Quality Score (TDQS), a bullet filed under the wrong lead-in or a phrase with no named referent, text changed in tools nobody meant to touch, dropped facts, added sentences that give the calling agent nothing to act on, description text that repeats the schema, and failures the description never lists. Report only. |
 

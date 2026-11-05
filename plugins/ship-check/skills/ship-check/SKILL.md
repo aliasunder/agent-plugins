@@ -41,6 +41,8 @@ Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (the reviewer reports; triage fixes)
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
 Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until stopped, merged or closed
+Verification (conditional, orchestrator) -> the project's live test, last in Phase 6 before the first merge-ready verdict,
+                                          only when CLAUDE.local.md has a verification profile and the PR changes artifact paths
 ```
 
 ## Attribution
@@ -175,6 +177,7 @@ reviewing a PR it isn't responsible for.
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
 | Design pass | First pass after Phase 5, final pass before the first merge-ready verdict; triage may apply small design fixes | First pass only; one PR-level comment with every proposal (see "Design pass"); nothing applied |
 | Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reviewer reports' Defects and Unintended text changes lists (see "Tool-definition review (conditional)"); no re-review |
+| Verification | Last in Phase 6 before the first merge-ready verdict; deploys and probes (see "Verification (conditional)") | Gate classification only, in the summary; nothing deployed, asked or written |
 | Inter-phase triage | Evaluates flagged findings, may fix; runs `triage-finding` on what it defers and asks the user before the next phase | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
 
 ### Dispatch prompt addition
@@ -290,6 +293,7 @@ from the startup offer ("Before starting", step 1).
 | Delta review | Tracks PR head | Not applicable |
 | Design pass | First pass after Phase 5, final pass before the first merge-ready verdict | First pass only (no Phase 6); report only on `main` or a detached HEAD |
 | Tool-definition re-review | Before each merge-ready verdict | On a branch, once before the summary when triage fixed tool text; none on `main` or a detached HEAD |
+| Verification | Last in Phase 6 | Gate classification only, with `git rev-parse HEAD` as the head and REVIEW_BASE as the base; no deploy |
 
 ### Dispatch prompt changes
 
@@ -316,7 +320,7 @@ HEAD belong to no branch).
    boilerplate to wave through. Each phase determines its own scope and exits
    cleanly when nothing is applicable; the orchestrator dispatches unconditionally.
    Only the user can skip phases — via `--skip` or `--only`.
-   **The tool-definition review is the one conditional step.** It runs only when its
+   **The tool-definition review is conditional.** It runs only when its
    gates find a changed tool-list file — a fact git and the plan script
    (`surface-diff.ts --plan`) decide (see "Tool-definition review (conditional)").
    NEVER skip it on your own reading of the change; only `--skip tool-definitions`
@@ -324,6 +328,11 @@ HEAD belong to no branch).
    **The design pass runs like a phase.** Its first pass runs every time; its final
    pass runs on its own trigger (see "Design pass"). Only `--skip design-pass` or an
    `--only` list without `design-pass` turns it off.
+   **The verification step is conditional too.** It runs only when the project's
+   `CLAUDE.local.md` has a `## Verification profile` and the profile's gate script
+   finds an artifact change (see "Verification (conditional)"). NEVER skip it on your
+   own reading of the change; only `--skip verification` or an `--only` list without
+   `verification` turns it off.
 
 2. **Each phase handles its own scope.** If a phase detects nothing in scope, it reports
    that nothing was in scope and exits cleanly. Its skill sets the wording, such as
@@ -585,6 +594,10 @@ the pipeline pushes nothing).
    gates decide whether tool text changed. It tracks its own tool-review commit (the
    head the last tool-definition review saw, recorded by that section's step 9),
    separate from the reviewed SHA.
+7. **Run the verification step last**, after steps 3-6, when every other merge-ready
+   prerequisite holds and the Step 4 follow-up check is quiet ("Verification
+   (conditional)"). It never runs before CI, the bots and the delta review are settled,
+   so a bot round cannot stale its evidence a minute later.
 
 ## Execution
 
@@ -803,7 +816,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile`, append:>\nAudit paths: <the profile's Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
 })
 ```
 
@@ -1293,6 +1306,71 @@ Deferred findings already hold the verdict, a `Pending` one included until it se
 blockers. Reporting says which of them to put to the user for a decision before any
 verdict.
 
+### Verification (conditional)
+
+A PR to a public service is not merge-ready until the live test its repo requires has
+run on the current head; without this step the rule held only when the session
+remembered it. The step runs in Phase 6, last: after every other merge-ready
+prerequisite holds and pr-monitor's Step 4 follow-up check is quiet, after the final
+design pass and the tool-definition re-review ("Pre-merge delta review", step 7). The
+rules (gate, exemption classes, evidence, reservation, return) live in the note the
+profile's `Rules:` line names; this section carries the order. It runs inline: the
+reservation, the peer and mailbox messages and the wakes belong to this session.
+`--skip verification` or an `--only` list without `verification` turns it off
+(pr-monitor records "the user declined it"); `--only verification` runs the gate in
+any mode and the step in default mode.
+
+1. **Profile.** Read the project's `CLAUDE.local.md` section `## Verification profile`
+   fresh every time (`rg -n` on the file where it is on disk; the vault tools
+   otherwise). Missing → `no profile`, and the run behaves as before this step
+   existed. Unreadable → `profile unreadable`; withhold the verdict.
+2. **Gate.** Run the profile's `Gate:` command, this skill's script:
+   ```
+   bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> [--pathspec <each Artifact paths line>] [--audit-pathspec <each Audit paths line>] [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
+   ```
+   `no artifact change` or `exempt (…)` ends the step with that word. A file reported
+   as "judge the hunk" may be recorded as `exempt (comment, judged)` only when every
+   changed line is plainly a comment; deploy when unsure. `local change` takes step 7.
+   A non-zero exit withholds the verdict with the script's error.
+3. **Current?** Apply pr-monitor Step 5's verification check. Current →
+   `current (<headRefOid>)`, done; otherwise `stale since <Head>` or untested.
+4. **Mode.** In `--report`, `--comment` and local modes, end here with the
+   classification; deploy, ask and write nothing. A fork PR (`isCrossRepository`) →
+   `needs the maintainer's live test`.
+5. **Deploy and probe** (default mode). In a lane-conductor worker: report
+   `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5d-5g, then
+   `LANE <X> VERIFIED HEAD <sha>` or `LANE <X> VERIFY FAILED`; the lead owns the hold
+   note and the return. Otherwise post the stage plan, then:
+   - a. Behind main: the gate script on `<headRefOid>...origin/main`; empty or exempt →
+     continue; otherwise the note's behind-main rule (a clean merge is pushed, and the
+     step re-enters once CI, the bots and the delta review have run on the new head).
+   - b. Confirm local HEAD equals `headRefOid`. Take Phase 4's stand-in table, or
+     dispatch `ship-check:test-auditor` with `Stand-in audit:` on the artifact delta
+     since Phase 4's reviewed SHA.
+   - c. Reserve the instance per the note's reservation section (peers per the
+     peer-messaging skill, the hold note to the user's mailbox, its waits).
+   - d. Record the live image with the profile's `Confirm:` command and read the before
+     values on it, in a probe subagent that returns outcome rows.
+   - e. Snapshot `gh run list` for each `Workflows:` entry; nothing queued or running →
+     run `Deploy:`, bind the new run and the image to `headRefOid` as the note's
+     "Deploy and binding" section says.
+   - f. After values and each audit boundary, in the probe subagent; then the note's
+     post-probe re-read. Any other run or any change → `blocked (<what moved>)`,
+     return rule, stop.
+   - g. Write the evidence section the note describes, in the format the PRs already
+     use, with a fresh body read, a splice under the profile's `Evidence:` heading and
+     a re-read; no raw output, vault content or inspect JSON in the body.
+   - h. The return rule; tell peers and the mailbox the instance is free.
+
+   When the profile's `Confirm before:` lists a command (`deploy`, `force-deploy`,
+   `body-write`), ask the user before running it. A profile command marked
+   *unverified* stops the step at that command and asks; never run it unasked.
+6. **Report** the `Verification:` line (Reporting).
+7. **Local route** (`local change`): no deploy. Probe each `probe locally` row of the
+   stand-in table in a subagent with throwaway local resources, write the evidence
+   section with `Image: none (local probes)`, and record a boundary that cannot be
+   probed as `unverified: <why>`, a deferred finding that holds the verdict.
+
 ### Push the fixes
 
 Run this once, after Phase 5, its triage, the design pass's first pass and the
@@ -1396,6 +1474,7 @@ Ship check complete:
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
+- Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
 - PR Monitor:   CI status, N bot comments resolved
@@ -1436,6 +1515,7 @@ Ship check complete (comment mode):
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
+- Verification: <the gate's classification | no profile | skipped | not selected> (comment mode deploys nothing)
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">
@@ -1466,6 +1546,10 @@ The user can customize the pipeline:
   re-review (see "Tool-definition review (conditional)" → By mode)
 - `/ship-check --only tool-definitions` — run only the tool-definition review; it
   still dispatches nothing when no tool-list file changed
+- `/ship-check --skip verification` — skip the verification step; pr-monitor then
+  records that the user declined the live test (see "Verification (conditional)")
+- `/ship-check --only verification` — run the gate now, in any mode, and the whole
+  step in default mode on a PR
 - `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
   reported to the orchestrator). Alias: `--no-fix`.
 - `/ship-check --local` — run without a PR. Reviews the commits the default branch
@@ -1513,5 +1597,5 @@ Fresh-eyes option interactions:
 | `--inline`, `--fork` | Skipped (inherited context defeats the persona); noted in the summary |
 
 If the user doesn't specify options, run Phases 1-5 with agents and Phase 6 inline,
-plus the design pass and the tool-definition review when its gates pass (the
-default).
+plus the design pass, the tool-definition review when its gates pass, and the
+verification step when its gate passes (the default).
