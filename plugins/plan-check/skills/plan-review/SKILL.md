@@ -213,18 +213,21 @@ it, then classify it: *verified in the plan* (evidence cited), *checkable now*
   no evidence that it is realistic. Evidence is a traced code path, the owner's
   recorded usage, a user report or issue, or a documented workflow that reaches
   the scenario; "a user could…" with none of these is not evidence. Name the
-  scenario and the missing evidence. A scenario outside the code's contract (an
-  undocumented action such as running an older image, an unlikely chain of
-  events) with none of that evidence is handling nobody will reach, and its code
-  and docs are maintained for nothing (vault-cortex PR #730, 2026-11-03: three
-  reviewers asked for rollback handling nobody had traced; the user removed it).
-  **Apply the same test to your own findings:** a request that the plan handle a
-  scenario names that scenario's evidence, or it goes under "Proof of dismissal"
-  with the missing evidence named, so the author can supply evidence if it
-  exists. **Boundary:** a security scenario's evidence is the attacker's cheapest
-  path (dimension 4); a finding another dimension assigns (a silent concurrent
-  writer, a check that can't fail) keeps its severity; and showing a writer or
-  path exists is evidence.
+  scenario and the missing evidence. A scenario outside the contract of the code,
+  existing or planned (an undocumented action such as running an older image, an
+  unlikely chain of events), with none of that evidence is handling nobody will
+  reach, and its code and docs are maintained for nothing (vault-cortex PR #730,
+  2026-11-03: three reviewers asked for rollback handling nobody had traced; the
+  user removed it).
+  - **Apply the same test to your own findings:** a request that the plan handle
+    a scenario names that scenario's evidence, or it goes under "Proof of
+    dismissal" with the missing evidence named, so the author can supply evidence
+    if it exists.
+  - **Boundary, for both tests:** a security scenario's evidence is the
+    attacker's cheapest path (dimension 4); a finding to which another dimension
+    assigns a severity (a silent concurrent writer, a check that can't fail)
+    keeps that severity and stays among the findings, whatever this test finds;
+    and showing a writer or path exists is evidence.
 
 ### 3. Alternatives and the do-nothing baseline
 
@@ -395,4 +398,5 @@ Then findings ordered by severity, each with: dimension, the quoted premise (or
 the absence + its failure scenario), and what would resolve it. A finding without
 a resolution path is a complaint, not a review. Close with a short **proof of
 dismissal** for anything you seriously considered and dropped — the clean-bill
-claims are part of the review.
+claims are part of the review. It also holds each request that dimension 2's
+evidence test moved out of the findings, with the missing evidence named.

@@ -388,7 +388,7 @@ sequential thinking forces you to deliberate instead of relaying.
    | Complex fix | More than 10 lines, or an interface change | Defer to user |
    | Pre-existing gap | Trivial (< 5 lines, no interface change, no behavioral risk) and mechanical | Fix — the PR revealed the gap |
    | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
-   | Unevidenced or low-cost | Any size | Defer to user — never an edit; `triage-finding` logs a cheap scenario with evidence and asks about a costly one |
+   | Unevidenced or low-cost | Any size | Defer to user — triage makes no edit itself; `triage-finding` logs a scenario whose cost when hit is small, with the evidence it searched, and asks the user about one whose cost is noticeable |
    | Any | Needs design decision | Always defer to user |
 
 4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. A
@@ -484,9 +484,10 @@ the cost of leaving a real bug is not.
 
 Low risk is not low cost for new handling. Code, a test or a doc paragraph for a
 scenario nobody has traced or reached adds something someone maintains, and the docs
-then describe an issue nobody has hit. That is why the matrix never fixes
-`unevidenced or low-cost`, however small the fix: `triage-finding` logs it with
-evidence or asks, and only a `Fix` result it returns is applied (step 5).
+then describe an issue nobody has hit. That is why triage never writes the handling
+for an `unevidenced or low-cost` finding itself, however small the fix:
+`triage-finding` logs the finding with the evidence it searched or asks the user,
+and the handling is written only when `triage-finding` returns `Fix` (step 5).
 
 For a defect, defer only when the **fix itself** is uncertain, risky, too large for the
 triage matrix's fix rows (step 3), or requires a design decision.
@@ -516,10 +517,11 @@ Evaluate against
 the worst reasonable use case for the project's audience — not the maintainer's current
 setup. And if the fix to a defect is trivial, fix it regardless of the impact
 assessment, unless it restores a piece on the session's cut list ("Design pass",
-step 6): leave that fix unapplied and handle the finding as that step says. New
-handling for a scenario with no evidence that it is realistic is the opposite case
-(inter-phase triage, step 1): routing it to `triage-finding` reports the finding and
-is not an environment-specific dismissal.
+step 6): leave that fix unapplied and handle the finding as that step says. These
+rules cover code that is wrong even when today's callers never reach it. New code
+for a scenario that nobody has shown is realistic is different (inter-phase triage,
+step 1): routing it to `triage-finding` reports the finding and is not an
+environment-specific dismissal.
 
 ## Pre-merge delta review
 

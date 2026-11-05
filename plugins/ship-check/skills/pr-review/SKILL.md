@@ -249,16 +249,16 @@ comment mode.
      and never write the handling; say in the flag whether the cost when hit is
      small or noticeable (lost data, silently wrong results, a blocked workflow).
      A security finding's scenario is the attacker's cheapest path, which counts as
-     evidence. An evidence-based flag is not an environment-specific dismissal: the
-     finding is still reported, and ship-check's triage (the user, in a standalone
-     run) decides it.
+     evidence. A flag for missing evidence is not an environment-specific dismissal:
+     the finding is still reported, and ship-check's triage (the user, in a
+     standalone run) decides it.
    - **Small fix to a defect** (< 5 lines, no interface change, no behavioral risk)
      → fix it, at any confidence. A safe no-op change costs nothing; a real bug
      left unfixed does. "Low-risk" is a reason TO fix, not a reason to defer.
    - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
      → fix it.
    - **Anything bigger** → flag with a category (step 3).
-   - When in doubt about the diagnosis but not about a small fix: **fix it.**
+   - When in doubt about a defect's diagnosis but not about a small fix: **fix it.**
    - The one exception: when the dispatch carries a `Cuts:` list (pieces the user
      decided to remove this session), never make a fix that puts a listed piece
      back, however small; flag the finding instead.

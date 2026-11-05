@@ -221,11 +221,12 @@ Without the skill, continue as below.
 
 ### Findings that would restore a cut
 
-When this session holds a cut list (the ship-check skill's "Design pass", step 6:
-pieces the user decided to remove, in a ship-check run or in the design pass that
-Step 5 (Final report) runs when this skill runs outside ship-check), NEVER apply a finding that would put a listed piece
-back: not from a bot thread, not from the item-4 sweep under "Bot threads", and not
-in "After handling all threads".
+A cut list holds the pieces the user decided to remove this session (the ship-check
+skill's "Design pass", step 6). A session holds one in a ship-check run, and after
+the design pass that Step 5 (Final report) runs when this skill runs outside
+ship-check. When this session holds a cut list, NEVER apply a finding that would
+put a listed piece back: not from a bot thread, not from the item-4 sweep under
+"Bot threads", and not in "After handling all threads".
 - **With `triage-finding`:** pass it the cut list as a standing disposition (a
   decision already made, which covers every finding this session), and post the
   reply its result gives, as the section above says.
@@ -242,7 +243,8 @@ For each unresolved bot thread, do ALL of these in order:
 1. **Evaluate**: valid finding or false positive? Check against AGENTS.md conventions.
 
    **There are only two outcomes: valid or false positive.** Do NOT invent a third
-   category. A valid finding still has to say what it asks for before item 3 fixes it:
+   category. The two checks below do not add outcomes: they decide whether item 3
+   fixes a valid finding in this PR.
    - **New handling with no realistic scenario is a finding this PR won't fix.** A
      **defect** is code wrong for what its own contract covers (its signature, every
      documented promise, the failure behavior of the operations it performs),
@@ -257,10 +259,10 @@ For each unresolved bot thread, do ALL of these in order:
      scenario is the attacker's cheapest path, which counts as evidence.
    - **After the review cap, small fixes with no user-visible impact stop.** This
      skill carries a default cap on bot review rounds per PR (see "The review
-     cap", below item 4). From the round after the cap, a valid finding whose fix
-     changes nothing a user can see (wording, a comment, a name, a formatting
-     choice) is reported with the round count, not fixed; behavior defects are
-     still fixed.
+     cap", at the end of item 4). From the round after the cap, a valid finding
+     whose fix changes nothing a user can see (wording, a comment, a name, a
+     formatting choice) is reported with the round count, not fixed; behavior
+     defects are still fixed.
 
    On valid versus false positive, in particular:
    - **"False positive" means the finding is factually wrong** — the code pattern it
@@ -343,15 +345,15 @@ For each unresolved bot thread, do ALL of these in order:
    each sibling. The sweep never reopens or fixes a finding `triage-finding` logged, or
    one the user deferred or dismissed.
 
-   **The review cap.** Count a PR's bot review rounds (one bot review submission, or
-   one batch of bot comments, is a round). The default cap is **4** rounds,
-   measured on 2026-11-05 from the last behavior-changing round across 11 recent
-   vault-cortex PRs (median 3, plus one; a test that changes what is asserted
-   counts as behavior). Every Step 5 report states the
-   round count and the cap in force. Override the default on a PR when you give the
-   reason in that report: raise it while a round still finds behavior defects; lower it
-   when the late rounds are all wording. From the round after the cap, item 1's
-   second bullet applies: no-impact small fixes are reported, not made.
+   **The review cap.** From the round after the cap, item 1's second bullet applies:
+   no-impact small fixes are reported, not made. Count a PR's bot review rounds (one
+   bot review submission, or one batch of bot comments, is a round). The default cap
+   is **4** rounds. That default comes from 11 recent vault-cortex PRs, counted on
+   2026-11-05: the median PR's last round that changed behavior was round 3, and the
+   cap adds one round to that. A test that changes what is asserted counted as a
+   behavior change. Every Step 5 report states the round count and the cap in force. Override the default on a PR when you give
+   the reason in that report: raise it while a round still finds behavior defects;
+   lower it when the late rounds are all wording.
 
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
@@ -472,9 +474,9 @@ attribution footer).
 ### Human threads
 
 If `triage-finding` is available, pass these to it with the round's other findings
-(the first section of this step). It fixes and answers only a cheap defect, asks the
-user about anything else, and never resolves a person's thread before the user has
-responded. Otherwise:
+(the first section of this step). It fixes and answers only a defect whose fix is
+cheap, asks the user about anything else, and never resolves a person's thread
+before the user has responded. Otherwise:
 
 Present each to the user. Do NOT auto-resolve human comments without explicit approval.
 If the user provides a response, reply on their behalf and resolve.

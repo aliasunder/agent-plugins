@@ -426,23 +426,25 @@ for the project's audience — not the maintainer's current setup.
 The same rule covers deployment shape and upstream validation. "Each server
 process opens only one notes folder", "the input is always `.md` because it was
 validated earlier", and "this can't happen in practice" describe today's callers,
-not the code. A guard that is
-wrong on its own terms, a module-level cache that is not keyed by the thing it
-caches for, or a fallback that picks the destructive branch is a finding whether
-or not the current deployment can reach it. Report it, categorize the reach as
-context, and let the orchestrator decide scope.
+not the code. A guard that is wrong on its own terms, a module-level cache that is
+not keyed by the thing it caches for, or a fallback that picks the destructive
+branch is a finding whether or not the current deployment can reach it. Report it,
+categorize the reach as context, and let the orchestrator decide scope.
 
 And regardless of impact assessment: if the fix to a defect is trivial, fix it. A
 one-line null-out after data is consumed costs nothing and eliminates the concern
-entirely. New handling for a scenario with no evidence that it is realistic is the
-opposite case: it is flagged `unevidenced or low-cost`, not written, however trivial
+entirely. This rule and the one above cover code that is wrong even when today's
+callers never reach it. New code for a scenario that nobody has shown is realistic
+is different: it is flagged `unevidenced or low-cost`, not written, however trivial
 (the Procedure's first fix-or-flag bullet). That flag reports the finding; it is not
 an environment-specific dismissal.
-The one exception: when the dispatch carries a `Cuts:` list (one line per piece:
-the file, what was removed and the user's reason), the user has already decided to
-remove each listed piece. Never put one back, however trivial the fix; report the
-finding instead. The orchestrator turns it down under the cut list, and takes it to
-her only when it shows new evidence that the cut's case is common.
+
+The one exception to fixing a trivial defect: when the dispatch carries a `Cuts:`
+list (one line per piece: the file, what was removed and the user's reason), the
+user has already decided to remove each listed piece. Never put one back, however
+trivial the fix; report the finding instead. The orchestrator turns it down under
+the cut list, and takes it to her only when it shows new evidence that the cut's
+case is common.
 
 ### Verify effort before claiming it
 
@@ -499,9 +501,9 @@ yours. Convention violations in your fixes ship unchecked.
      small the fix, and never write the handling; say in the flag whether the cost
      when hit is small or noticeable (lost data, silently wrong results, a blocked
      workflow). A security finding's scenario is the attacker's cheapest path,
-     which counts as evidence. An evidence-based flag is not an environment-specific
-     dismissal: the finding is still reported, and ship-check's triage (the user, in
-     a standalone run) decides it.
+     which counts as evidence. A flag for missing evidence is not an
+     environment-specific dismissal: the finding is still reported, and ship-check's
+     triage (the user, in a standalone run) decides it.
    - **Small fix to a defect** (< 5 lines, no interface change, no behavioral risk)
      → fix it, at any confidence. The cost of a safe no-op is near zero; the cost
      of missing a real bug is not. "Low-risk" is a reason TO fix, not a reason to
@@ -510,16 +512,17 @@ yours. Convention violations in your fixes ship unchecked.
      dismissals").
    - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
      → fix it.
-   - **Anything bigger** → flag with a category:
-     - `complex fix` — the diagnosis is sound, but the fix runs past 10 lines or
-       changes an interface. Grep for call sites before claiming this.
-     - `uncertain diagnosis` — low confidence, and the fix is not small.
-     - `needs design decision` — more than one valid approach; the user chooses.
-     - `pre-existing gap` — the issue predates the change but the change revealed it.
-     - `unevidenced or low-cost` — new handling for a scenario with no evidence that
-       it is realistic (the first bullet above); note whether its cost when hit is
-       small or noticeable. Never an edit, whatever the fix size.
-   The orchestrator uses these categories to triage.
+   - **Anything bigger** → flag it.
+
+   **Every flag carries one category**, which the orchestrator uses to triage:
+   - `complex fix` — the diagnosis is sound, but the fix runs past 10 lines or
+     changes an interface. Grep for call sites before claiming this.
+   - `uncertain diagnosis` — low confidence, and the fix is not small.
+   - `needs design decision` — more than one valid approach; the user chooses.
+   - `pre-existing gap` — the issue predates the change but the change revealed it.
+   - `unevidenced or low-cost` — new handling for a scenario with no evidence that
+     it is realistic (the first bullet above); note whether its cost when hit is
+     small or noticeable. Never an edit, whatever the fix size.
 4. Stage and commit all fixes. Push only in a standalone run. In a ship-check run
    (the dispatch says "do not push", or you run inline in the orchestrator's
    context), commit only: the orchestrator pushes every phase's commits once after

@@ -154,8 +154,10 @@ skipping decision points.
   so no convention pass follows yours — convention violations in your fixes ship.
 - Fix or flag with the bug-check skill's matrix (its Procedure, step 3):
   - First name what the finding asks for: a defect (code wrong for its own
-    contract) takes the rows below; new handling for a scenario with no evidence
-    that it is realistic is flagged `unevidenced or low-cost`, never written.
+    contract: its signature, its documented promises and the failure behavior of
+    the operations it performs) takes the rows below; new handling for a scenario
+    with no evidence that it is realistic is flagged `unevidenced or low-cost`,
+    never written.
   - A small fix to a defect (< 5 lines, no interface change, no behavioral risk):
     fix it, at any confidence.
   - High or medium confidence, and the fix is 10 lines or fewer with no interface
