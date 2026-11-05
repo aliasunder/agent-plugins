@@ -263,7 +263,8 @@ For each unresolved bot thread, do ALL of these in order:
      cap", at the end of item 4). From the round after the cap, a valid finding
      whose small fix changes nothing a user can see (wording, a comment, a name, a
      formatting choice) is reported with the round count, not fixed; behavior
-     defects are still fixed.
+     defects are still fixed. A test that changes what is asserted, and a wrong
+     fact in a doc or an error message, are user-visible, so they are still fixed.
 
    On valid versus false positive, in particular:
    - **"False positive" means the finding is factually wrong** — the code pattern it
@@ -347,15 +348,19 @@ For each unresolved bot thread, do ALL of these in order:
    one the user deferred or dismissed.
 
    **The review cap.** From the round after the cap, item 1's second bullet applies:
-   no-impact small fixes are reported, not made. Count a PR's bot review rounds (one
-   bot review submission, or one batch of bot comments, is a round). The default cap
-   is **4** rounds. That default comes from 11 recent vault-cortex PRs, counted on
+   no-impact small fixes are reported, not made. Count a PR's bot review rounds: one
+   bot's batch of review comments on one pushed head (its inline and PR-level
+   comments posted within a few minutes) is a round, so two bots reviewing the same
+   push are two rounds, as the measurement counted them. The default cap is **4**
+   rounds. That default comes from 11 recent vault-cortex PRs, counted on
    2026-11-05: the median PR's last round that changed behavior was round 3, and the
    cap adds one round to that. A test that changes what is asserted counted as a
    behavior change. Every Step 5 report states the round count and the cap in
    force. Override the default on a PR when you give the reason in that report:
    raise it while a round still finds behavior defects; lower it when the late
-   rounds are all wording.
+   rounds are all wording. Write an override as `cap=<N>: <reason>` in the report,
+   so the next wake keeps it. Past the cap, item 4's sweep fixes only behavior
+   defects; no-impact siblings are reported with the finding.
 
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 
@@ -391,6 +396,9 @@ For each unresolved bot thread, do ALL of these in order:
      a follow-up change."* for a deferral the user approved, or *"The maintainer decided
      not to change this: [reason]."* for a valid finding the user dismissed. A pending
      finding gets no reply and stays unresolved.
+   - **No-impact finding past the cap** (item 1's second bullet) -- reply and then
+     resolve the thread, with the same footer:
+     *"Not changing this in round N of a cap of M: the fix changes nothing a user sees."*
 
    **Keep the reply call plain.** A sandboxed session (a Claude Code worktree
    session, for one) refuses a command it cannot analyze, and each refusal costs

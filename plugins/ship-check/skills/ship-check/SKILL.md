@@ -371,8 +371,9 @@ sequential thinking forces you to deliberate instead of relaying.
    finding asks for: a fix to a **defect** (code wrong for what its own contract
    covers, whatever today's callers do) stays in its category; **new handling** for a
    scenario outside that contract with no evidence that the scenario is realistic (a
-   traced code path, the owner's recorded usage, an issue, or a documented workflow)
-   is re-categorized `unevidenced or low-cost` before the matrix is applied. A
+   traced code path, the owner's recorded usage, an issue, or a documented workflow),
+   or for one that costs little when hit, is re-categorized `unevidenced or low-cost`
+   before the matrix is applied. A
    security finding's scenario is the attacker's cheapest path, which counts as
    evidence, so a security finding is never re-categorized.
 2. **Verify effort claims before applying the matrix.** When a finding is flagged as
@@ -714,7 +715,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "PR review — <resolved model> / <resolved phase effort>",
-  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
+  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic, or that costs little when hit, as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable; a security finding's attacker path counts as evidence. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
 })
 ```
 
@@ -819,7 +820,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Bug check — <resolved model> / <resolved phase effort>",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic, or that costs little when hit, as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable; a security finding's attacker path counts as evidence. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 

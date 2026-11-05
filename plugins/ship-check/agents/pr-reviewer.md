@@ -144,8 +144,9 @@ you're shortcutting the review.
   - First name what the finding asks for: a defect (code wrong for its own
     contract: its signature, its documented promises and the failure behavior of
     the operations it performs) takes the rows below; new handling for a scenario
-    with no evidence that it is realistic is flagged `unevidenced or low-cost`,
-    never written.
+    with no evidence that it is realistic, or that costs little when hit, is flagged
+    `unevidenced or low-cost`, never written. A security finding's scenario is the
+    attacker's cheapest path, which counts as evidence.
   - A small fix to a defect (< 5 lines, no interface change, no behavioral risk):
     fix it, at any confidence.
   - High or medium confidence, and the fix is 10 lines or fewer with no interface

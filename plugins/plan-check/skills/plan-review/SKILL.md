@@ -225,7 +225,7 @@ it, then classify it: *verified in the plan* (evidence cited), *checkable now*
     if it exists.
   - **Boundary, for both tests:** a security scenario's evidence is the
     attacker's cheapest path (dimension 4); a finding to which another dimension
-    assigns a severity (a silent concurrent writer, a check that can't fail)
+    assigns a severity (a silent concurrent writer, a cost inversion under 6b)
     keeps that severity and stays among the findings, whatever this test finds;
     and showing a writer or path exists is evidence.
 

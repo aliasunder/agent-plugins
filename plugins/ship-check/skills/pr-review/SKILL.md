@@ -245,7 +245,9 @@ comment mode.
      docs don't support, such as running an older image, or an unlikely chain of
      events). New handling needs evidence that the scenario is realistic: a traced
      code path, the owner's recorded usage, an issue, or a documented workflow.
-     Without that evidence, flag it `unevidenced or low-cost` however small the fix,
+     Without that evidence, or when the scenario costs little when hit (a retried
+     call, a temporary state, a cosmetic difference), flag it `unevidenced or
+     low-cost` however small the fix,
      and never write the handling; say in the flag whether the cost when hit is
      small or noticeable (lost data, silently wrong results, a blocked workflow).
      A security finding's scenario is the attacker's cheapest path, which counts as
