@@ -722,9 +722,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     characters and the run id below digits only; any other value is missing evidence
     and goes into no command;
   - its "On the instance" text names a test-deploy run id, the image revision and
-    the digest (the local route writes `Image: none (local probes)` instead), and
-    `gh run view <id>` shows the profile's test-deploy workflow at that head with
-    `status: completed`, `conclusion: success` and a build job;
+    the digest, and `gh run view <id>` shows the profile's test-deploy workflow at
+    that head with `status: completed`, `conclusion: success` and a build job; the
+    local route writes `Image: none (local probes)` instead and has no run to check;
   - the gate script with `--range tested --from <Head> --to <headRefOid>` reports
     `no artifact change` or `exempt`, or a `Reuse:` line names `<headRefOid>` with the
     maintainer's words;

@@ -96,12 +96,15 @@ const commitAll = (repo: string, message: string): string => {
   return gitIn(repo, "rev-parse", "HEAD")
 }
 
-/** A fixture repo with `BASE_FILES` committed, then `changes` and `deletions` committed on top; returns both commits. */
-const fixture = (changes: Files, deletions: readonly string[] = []): { repo: string; base: string; head: string } => {
+/**
+ * A fixture repo with `BASE_FILES` (plus `baseChanges`) committed, then `changes` and `deletions` committed on
+ * top; returns both commits.
+ */
+const fixture = (changes: Files, deletions: readonly string[] = [], baseChanges: Files = {}): { repo: string; base: string; head: string } => {
   const repo = mkdtempSync(join(tmpdir(), "probe-artifact-gate-"))
   temporaryRoots.push(repo)
   gitIn(repo, "init", "-q", "-b", "main")
-  writeFiles(repo, BASE_FILES)
+  writeFiles(repo, { ...BASE_FILES, ...baseChanges })
   const base = commitAll(repo, "base")
   writeFiles(repo, changes)
   for (const path of deletions) rmSync(join(repo, path))
@@ -167,6 +170,15 @@ describe("dependency class", () => {
     assert.match(firstReason(result), /rrule is a live-test package/)
   })
 
+  it("keeps a spec that leaves the registry", () => {
+    const git = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "github:honojs/hono#v4.6.1" }) })
+    assert.match(firstReason(classify(input(git.repo, git.base, git.head))), /dependencies\.hono is not a registry version/)
+    const local = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "file:../hono" }) })
+    assert.equal(classify(input(local.repo, local.base, local.head)).outcome, "artifact change")
+    const tag = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "latest" }) })
+    assert.equal(classify(input(tag.repo, tag.base, tag.head)).word, "exempt (dependency)")
+  })
+
   it("keeps a bump that also edits scripts", () => {
     const { repo, base, head } = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "4.6.1"; p.scripts.lint = "biome" }) })
     assert.equal(classify(input(repo, base, head)).outcome, "artifact change")
@@ -177,6 +189,13 @@ describe("dependency class", () => {
     assert.equal(classify(input(only.repo, only.base, only.head)).word, "exempt (dependency)")
     const live = fixture({ "package-lock.json": LOCKFILE.replace('"version": "1.0.0"', '"version": "1.1.0"') })
     assert.match(firstReason(classify(input(live.repo, live.base, live.head))), /obsidian-headless is a live-test package/)
+  })
+
+  it("keeps a lockfile entry whose name field is a live-test package under another path", () => {
+    const aliased = LOCKFILE.replace('"node_modules/obsidian-headless": {\n      "version": "1.0.0"', '"node_modules/headless": {\n      "name": "obsidian-headless",\n      "version": "1.1.0"')
+    assert.notEqual(aliased, LOCKFILE)
+    const { repo, base, head } = fixture({ "package-lock.json": aliased })
+    assert.match(firstReason(classify(input(repo, base, head))), /obsidian-headless is a live-test package/)
   })
 
   it("keeps a deleted lockfile", () => {
@@ -198,6 +217,12 @@ describe("scripts class", () => {
     assert.equal(classify(input(post.repo, post.base, post.head)).outcome, "artifact change")
   })
 
+  it("keeps a script an image script reaches through npm run", () => {
+    const chained = (compile: string): string => packageWith((p) => { Object.assign(p.scripts, { "build:server": "npm run compile && npm run-script bundle", compile, bundle: "esbuild" }) })
+    const { repo, base, head } = fixture({ "package.json": chained("tsc --strict") }, [], { "package.json": chained("tsc") })
+    assert.match(firstReason(classify(input(repo, base, head))), /scripts\.compile runs during the image build/)
+  })
+
   it("keeps postprepare, which npm ci runs after prepare", () => {
     const { repo, base, head } = fixture({ "package.json": packageWith((p) => { Object.assign(p.scripts, { postprepare: "node patch.js" }) }) })
     assert.match(firstReason(classify(input(repo, base, head))), /scripts\.postprepare runs during the image build/)
@@ -210,6 +235,13 @@ describe("digest and action classes", () => {
     assert.equal(classify(input(digest.repo, digest.base, digest.head)).word, "exempt (digest)")
     const swap = fixture({ Dockerfile: DOCKERFILE.replace("node:24-trixie-slim@sha256:aaa", "node:25-trixie-slim@sha256:bbb") })
     assert.equal(classify(input(swap.repo, swap.base, swap.head)).outcome, "artifact change")
+  })
+
+  it("sends a Dockerfile or workflow comment edit to the hunk judgement", () => {
+    const docker = fixture({ Dockerfile: DOCKERFILE.replace("# syntax=docker/dockerfile:1", "# syntax=docker/dockerfile:1 (pinned)") })
+    assert.match(firstReason(classify(input(docker.repo, docker.base, docker.head))), /not a FROM line; judge the hunk/)
+    const workflow = fixture({ ".github/workflows/test_deploy.yml": `# deploys the test image\n${WORKFLOW}` })
+    assert.match(firstReason(classify(input(workflow.repo, workflow.base, workflow.head))), /not paired; judge the hunk/)
   })
 
   it("keeps a Dockerfile instruction change beside a digest bump", () => {
@@ -283,6 +315,14 @@ describe("paths and ranges", () => {
     const { repo, base } = fixture({ ".nvmrc": "25\n" })
     assert.throws(() => classify(input(repo, base, "0000000000000000000000000000000000000000")), GitError)
   })
+
+  it("throws a GitError when a file read fails for a reason other than absence", () => {
+    const { repo, base, head } = fixture({ "src/server.ts": SOURCE.replace("s.length", "s.length + 1") })
+    // Remove the head's blob so `git show` fails on the object, not on the path.
+    const blob = gitIn(repo, "rev-parse", `${head}:src/server.ts`)
+    rmSync(join(repo, ".git", "objects", blob.slice(0, 2), blob.slice(2)))
+    assert.throws(() => classify(input(repo, base, head)), GitError)
+  })
 })
 
 describe("command line", () => {
@@ -295,6 +335,13 @@ describe("command line", () => {
     const bad = spawnSync("bun", [SCRIPT_PATH, "--repo", repo, "--from", base, "--to", "nope", "--pathspec", "src/"], { encoding: "utf8" })
     assert.equal(bad.status, 2)
     assert.match(bad.stderr, /git diff/)
+  })
+
+  it("refuses a run with no pathspec at all", () => {
+    const { repo, base, head } = fixture({ ".nvmrc": "25\n" })
+    const result = spawnSync("bun", [SCRIPT_PATH, "--repo", repo, "--from", base, "--to", head], { encoding: "utf8" })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /at least one --pathspec/)
   })
 
   it("refuses a commit that git would read as an option", () => {

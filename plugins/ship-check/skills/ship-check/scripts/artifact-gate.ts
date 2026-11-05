@@ -40,6 +40,11 @@ const LIFECYCLE_KEYS: readonly string[] = ["preinstall", "install", "postinstall
 const CHANGED_LINE = /^[+-]/
 // `npm:<package>@<range>` installs another package under the key's name: group 1 is that package.
 const NPM_ALIAS = /^npm:(@?[^@]+)/
+// A spec that resolves on the npm registry: a range, a tag, or an `npm:` alias. Anything with a `:`, `/` or `#`
+// beyond that (`file:`, `git+https:`, `github:owner/repo#ref`, a URL) points outside the registry.
+const REGISTRY_SPEC = /^(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?[^:/#]*$/
+// `npm run <name>` or `npm run-script <name>` inside a script's command, after any flags: group 1 is the name.
+const NPM_RUN = /\bnpm\s+run(?:-script)?\s+(?:--?\S+\s+)*([\w:.-]+)/g
 // `@sha256:<hex>` inside a FROM line.
 const DIGEST = /@sha256:[0-9a-f]+/
 // A Dockerfile FROM instruction.
@@ -74,11 +79,18 @@ const changedFiles = (input: GateInput, pathspecs: readonly string[]): string[] 
   return output.split("\n").filter((line) => line.length > 0)
 }
 
+// git's two messages for a path that is not in the tree at that commit; any other failure is a git failure.
+const PATH_ABSENT = /does not exist in|exists on disk, but not in/
+
+/** The file's content at the commit, or undefined when the path is absent there. */
 const fileAt = (repo: string, commit: string, path: string): string | undefined => {
   try {
-    return execFileSync("git", ["-C", repo, "show", `${commit}:${path}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
-  } catch {
-    return undefined
+    return execFileSync("git", ["-C", repo, "show", `${commit}:${path}`], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+  } catch (error) {
+    const stderr = isJsonObject(error) && typeof error.stderr === "string" ? error.stderr : ""
+
+    if (PATH_ABSENT.test(stderr)) return undefined
+    throw new GitError(`git show ${commit}:${path} failed: ${stderr.trim() || String(error)}`)
   }
 }
 
@@ -135,6 +147,7 @@ const dependencyBumpProblem = (before: JsonObject, after: JsonObject, liveTestPa
       const changed = name in newMap ? newMap[name] : oldMap[name]
 
       if (typeof changed !== "string") return `${mapName}.${name} is not a version string`
+      if (!REGISTRY_SPEC.test(changed)) return `${mapName}.${name} is not a registry version`
       if (liveTestPackages.includes(name)) return `${name} is a live-test package`
       if (aliasTarget(oldMap[name]) !== aliasTarget(newMap[name])) return `${mapName}.${name} changes the package it installs`
     }
@@ -142,9 +155,25 @@ const dependencyBumpProblem = (before: JsonObject, after: JsonObject, liveTestPa
   return undefined
 }
 
-const isImageScript = (key: string, imageScripts: readonly string[]): boolean => {
+/** The scripts the image runs: the listed ones plus every script they reach through `npm run <name>`. */
+const imageScriptNames = (scripts: readonly JsonObject[], imageScripts: readonly string[]): Set<string> => {
+  const names = new Set(imageScripts)
+  for (const name of names) {
+    for (const map of scripts) {
+      const command = map[name]
+
+      if (typeof command !== "string") continue
+      for (const match of command.matchAll(NPM_RUN)) {
+        if (match[1]) names.add(match[1])
+      }
+    }
+  }
+  return names
+}
+
+const isImageScript = (key: string, imageScripts: ReadonlySet<string>): boolean => {
   if (LIFECYCLE_KEYS.includes(key)) return true
-  return imageScripts.some((script) => key === script || key === `pre${script}` || key === `post${script}`)
+  return [...imageScripts].some((script) => key === script || key === `pre${script}` || key === `post${script}`)
 }
 
 const classifyPackageJson = (before: JsonObject | undefined, after: JsonObject | undefined, input: GateInput): Verdict => {
@@ -160,7 +189,8 @@ const classifyPackageJson = (before: JsonObject | undefined, after: JsonObject |
   const oldScripts = mapOf(before, "scripts")
   const newScripts = mapOf(after, "scripts")
   const changedKeys = [...new Set([...Object.keys(oldScripts), ...Object.keys(newScripts)])].filter((key) => oldScripts[key] !== newScripts[key])
-  const imageKey = changedKeys.find((key) => isImageScript(key, input.imageScripts))
+  const imageScripts = imageScriptNames([oldScripts, newScripts], input.imageScripts)
+  const imageKey = changedKeys.find((key) => isImageScript(key, imageScripts))
   return imageKey ? { reason: `scripts.${imageKey} runs during the image build` } : "scripts"
 }
 
@@ -174,7 +204,12 @@ const classifyLockfile = (input: GateInput, path: string, old: string): Verdict 
 
   if (Object.keys(before).length === 0 || Object.keys(after).length === 0) return { reason: "package-lock.json has no packages map at one side" }
   const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => !sameJson(before[key], after[key]))
-  const hit = input.liveTestPackages.find((name) => keys.some((key) => key === `node_modules/${name}` || key.endsWith(`/node_modules/${name}`)))
+  // An entry installed under another path (an alias or a link) carries the real package in its `name` field.
+  const entryName = (key: string): unknown => {
+    const entry = after[key] ?? before[key]
+    return isJsonObject(entry) ? entry.name : undefined
+  }
+  const hit = input.liveTestPackages.find((name) => keys.some((key) => key === `node_modules/${name}` || key.endsWith(`/node_modules/${name}`) || entryName(key) === name))
   return hit ? { reason: `${hit} is a live-test package` } : "dependency"
 }
 
@@ -192,11 +227,15 @@ const pairedLines = (input: GateInput, path: string, old: string): LinePair[] | 
   })
 }
 
+// A Dockerfile or workflow change that is not a paired digest or action bump may still be comment-only,
+// which the orchestrator judges from the hunk.
+const JUDGE_THE_HUNK = "judge the hunk, deploy when unsure"
+
 const classifyDockerfile = (input: GateInput, path: string, old: string): Verdict => {
   const pairs = pairedLines(input, path, old)
-  if (!pairs) return { reason: "lines added or removed, not paired" }
+  if (!pairs) return { reason: `lines added or removed, not paired; ${JUDGE_THE_HUNK}` }
   for (const { removed, added } of pairs) {
-    if (!FROM_LINE.test(removed) || !FROM_LINE.test(added)) return { reason: "a changed line is not a FROM line" }
+    if (!FROM_LINE.test(removed) || !FROM_LINE.test(added)) return { reason: `a changed line is not a FROM line; ${JUDGE_THE_HUNK}` }
     if (!DIGEST.test(removed) || !DIGEST.test(added)) return { reason: "a FROM line has no digest" }
     if (removed.replace(DIGEST, "") !== added.replace(DIGEST, "")) return { reason: "a FROM line changes more than its digest" }
   }
@@ -205,11 +244,11 @@ const classifyDockerfile = (input: GateInput, path: string, old: string): Verdic
 
 const classifyWorkflow = (input: GateInput, path: string, old: string): Verdict => {
   const pairs = pairedLines(input, path, old)
-  if (!pairs) return { reason: "lines added or removed, not paired" }
+  if (!pairs) return { reason: `lines added or removed, not paired; ${JUDGE_THE_HUNK}` }
   for (const { removed, added } of pairs) {
     const before = USES_LINE.exec(removed)
     const after = USES_LINE.exec(added)
-    if (!before || !after) return { reason: "a changed line is not a uses: line" }
+    if (!before || !after) return { reason: `a changed line is not a uses: line; ${JUDGE_THE_HUNK}` }
     if (before[1] !== after[1]) return { reason: `the action changes from ${before[1]} to ${after[1]}` }
     if (before[2] === after[2]) return { reason: "a uses: line changes outside its version" }
   }
@@ -256,7 +295,7 @@ const classifyFile = (input: GateInput, path: string, old: string): FileVerdict 
     if (name.startsWith("Dockerfile")) return classifyDockerfile(input, path, old)
     if (path.startsWith(".github/workflows/")) return classifyWorkflow(input, path, old)
     if (loader) return classifyCode(input, path, old, loader)
-    return { reason: "no deterministic class for this file type; judge the hunk, deploy when unsure" }
+    return { reason: `no deterministic class for this file type; ${JUDGE_THE_HUNK}` }
   }
   const verdict = decide()
   if (typeof verdict !== "string") return { path, exemptAs: undefined, reason: verdict.reason }
@@ -308,6 +347,8 @@ const main = (): void => {
   if (values.range !== "pr" && values.range !== "tested") throw new Error("--range must be pr or tested")
   // `--from` can come from a PR body; a leading dash would reach git as an option such as `--output=<file>`.
   if (values.from.startsWith("-") || values.to.startsWith("-")) throw new Error("--from and --to must name commits, not options")
+  // With no paths at all the answer would be a confident `no artifact change`, which a profile with a missing label must not get.
+  if (values.pathspec.length === 0 && values["audit-pathspec"].length === 0) throw new Error("at least one --pathspec or --audit-pathspec is required")
   const result = classify({
     repo: values.repo,
     from: values.from,

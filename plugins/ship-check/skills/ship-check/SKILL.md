@@ -42,7 +42,7 @@ Tool-definition review (conditional): ship-check:tool-definition-reviewer
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
 Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until stopped, merged or closed
 Verification (conditional, orchestrator) -> the project's live test, last in Phase 6 before the first merge-ready verdict,
-                                          only when CLAUDE.local.md has a verification profile and the PR changes artifact paths
+                                          only when CLAUDE.local.md has a verification profile and the PR changes artifact or audit paths
 ```
 
 ## Attribution
@@ -330,7 +330,7 @@ HEAD belong to no branch).
    `--only` list without `design-pass` turns it off.
    **The verification step is conditional too.** It runs only when the project's
    `CLAUDE.local.md` has a `## Verification profile` and the profile's gate script
-   finds an artifact change (see "Verification (conditional)"). NEVER skip it on your
+   finds an artifact change or a local change (see "Verification (conditional)"). NEVER skip it on your
    own reading of the change; only `--skip verification` or an `--only` list without
    `verification` turns it off.
 
@@ -1326,18 +1326,25 @@ any mode and the step in default mode.
    existed. Unreadable → `profile unreadable`; withhold the verdict.
 2. **Gate.** Run the profile's `Gate:` command, this skill's script:
    ```
-   bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> [--pathspec <each Artifact paths line>] [--audit-pathspec <each Audit paths line>] [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
+   bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --json --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> --pathspec <each Artifact paths line> --audit-pathspec <each Artifact paths line, then each Audit paths line> [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
    ```
-   `no artifact change` or `exempt (…)` ends the step with that word. A file reported
-   as "judge the hunk" may be recorded as `exempt (comment, judged)` only when every
-   changed line is plainly a comment; deploy when unsure. `local change` runs steps 3
+   When the runtime left `${CLAUDE_SKILL_DIR}` unreplaced (you see that literal text
+   above), use the skills folder this `SKILL.md` was read from, as the tool-definition
+   step's plan command says. The profile's `Audit paths:` line names paths beyond the
+   artifact paths; pass both lists, one `--audit-pathspec` per line. The JSON's `word`
+   is the outcome; each `files` entry carries its reason.
+   `no artifact change` or `exempt (…)` ends the step with that word. A file whose
+   reason says "judge the hunk" may be recorded as `exempt (comment, judged)` only when
+   every changed line is plainly a comment, and never when a shebang, a `# directive=`
+   line or a `#` inside a word changed; deploy when unsure. `local change` runs steps 3
    and 4, then step 7 in place of step 5.
    A non-zero exit withholds the verdict with the script's error.
 3. **Current?** Apply pr-monitor Step 5's verification check. Current →
    `current (<headRefOid>)`, done; otherwise `stale since <Head>` or untested.
 4. **Mode.** In `--report`, `--comment` and local modes, end here with the
-   classification; deploy, ask and write nothing. A fork PR (`isCrossRepository`) →
-   `needs the maintainer's live test`.
+   classification; deploy, ask and write nothing. Those modes have no Phase 6, so run
+   steps 1 to 3 after the tool-definition review, before the summary. A fork PR
+   (`isCrossRepository`) → `needs the maintainer's live test`.
 5. **Deploy and probe** (default mode). In a lane-conductor worker: report
    `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5d-5g, then
    `LANE <X> VERIFIED HEAD <sha>` or `LANE <X> VERIFY FAILED`; the lead owns the hold
@@ -1346,8 +1353,9 @@ any mode and the step in default mode.
      continue; otherwise the note's behind-main rule (a clean merge is pushed, and the
      step re-enters once CI, the bots and the delta review have run on the new head).
    - b. Confirm local HEAD equals `headRefOid`. Take Phase 4's stand-in table, or
-     dispatch `ship-check:test-auditor` with `Stand-in audit:` on the artifact delta
-     since Phase 4's reviewed SHA.
+     dispatch `ship-check:test-auditor` with `Stand-in audit:` and the Phase 4
+     template's `Audit paths:` lines, on the artifact delta since Phase 4's reviewed
+     SHA.
    - c. Reserve the instance per the note's reservation section (peers per the
      peer-messaging skill, the hold note to the user's mailbox, its waits).
    - d. Record the live image with the profile's `Confirm:` command and read the before
@@ -1369,7 +1377,8 @@ any mode and the step in default mode.
 6. **Report** the `Verification:` line (Reporting).
 7. **Local route** (`local change`): no deploy. Probe each `probe locally` row of the
    stand-in table in a subagent with throwaway local resources, write the evidence
-   section with `Image: none (local probes)`, and record a boundary that cannot be
+   section with `Image: none (local probes)` and each row's outcome in the note's
+   words (`probed locally`, `read from source`), and record a boundary that cannot be
    probed as `unverified: <why>`, a deferred finding that holds the verdict.
 
 ### Push the fixes
@@ -1475,7 +1484,7 @@ Ship check complete:
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
-- Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
+- Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
 - PR Monitor:   CI status, N bot comments resolved

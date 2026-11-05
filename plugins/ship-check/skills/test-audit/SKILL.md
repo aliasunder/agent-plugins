@@ -397,7 +397,8 @@ alone, skips the Fast exit and the other dimensions, and returns only the table.
    real elsewhere is not a finding; name that test.
 
 Report as a table: behaviour | layer | stand-in | boundary | check. The verification step
-runs the probes; this audit only names them.
+runs the probes and rewrites each row's check as its outcome (`probed live`,
+`probed locally`, `read from source` or `unverified: <why>`); this audit only names them.
 
 ## Mutation testing
 
