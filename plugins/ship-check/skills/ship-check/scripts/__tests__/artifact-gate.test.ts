@@ -146,6 +146,15 @@ describe("dependency class", () => {
     assert.equal(classify(input(repo, base, head)).outcome, "artifact change")
   })
 
+  it("exempts an added override and keeps one for a live-test package", () => {
+    const pinned = fixture({ "package.json": packageWith((p) => { Object.assign(p, { overrides: { minimatch: "11.0.4" } }) }) })
+    assert.equal(classify(input(pinned.repo, pinned.base, pinned.head)).word, "exempt (dependency)")
+    const live = fixture({ "package.json": packageWith((p) => { Object.assign(p, { overrides: { rrule: "2.9.0" } }) }) })
+    const result = classify(input(live.repo, live.base, live.head))
+    assert.equal(result.outcome, "artifact change")
+    assert.match(firstReason(result), /rrule is a live-test package/)
+  })
+
   it("keeps a bump that also edits scripts", () => {
     const { repo, base, head } = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "4.6.1"; p.scripts.lint = "biome" }) })
     assert.equal(classify(input(repo, base, head)).outcome, "artifact change")

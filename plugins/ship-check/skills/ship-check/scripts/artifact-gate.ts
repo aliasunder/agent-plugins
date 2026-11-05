@@ -113,17 +113,22 @@ const mapOf = (object: JsonObject, key: string): JsonObject => {
   return isJsonObject(value) ? value : {}
 }
 
-/** Returns why the dependency maps are not a plain version bump, or undefined when they are. */
+/**
+ * Returns why the dependency maps are not a plain version bump, or undefined when they are. An override pins a
+ * package the tree already holds, so an `overrides` entry added or removed with a version string is a bump too.
+ */
 const dependencyBumpProblem = (before: JsonObject, after: JsonObject, liveTestPackages: readonly string[]): string | undefined => {
   for (const mapName of DEPENDENCY_MAPS) {
     const oldMap = mapOf(before, mapName)
     const newMap = mapOf(after, mapName)
     const oldKeys = Object.keys(oldMap).toSorted()
     const newKeys = Object.keys(newMap).toSorted()
-    if (oldKeys.join("\n") !== newKeys.join("\n")) return `${mapName} adds or removes a package`
-    for (const name of oldKeys) {
+    if (mapName !== "overrides" && oldKeys.join("\n") !== newKeys.join("\n")) return `${mapName} adds or removes a package`
+    for (const name of new Set([...oldKeys, ...newKeys])) {
       if (oldMap[name] === newMap[name]) continue
-      if (typeof newMap[name] !== "string") return `${mapName}.${name} is not a version string`
+      const changed = name in newMap ? newMap[name] : oldMap[name]
+
+      if (typeof changed !== "string") return `${mapName}.${name} is not a version string`
       if (liveTestPackages.includes(name)) return `${name} is a live-test package`
     }
   }
