@@ -34,10 +34,12 @@ export class GitError extends Error {}
 
 const EXEMPT_CLASSES: readonly ExemptClass[] = ["dependency", "digest", "action", "comment", "scripts"]
 const DEPENDENCY_MAPS: readonly string[] = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies", "overrides"]
-// npm runs these on `npm ci`, so an edit to one changes the image build.
-const LIFECYCLE_KEYS: readonly string[] = ["prepare", "preinstall", "install", "postinstall"]
-// A changed line of a `-U0` diff body: one sign, not the `---`/`+++` file headers.
-const CHANGED_LINE = /^[+-](?![+-])/
+// npm runs these on `npm ci` (`dependencies` after it changes node_modules), so an edit to one changes the image build.
+const LIFECYCLE_KEYS: readonly string[] = ["preinstall", "install", "postinstall", "prepublish", "preprepare", "prepare", "postprepare", "dependencies"]
+// A changed line of a `-U0` diff body, read after the first hunk header so the `---`/`+++` file headers are skipped.
+const CHANGED_LINE = /^[+-]/
+// `npm:<package>@<range>` installs another package under the key's name: group 1 is that package.
+const NPM_ALIAS = /^npm:(@?[^@]+)/
 // `@sha256:<hex>` inside a FROM line.
 const DIGEST = /@sha256:[0-9a-f]+/
 // A Dockerfile FROM instruction.
@@ -68,7 +70,7 @@ const git = (repo: string, args: readonly string[]): string => {
 const changedFiles = (input: GateInput, pathspecs: readonly string[]): string[] => {
   if (pathspecs.length === 0) return []
   const range = input.range === "pr" ? [`${input.from}...${input.to}`] : [input.from, input.to]
-  const output = git(input.repo, ["diff", "--name-only", "--diff-filter=d", ...range, "--", ...pathspecs])
+  const output = git(input.repo, ["diff", "--name-only", ...range, "--", ...pathspecs])
   return output.split("\n").filter((line) => line.length > 0)
 }
 
@@ -113,6 +115,9 @@ const mapOf = (object: JsonObject, key: string): JsonObject => {
   return isJsonObject(value) ? value : {}
 }
 
+/** The package an `npm:` alias spec installs; undefined for any other spec. */
+const aliasTarget = (spec: unknown): string | undefined => (typeof spec === "string" ? NPM_ALIAS.exec(spec)?.[1] : undefined)
+
 /**
  * Returns why the dependency maps are not a plain version bump, or undefined when they are. An override pins a
  * package the tree already holds, so an `overrides` entry added or removed with a version string is a bump too.
@@ -131,6 +136,7 @@ const dependencyBumpProblem = (before: JsonObject, after: JsonObject, liveTestPa
 
       if (typeof changed !== "string") return `${mapName}.${name} is not a version string`
       if (liveTestPackages.includes(name)) return `${name} is a live-test package`
+      if (aliasTarget(oldMap[name]) !== aliasTarget(newMap[name])) return `${mapName}.${name} changes the package it installs`
     }
   }
   return undefined
@@ -158,17 +164,25 @@ const classifyPackageJson = (before: JsonObject | undefined, after: JsonObject |
   return imageKey ? { reason: `scripts.${imageKey} runs during the image build` } : "scripts"
 }
 
-/** The lockfile is exempt unless a live-test package's entry changed. */
+/**
+ * The lockfile is exempt unless a live-test package's entry changed. npm keys each installed copy
+ * `node_modules/<name>`, nested under its parent's path when it is not hoisted.
+ */
 const classifyLockfile = (input: GateInput, path: string, old: string): Verdict => {
-  if (input.liveTestPackages.length === 0) return "dependency"
-  const changedLines = git(input.repo, ["diff", "-U0", old, input.to, "--", path]).split("\n").filter((line) => CHANGED_LINE.test(line))
-  const hit = input.liveTestPackages.find((name) => changedLines.some((line) => line.includes(`node_modules/${name}"`) || line.includes(`"${name}"`)))
+  const before = mapOf(parseJson(fileAt(input.repo, old, path)) ?? {}, "packages")
+  const after = mapOf(parseJson(fileAt(input.repo, input.to, path)) ?? {}, "packages")
+
+  if (Object.keys(before).length === 0 || Object.keys(after).length === 0) return { reason: "package-lock.json has no packages map at one side" }
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => !sameJson(before[key], after[key]))
+  const hit = input.liveTestPackages.find((name) => keys.some((key) => key === `node_modules/${name}` || key.endsWith(`/node_modules/${name}`)))
   return hit ? { reason: `${hit} is a live-test package` } : "dependency"
 }
 
 /** Removed and added lines of a `-U0` diff, paired in order; undefined when their counts differ or nothing changed. */
 const pairedLines = (input: GateInput, path: string, old: string): LinePair[] | undefined => {
-  const body = git(input.repo, ["diff", "-U0", old, input.to, "--", path]).split("\n").filter((line) => CHANGED_LINE.test(line))
+  const lines = git(input.repo, ["diff", "-U0", old, input.to, "--", path]).split("\n")
+  const firstHunk = lines.findIndex((line) => line.startsWith("@@"))
+  const body = firstHunk === -1 ? [] : lines.slice(firstHunk).filter((line) => CHANGED_LINE.test(line))
   const removed = body.filter((line) => line.startsWith("-")).map((line) => line.slice(1))
   const added = body.filter((line) => line.startsWith("+")).map((line) => line.slice(1))
   if (removed.length !== added.length || removed.length === 0) return undefined
@@ -292,6 +306,8 @@ const main = (): void => {
   })
   if (!values.repo || !values.from || !values.to) throw new Error("--repo, --from and --to are required")
   if (values.range !== "pr" && values.range !== "tested") throw new Error("--range must be pr or tested")
+  // `--from` can come from a PR body; a leading dash would reach git as an option such as `--output=<file>`.
+  if (values.from.startsWith("-") || values.to.startsWith("-")) throw new Error("--from and --to must name commits, not options")
   const result = classify({
     repo: values.repo,
     from: values.from,

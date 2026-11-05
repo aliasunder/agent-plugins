@@ -1330,7 +1330,8 @@ any mode and the step in default mode.
    ```
    `no artifact change` or `exempt (…)` ends the step with that word. A file reported
    as "judge the hunk" may be recorded as `exempt (comment, judged)` only when every
-   changed line is plainly a comment; deploy when unsure. `local change` takes step 7.
+   changed line is plainly a comment; deploy when unsure. `local change` runs steps 3
+   and 4, then step 7 in place of step 5.
    A non-zero exit withholds the verdict with the script's error.
 3. **Current?** Apply pr-monitor Step 5's verification check. Current →
    `current (<headRefOid>)`, done; otherwise `stale since <Head>` or untested.

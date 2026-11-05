@@ -43,6 +43,11 @@ tool-list file (a server's `tools/list` saved as JSON):
 
 Dispatch it yourself for a server that commits no tool list (see Usage).
 
+The `ship-check` skill's verification step runs the project's live test last in
+Phase 6, before the first merge-ready verdict. It runs only when the project's `CLAUDE.local.md` has a
+`## Verification profile` and the PR changes a file under the profile's artifact
+paths that no exemption class covers. `--skip verification` turns it off.
+
 ## External Dependencies
 
 Each agent preloads skills via `skills:` frontmatter. The `pr-review`,
@@ -57,6 +62,10 @@ The `tool-definition-review` skill bundles one script, `scripts/surface-diff.ts`
 It has no dependencies and runs with [Bun](https://bun.sh). Without Bun the agent
 reports the review as `failed`, and in the pipeline the tool-definition step fails
 and holds the merge-ready verdict until you accept the missing review.
+
+The `ship-check` skill bundles `scripts/artifact-gate.ts`, which decides whether a
+PR's changes need the verification step. It also runs with Bun. Without Bun the
+step cannot classify the change and holds the merge-ready verdict.
 
 The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:

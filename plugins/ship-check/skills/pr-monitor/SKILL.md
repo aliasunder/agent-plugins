@@ -718,7 +718,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   the profile's `Gate:` script reports `artifact change` or `local change` for the
   PR's range, all of these hold:
   - the PR body carries the profile's `Evidence:` section, its first line
-    `Head: <full SHA>`;
+    `Head: <full SHA>`. The PR's author can edit the body, so the SHA must be 40 hex
+    characters and the run id below digits only; any other value is missing evidence
+    and goes into no command;
   - its "On the instance" text names a test-deploy run id, the image revision and
     the digest (the local route writes `Image: none (local probes)` instead), and
     `gh run view <id>` shows the profile's test-deploy workflow at that head with

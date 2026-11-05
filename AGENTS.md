@@ -32,6 +32,7 @@ plugins/
       tool-definition-reviewer.md  # After Phase 5 when a tool list changed, or on demand — report only
     skills/                   # Skills (SKILL.md in subdirectories)
       ship-check/             # Pipeline orchestrator
+        scripts/              # artifact-gate.ts (the verification step's change classifier) and its __tests__/
       pr-review/              # Phase 1 — correctness, security, conditional checks
       fresh-eyes/             # Phase 2 — readability pauses a newcomer hits (report only)
       code-quality/           # Phase 3 — naming, structure, conventions (resolves Phase 2 pauses); dimension 8 is the design pass

@@ -34,15 +34,19 @@ const PACKAGE_JSON = {
   overrides: { "@scope/transformers": { sharp: "0.35.5" } },
 }
 
-const LOCKFILE = [
-  "{",
-  '  "packages": {',
-  '    "node_modules/hono": { "version": "4.6.0" },',
-  '    "node_modules/obsidian-headless": { "version": "1.0.0" }',
-  "  }",
-  "}",
-  "",
-].join("\n")
+// npm's own layout: an entry's key line stays unchanged when only its version changes.
+const LOCKFILE = `${JSON.stringify(
+  {
+    lockfileVersion: 3,
+    packages: {
+      "": { dependencies: { hono: "4.6.0" } },
+      "node_modules/hono": { version: "4.6.0" },
+      "node_modules/obsidian-headless": { version: "1.0.0" },
+    },
+  },
+  null,
+  2,
+)}\n`
 
 const DOCKERFILE = [
   "# syntax=docker/dockerfile:1",
@@ -92,14 +96,15 @@ const commitAll = (repo: string, message: string): string => {
   return gitIn(repo, "rev-parse", "HEAD")
 }
 
-/** A fixture repo with `BASE_FILES` committed, then `changes` committed on top; returns both commits. */
-const fixture = (changes: Files): { repo: string; base: string; head: string } => {
+/** A fixture repo with `BASE_FILES` committed, then `changes` and `deletions` committed on top; returns both commits. */
+const fixture = (changes: Files, deletions: readonly string[] = []): { repo: string; base: string; head: string } => {
   const repo = mkdtempSync(join(tmpdir(), "probe-artifact-gate-"))
   temporaryRoots.push(repo)
   gitIn(repo, "init", "-q", "-b", "main")
   writeFiles(repo, BASE_FILES)
   const base = commitAll(repo, "base")
   writeFiles(repo, changes)
+  for (const path of deletions) rmSync(join(repo, path))
   const head = commitAll(repo, "change")
   return { repo, base, head }
 }
@@ -148,6 +153,11 @@ describe("dependency class", () => {
     assert.equal(classify(input(repo, base, head)).outcome, "artifact change")
   })
 
+  it("keeps a version string that swaps the package through an npm alias", () => {
+    const { repo, base, head } = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "npm:other@4.6.0" }) })
+    assert.match(firstReason(classify(input(repo, base, head))), /dependencies\.hono changes the package it installs/)
+  })
+
   it("exempts an added override and keeps one for a live-test package", () => {
     const pinned = fixture({ "package.json": packageWith((p) => { Object.assign(p.overrides, { minimatch: "11.0.4" }) }) })
     assert.equal(classify(input(pinned.repo, pinned.base, pinned.head)).word, "exempt (dependency)")
@@ -163,10 +173,15 @@ describe("dependency class", () => {
   })
 
   it("exempts a lockfile-only change and keeps one that touches a live-test package", () => {
-    const only = fixture({ "package-lock.json": LOCKFILE.replace("4.6.0", "4.6.1") })
+    const only = fixture({ "package-lock.json": LOCKFILE.replace('"version": "4.6.0"', '"version": "4.6.1"') })
     assert.equal(classify(input(only.repo, only.base, only.head)).word, "exempt (dependency)")
     const live = fixture({ "package-lock.json": LOCKFILE.replace('"version": "1.0.0"', '"version": "1.1.0"') })
-    assert.equal(classify(input(live.repo, live.base, live.head)).outcome, "artifact change")
+    assert.match(firstReason(classify(input(live.repo, live.base, live.head))), /obsidian-headless is a live-test package/)
+  })
+
+  it("keeps a deleted lockfile", () => {
+    const { repo, base, head } = fixture({}, ["package-lock.json"])
+    assert.equal(classify(input(repo, base, head, { liveTestPackages: [] })).outcome, "artifact change")
   })
 })
 
@@ -181,6 +196,11 @@ describe("scripts class", () => {
     assert.match(firstReason(classify(input(prepare.repo, prepare.base, prepare.head))), /scripts\.prepare runs during the image build/)
     const post = fixture({ "package.json": packageWith((p) => { Object.assign(p.scripts, { "postbuild:server": "node patch.js" }) }) })
     assert.equal(classify(input(post.repo, post.base, post.head)).outcome, "artifact change")
+  })
+
+  it("keeps postprepare, which npm ci runs after prepare", () => {
+    const { repo, base, head } = fixture({ "package.json": packageWith((p) => { Object.assign(p.scripts, { postprepare: "node patch.js" }) }) })
+    assert.match(firstReason(classify(input(repo, base, head))), /scripts\.postprepare runs during the image build/)
   })
 })
 
@@ -235,6 +255,11 @@ describe("paths and ranges", () => {
     assert.equal(classify(input(repo, base, head)).word, "local change (1 files)")
   })
 
+  it("keeps a deleted artifact file", () => {
+    const { repo, base, head } = fixture({}, ["rootfs/etc/run"])
+    assert.equal(classify(input(repo, base, head)).word, "artifact change (1 files: rootfs/etc/run)")
+  })
+
   it("keeps a file with no class, such as .nvmrc", () => {
     const { repo, base, head } = fixture({ ".nvmrc": "25\n" })
     assert.equal(classify(input(repo, base, head)).outcome, "artifact change")
@@ -270,5 +295,12 @@ describe("command line", () => {
     const bad = spawnSync("bun", [SCRIPT_PATH, "--repo", repo, "--from", base, "--to", "nope", "--pathspec", "src/"], { encoding: "utf8" })
     assert.equal(bad.status, 2)
     assert.match(bad.stderr, /git diff/)
+  })
+
+  it("refuses a commit that git would read as an option", () => {
+    const { repo, head } = fixture({ ".nvmrc": "25\n" })
+    const result = spawnSync("bun", [SCRIPT_PATH, "--repo", repo, "--from=--output=/dev/null", "--to", head, "--pathspec", "src/"], { encoding: "utf8" })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /must name commits, not options/)
   })
 })
