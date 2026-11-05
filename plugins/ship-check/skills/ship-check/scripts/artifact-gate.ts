@@ -125,7 +125,8 @@ const dependencyBumpProblem = (before: JsonObject, after: JsonObject, liveTestPa
     const newKeys = Object.keys(newMap).toSorted()
     if (mapName !== "overrides" && oldKeys.join("\n") !== newKeys.join("\n")) return `${mapName} adds or removes a package`
     for (const name of new Set([...oldKeys, ...newKeys])) {
-      if (oldMap[name] === newMap[name]) continue
+      // A nested override (an object) that did not change compares by value, not by reference.
+      if (sameJson(oldMap[name], newMap[name])) continue
       const changed = name in newMap ? newMap[name] : oldMap[name]
 
       if (typeof changed !== "string") return `${mapName}.${name} is not a version string`

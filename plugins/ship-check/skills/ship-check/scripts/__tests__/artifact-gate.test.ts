@@ -30,6 +30,8 @@ const PACKAGE_JSON = {
   scripts: { "build:server": "tsc", lint: "eslint .", prepare: "husky" },
   dependencies: { hono: "4.6.0", rrule: "2.8.1" },
   devDependencies: { vitest: "2.1.0" },
+  // A nested override, as npm allows, so an unchanged object beside a bump must compare by value.
+  overrides: { "@scope/transformers": { sharp: "0.35.5" } },
 }
 
 const LOCKFILE = [
@@ -147,9 +149,9 @@ describe("dependency class", () => {
   })
 
   it("exempts an added override and keeps one for a live-test package", () => {
-    const pinned = fixture({ "package.json": packageWith((p) => { Object.assign(p, { overrides: { minimatch: "11.0.4" } }) }) })
+    const pinned = fixture({ "package.json": packageWith((p) => { Object.assign(p.overrides, { minimatch: "11.0.4" }) }) })
     assert.equal(classify(input(pinned.repo, pinned.base, pinned.head)).word, "exempt (dependency)")
-    const live = fixture({ "package.json": packageWith((p) => { Object.assign(p, { overrides: { rrule: "2.9.0" } }) }) })
+    const live = fixture({ "package.json": packageWith((p) => { Object.assign(p.overrides, { rrule: "2.9.0" }) }) })
     const result = classify(input(live.repo, live.base, live.head))
     assert.equal(result.outcome, "artifact change")
     assert.match(firstReason(result), /rrule is a live-test package/)
