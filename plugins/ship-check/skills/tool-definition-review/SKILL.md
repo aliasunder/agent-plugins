@@ -420,6 +420,19 @@ works inside belongs in the repository's own docs.
     writes, which code path takes a case, what it indexes or caches) fails,
     however accurate, unless one of the three questions names something the
     caller sends, does, or assumes differently because of it.
+  - Three shapes fail on sight. Name the shape in the defect:
+    - **absence**: a statement that a limit, cap or restriction does not
+      exist ("no upper cap"). A limit is named only where one applies, and
+      the caller assumes none where none is named;
+    - **implied consequence**: a clause that spells out what the stated fact
+      already says ("in the server's timezone, which can differ from the
+      user's": the first clause already means the day may not be the
+      caller's; "results can lag a few seconds, so a note written moments
+      ago may not appear");
+    - **mechanism**: an explanation of how or why the server behaves as it
+      does, which the caller cannot change ("until the index catches up",
+      "applies after sorting, so you get"). Propose the outcome form
+      ("limit keeps the most recent notes").
   - A sentence that adds detail to an outcome the definition already states (in
     a `Returns:` line or another sentence) passes only when the detail changes a
     caller action by itself.
@@ -458,8 +471,10 @@ Write the count in the tool's entry (`Caller use: 6 sentences added or reworded 
 Example: a change adds two sentences to a folder-listing tool.
 
 - "A listing can be up to 30 seconds old, so a file created in the last 30
-  seconds may be missing." Passes question 2: the caller now knows to wait, or
-  to read the new file by its path.
+  seconds may be missing." The first claim passes question 2: the caller now
+  knows to wait, or to read the new file by its path. The "so" clause is an
+  implied consequence of it and fails. Proposed: "A listing can be up to 30
+  seconds old."
 - "The server keeps each listing in an LRU map keyed by the folder's inode, and
   evicts an entry when the watcher reports a rename." Passes none: the caller
   sends, does, and assumes nothing different. Proposed: move it to the

@@ -61,7 +61,9 @@ from before a change. You report what you find and you fix nothing.
   `Review only:` list of at most four names, and usually no base surface. You
   judge every sentence of each named tool's description and schema descriptions
   with the skill's caller-use check, claim by claim, and report each failing
-  claim with the sentence rewritten without it. A sweep of more than four
+  claim with the sentence rewritten without it. The three shapes that check
+  names (absence, implied consequence, mechanism) fail on sight, and the
+  report names the shape. A sweep of more than four
   tools is cut short by the API's safeguards, so the skill's four-tool cap
   applies.
 
