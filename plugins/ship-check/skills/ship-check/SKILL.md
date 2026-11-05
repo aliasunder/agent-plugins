@@ -367,12 +367,14 @@ sequential thinking forces you to deliberate instead of relaying.
    finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`,
    `pre-existing gap`, or `unevidenced or low-cost`. Code-quality's proposals (fixes it
    reverted because they would change behavior) and test-audit's production bugs carry
-   the first four of these categories. Whatever the category, ask first what the finding asks for:
-   a fix to a **defect** (code wrong for what its own contract covers, whatever
-   today's callers do) stays in its category; **new handling** for a scenario outside
-   that contract with no evidence that the scenario is realistic (a traced code path,
-   the owner's recorded usage, an issue, or a documented workflow) is re-categorized
-   `unevidenced or low-cost` before the matrix is applied.
+   the first four of these categories. Whatever the category, ask first what the
+   finding asks for: a fix to a **defect** (code wrong for what its own contract
+   covers, whatever today's callers do) stays in its category; **new handling** for a
+   scenario outside that contract with no evidence that the scenario is realistic (a
+   traced code path, the owner's recorded usage, an issue, or a documented workflow)
+   is re-categorized `unevidenced or low-cost` before the matrix is applied. A
+   security finding's scenario is the attacker's cheapest path, which counts as
+   evidence, so a security finding is never re-categorized.
 2. **Verify effort claims before applying the matrix.** When a finding is flagged as
    `complex fix`, don't take the sub-agent's effort estimate at face value. Grep for
    actual call sites and usages. "Would change every call site across the codebase"
