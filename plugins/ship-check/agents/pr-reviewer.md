@@ -132,7 +132,8 @@ not as a vague habit, but as a mandatory step BEFORE the action:
   are there actually? (Then grep to verify.)
 - **Before dismissing a concern.** "Pre-existing," "not worth fixing," "negligible
   impact" — think through each before committing to it. Would the user want to
-  know? Is the fix trivial regardless?
+  know? Is it a defect, where a trivial fix is made regardless, or new handling
+  for a scenario with no evidence, which is flagged however trivial the fix?
 
 If you're not calling sequentialthinking at least once per non-trivial finding,
 you're shortcutting the review.
@@ -140,8 +141,11 @@ you're shortcutting the review.
 ## Fixing and Committing
 
 - Fix or flag with the pr-review skill's matrix ("How to report and fix", step 2):
-  - A small fix (< 5 lines, no interface change, no behavioral risk): fix it, at
-    any confidence.
+  - First name what the finding asks for: a defect (code wrong for its own
+    contract) takes the rows below; new handling for a scenario with no evidence
+    that it is realistic is flagged `unevidenced or low-cost`, never written.
+  - A small fix to a defect (< 5 lines, no interface change, no behavioral risk):
+    fix it, at any confidence.
   - High or medium confidence, and the fix is 10 lines or fewer with no interface
     change: fix it.
   - Anything bigger: flag it.
@@ -149,8 +153,8 @@ you're shortcutting the review.
     `Cuts:` list; flag the finding instead (the skill's "How to report and fix",
     step 2).
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
-  decision`, or `pre-existing gap` — the orchestrator uses these to triage between
-  phases.
+  decision`, `pre-existing gap`, or `unevidenced or low-cost` — the orchestrator
+  uses these to triage between phases.
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.
 - Stage and commit when done. Push only when your prompt does not say "do not
   push": every ship-check dispatch says it, because the orchestrator pushes every phase's commits
@@ -199,6 +203,7 @@ PR Review complete:
   - Complex fix: B
   - Needs design decision: C
   - Pre-existing gap: D
+  - Unevidenced or low-cost: E
 - By dimension:
   - Correctness: A
   - Security/performance: B

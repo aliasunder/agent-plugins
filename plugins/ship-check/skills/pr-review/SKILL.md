@@ -237,9 +237,23 @@ comment mode.
 2. **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
    **Call `sequentialthinking` before each disposition decision** — input the finding,
    confidence level, and fix complexity; output which matrix cell it falls in and why:
-   - **Small fix** (< 5 lines, no interface change, no behavioral risk) → fix it,
-     at any confidence. A safe no-op change costs nothing; a real bug left unfixed
-     does. "Low-risk" is a reason TO fix, not a reason to defer.
+   - **First, name what the finding asks for.** A **defect** is code wrong for what
+     its own contract covers (the signature and accepted inputs, every documented
+     promise, and the failure behavior of the operations it performs), whatever
+     today's callers do; it goes through the axes below. **New handling** is code, a
+     test or a doc paragraph for a scenario outside that contract (an action the
+     docs don't support, such as running an older image, or an unlikely chain of
+     events). New handling needs evidence that the scenario is realistic: a traced
+     code path, the owner's recorded usage, an issue, or a documented workflow.
+     Without that evidence, flag it `unevidenced or low-cost` however small the fix,
+     and never write the handling; say in the flag whether the cost when hit is
+     small or noticeable (lost data, silently wrong results, a blocked workflow).
+     A security finding's scenario is the attacker's cheapest path, which counts as
+     evidence. An evidence-based flag is not an environment-specific dismissal: the
+     finding is still reported, and `triage-finding` decides it.
+   - **Small fix to a defect** (< 5 lines, no interface change, no behavioral risk)
+     → fix it, at any confidence. A safe no-op change costs nothing; a real bug
+     left unfixed does. "Low-risk" is a reason TO fix, not a reason to defer.
    - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
      → fix it.
    - **Anything bigger** → flag with a category (step 3).
@@ -255,6 +269,9 @@ comment mode.
      deferring and a 30-second fix.
    - `needs design decision` — multiple valid approaches, user must choose
    - `pre-existing gap` — issue predates the PR but was revealed by it
+   - `unevidenced or low-cost` — new handling for a scenario with no evidence that
+     it is realistic (step 2's first bullet); note whether its cost when hit is small
+     or noticeable. Never an edit, whatever the fix size.
 4. **Run tests** after all fixes to confirm no behavior change.
 5. **Summarize**: count by dimension, test status, verdict
    (ship / ship-with-minor-fixes / needs-changes).
@@ -287,7 +304,7 @@ comments.
 3. **Categorize each finding** the same way as default mode: a finding default mode
    would fix ("How to report and fix", step 2) becomes `would fix`, and flagged
    findings keep their category (`uncertain diagnosis`, `complex fix`,
-   `needs design decision`, `pre-existing gap`).
+   `needs design decision`, `pre-existing gap`, `unevidenced or low-cost`).
 4. **Post a single PR review** with all findings as inline comments. Use this template:
 
 ```bash

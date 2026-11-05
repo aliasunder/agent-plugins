@@ -242,7 +242,26 @@ For each unresolved bot thread, do ALL of these in order:
 1. **Evaluate**: valid finding or false positive? Check against AGENTS.md conventions.
 
    **There are only two outcomes: valid or false positive.** Do NOT invent a third
-   category. In particular:
+   category. A valid finding still has to say what it asks for before item 3 fixes it:
+   - **New handling with no realistic scenario is a finding this PR won't fix.** A
+     **defect** is code wrong for what its own contract covers (its signature, every
+     documented promise, the failure behavior of the operations it performs),
+     whatever today's callers do; items 3 and 4 fix it. **New handling** is code, a
+     test or a doc paragraph for a scenario outside that contract (an action the
+     docs don't support, an unlikely chain of events). When nothing shows the
+     scenario is realistic (a traced code path, the owner's recorded usage, an
+     issue, a documented workflow), or it is realistic but costs little when hit,
+     the finding goes to `triage-finding` with the others this PR won't fix; without
+     that skill, ask the user, stating the scenario, its cost and what evidence
+     was searched. Never write the handling, however small. A security finding's
+     scenario is the attacker's cheapest path, which counts as evidence.
+   - **After the review cap, small fixes with no user-visible impact stop.** This
+     skill carries a default cap on bot review rounds per PR (see "The review
+     cap", below item 4). From the round after the cap, a valid finding whose fix
+     changes nothing a user can see (wording, a comment, a name, a formatting
+     choice) is reported with the round count, not fixed; behavior defects are
+     still fixed.
+   In particular:
    - **"False positive" means the finding is factually wrong** — the code pattern it
      describes does not actually exist, or the behavior it warns about cannot happen.
      "The code was already like this" is NOT a false positive — it's a valid finding on
@@ -279,10 +298,11 @@ For each unresolved bot thread, do ALL of these in order:
    Thread 3 (truncated sentence): False positive — line 621 is complete
    ```
 
-3. If valid: **make the code fix**. If the lift is unclear, assess it first (how many
-   lines? does it need tests? does it change an interface?) and state it in the one-liner.
-   Fix anything that's reasonable effort; only escalate to the user when the fix is
-   genuinely high lift, through `triage-finding` when it is available.
+3. If valid, a defect or evidenced handling, and inside the cap: **make the code fix**.
+   If the lift is unclear, assess it first (how many lines? does it need tests? does it
+   change an interface?) and state it in the one-liner. Fix anything that's reasonable
+   effort; only escalate to the user when the fix is genuinely high lift, through
+   `triage-finding` when it is available.
 
 4. **Sweep the class repo-wide, before you commit.** A bot flags instances; the next
    pass flags the sibling you left, and the point-fix loop is how a PR ends up with
@@ -320,6 +340,16 @@ For each unresolved bot thread, do ALL of these in order:
    A class-wide fix converges the review; a point fix buys another full bot cycle for
    each sibling. The sweep never reopens or fixes a finding `triage-finding` logged, or
    one the user deferred or dismissed.
+
+   **The review cap.** Count a PR's bot review rounds (one bot review submission, or
+   one batch of bot comments, is a round). The default cap is **4** rounds,
+   measured on 2026-11-05 from the last behavior-changing round across 11 recent
+   vault-cortex PRs (median 3, plus one; a test that changes what is asserted
+   counts as behavior). Every merge-ready note states the
+   round count and the cap in force. Override the default on a PR when you give the
+   reason in that note: raise it while a round still finds behavior defects; lower it
+   when the late rounds are all wording. From the round after the cap, item 1's
+   second bullet applies: no-impact small fixes are reported, not made.
 
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 

@@ -364,9 +364,15 @@ Use **sequential thinking** to evaluate each flagged finding. This is not option
 sequential thinking forces you to deliberate instead of relaying.
 
 1. **Read the flag category** from the phase output. Sub-agents categorize each flagged
-   finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`, or
-   `pre-existing gap`. Code-quality's proposals (fixes it reverted because they would
-   change behavior) and test-audit's production bugs carry these categories too.
+   finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`,
+   `pre-existing gap`, or `unevidenced or low-cost`. Code-quality's proposals (fixes it
+   reverted because they would change behavior) and test-audit's production bugs carry
+   these categories too. Whatever the category, ask first what the finding asks for:
+   a fix to a **defect** (code wrong for what its own contract covers, whatever
+   today's callers do) stays in its category; **new handling** for a scenario outside
+   that contract with no evidence that the scenario is realistic (a traced code path,
+   the owner's recorded usage, an issue, or a documented workflow) is re-categorized
+   `unevidenced or low-cost` before the matrix is applied.
 2. **Verify effort claims before applying the matrix.** When a finding is flagged as
    `complex fix`, don't take the sub-agent's effort estimate at face value. Grep for
    actual call sites and usages. "Would change every call site across the codebase"
@@ -382,6 +388,7 @@ sequential thinking forces you to deliberate instead of relaying.
    | Complex fix | More than 10 lines, or an interface change | Defer to user |
    | Pre-existing gap | Trivial (< 5 lines, no interface change, no behavioral risk) and mechanical | Fix — the PR revealed the gap |
    | Pre-existing gap | Non-trivial or scope question | Present to user — they decide scope |
+   | Unevidenced or low-cost | Any size | Defer to user — never an edit; `triage-finding` logs a cheap scenario with evidence and asks about a costly one |
    | Any | Needs design decision | Always defer to user |
 
 4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. A
@@ -470,13 +477,18 @@ sequential thinking forces you to deliberate instead of relaying.
 
 ### Key principle: risk vs. confidence
 
-"Low-risk" (the fix is safe to apply) is a reason TO fix, not to defer. "Low-confidence"
-(uncertain whether the issue exists) calls for caution — but when the fix is trivial and
-safe, apply it anyway. The cost of a no-op 3-line fix is near zero; the cost of leaving
-a real bug is not.
+For a defect, "low-risk" (the fix is safe to apply) is a reason TO fix, not to defer.
+"Low-confidence" (uncertain whether the issue exists) calls for caution — but when the
+fix is trivial and safe, apply it anyway. The cost of a no-op 3-line fix is near zero;
+the cost of leaving a real bug is not.
 
-Only defer when the **fix itself** is uncertain, risky, too large for the triage
-matrix's fix rows (step 3), or requires a design decision.
+Low risk is not low cost for new handling. Code, a test or a doc paragraph for a
+scenario nobody has traced or reached adds something someone maintains, and the docs
+then describe an issue nobody has hit. That is why `unevidenced or low-cost` is never
+an edit here, however small the fix: `triage-finding` logs it with evidence or asks.
+
+For a defect, defer only when the **fix itself** is uncertain, risky, too large for the
+triage matrix's fix rows (step 3), or requires a design decision.
 
 ### Effort assessment is not optional
 
@@ -501,9 +513,12 @@ Don't use one deployment's specs to dismiss resource, performance, or scaling co
 valid dismissal for an OSS project where users may have 10x the data on half the RAM.
 Evaluate against
 the worst reasonable use case for the project's audience — not the maintainer's current
-setup. And if the fix is trivial, fix it regardless of the impact assessment, unless
-it restores a piece on the session's cut list ("Design pass", step 6): leave that
-fix unapplied and handle the finding as that step says.
+setup. And if the fix to a defect is trivial, fix it regardless of the impact
+assessment, unless it restores a piece on the session's cut list ("Design pass",
+step 6): leave that fix unapplied and handle the finding as that step says. New
+handling for a scenario with no evidence that it is realistic is the opposite case
+(inter-phase triage, step 1): routing it to `triage-finding` reports the finding and
+is not an environment-specific dismissal.
 
 ## Pre-merge delta review
 
@@ -693,7 +708,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "PR review — <resolved model> / <resolved phase effort>",
-  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. Fix every finding whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence finding whose fix is 10 lines or fewer with no interface change. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
+  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
 })
 ```
 
@@ -798,7 +813,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Bug check — <resolved model> / <resolved phase effort>",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). Fix every bug whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence bug whose fix is 10 lines or fewer with no interface change. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 
@@ -1371,10 +1386,10 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
-- Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
+- Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap, D unevidenced or low-cost), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
-- Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps)
+- Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
 - PR Monitor:   CI status, N bot comments resolved
 - Deferred:     <list each with flag category, or "none">

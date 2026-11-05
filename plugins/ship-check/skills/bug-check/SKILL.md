@@ -432,8 +432,12 @@ caches for, or a fallback that picks the destructive branch is a finding whether
 or not the current deployment can reach it. Report it, categorize the reach as
 context, and let the orchestrator decide scope.
 
-And regardless of impact assessment: if the fix is trivial, fix it. A one-line
-null-out after data is consumed costs nothing and eliminates the concern entirely.
+And regardless of impact assessment: if the fix to a defect is trivial, fix it. A
+one-line null-out after data is consumed costs nothing and eliminates the concern
+entirely. New handling for a scenario with no evidence that it is realistic is the
+opposite case: it is flagged `unevidenced or low-cost`, not written, however trivial
+(the Procedure's first fix-or-flag bullet). That flag reports the finding; it is not
+an environment-specific dismissal.
 The one exception: when the dispatch carries a `Cuts:` list (one line per piece:
 the file, what was removed and the user's reason), the user has already decided to
 remove each listed piece. Never put one back, however trivial the fix; report the
@@ -482,11 +486,26 @@ yours. Convention violations in your fixes ship unchecked.
    **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
    **Call `sequentialthinking` before each disposition decision** — input the finding,
    confidence level, and fix complexity; output which matrix cell it falls in and why:
-   - **Small fix** (< 5 lines, no interface change, no behavioral risk) → fix it,
-     at any confidence. The cost of a safe no-op is near zero; the cost of missing
-     a real bug is not. "Low-risk" is a reason TO fix, not a reason to defer.
-     The one exception, here and in the next bullet: never make a fix that puts
-     back a piece on the dispatch's `Cuts:` list (see "No environment-specific
+   - **First, name what the finding asks for.** A **defect** is code wrong for what
+     its own contract covers (the signature and accepted inputs, every documented
+     promise, and the failure behavior of the operations it performs: I/O errors,
+     a half-done write, resource limits at the audience's worst reasonable input),
+     whatever today's callers do; it goes through the axes below. **New handling**
+     is code, a test or a doc paragraph for a scenario outside that contract (an
+     action the docs don't support, such as running an older image, or an unlikely
+     chain of events). New handling needs evidence that the scenario is realistic:
+     a traced code path, the owner's recorded usage, an issue, or a documented
+     workflow. Without that evidence, flag it `unevidenced or low-cost` however
+     small the fix, and never write the handling; say in the flag whether the cost
+     when hit is small or noticeable (lost data, silently wrong results, a blocked
+     workflow). A security finding's scenario is the attacker's cheapest path,
+     which counts as evidence. An evidence-based flag is not an environment-specific
+     dismissal: the finding is still reported, and `triage-finding` decides it.
+   - **Small fix to a defect** (< 5 lines, no interface change, no behavioral risk)
+     → fix it, at any confidence. The cost of a safe no-op is near zero; the cost
+     of missing a real bug is not. "Low-risk" is a reason TO fix, not a reason to
+     defer. The one exception, here and in the next bullet: never make a fix that
+     puts back a piece on the dispatch's `Cuts:` list (see "No environment-specific
      dismissals").
    - **High/medium confidence + a fix of 10 lines or fewer, no interface change**
      → fix it.
@@ -496,6 +515,9 @@ yours. Convention violations in your fixes ship unchecked.
      - `uncertain diagnosis` — low confidence, and the fix is not small.
      - `needs design decision` — more than one valid approach; the user chooses.
      - `pre-existing gap` — the issue predates the change but the change revealed it.
+     - `unevidenced or low-cost` — new handling for a scenario with no evidence that
+       it is realistic (the first bullet above); note whether its cost when hit is
+       small or noticeable. Never an edit, whatever the fix size.
    The orchestrator uses these categories to triage.
 4. Stage and commit all fixes. Push only in a standalone run. In a ship-check run
    (the dispatch says "do not push", or you run inline in the orchestrator's

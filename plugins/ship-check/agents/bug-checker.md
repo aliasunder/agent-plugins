@@ -129,8 +129,10 @@ not as a vague habit, but as a mandatory step BEFORE the action:
   bug-check skill's confidence × fix-complexity matrix (its Procedure, step 3)
   this falls in, and why.
 - **Before skipping or dismissing.** Any finding you're considering omitting from
-  your output — "pre-existing," "negligible," "out of scope." Think through: is the
-  fix trivial? Does the user need to know? Would you want to see this in a report?
+  your output — "pre-existing," "negligible," "out of scope." Think through: is it
+  a defect with a trivial fix, or new handling for a scenario with no evidence
+  (flagged, never omitted)? Does the user need to know? Would you want to see this
+  in a report?
 - **Before effort claims.** Any time you're about to say "high lift," "complex
   refactor," or "would change every call site." Think through: how many call sites
   are there actually? (Then grep to verify.)
@@ -151,8 +153,11 @@ skipping decision points.
   returns, your fix uses early returns. The bug-check phase runs after code-quality,
   so no convention pass follows yours — convention violations in your fixes ship.
 - Fix or flag with the bug-check skill's matrix (its Procedure, step 3):
-  - A small fix (< 5 lines, no interface change, no behavioral risk): fix it, at
-    any confidence.
+  - First name what the finding asks for: a defect (code wrong for its own
+    contract) takes the rows below; new handling for a scenario with no evidence
+    that it is realistic is flagged `unevidenced or low-cost`, never written.
+  - A small fix to a defect (< 5 lines, no interface change, no behavioral risk):
+    fix it, at any confidence.
   - High or medium confidence, and the fix is 10 lines or fewer with no interface
     change: fix it.
   - Anything bigger: flag it.
@@ -160,7 +165,8 @@ skipping decision points.
     `Cuts:` list; report the finding instead (the skill's "No environment-specific
     dismissals").
 - When flagging, categorize: `uncertain diagnosis`, `complex fix`, `needs design
-  decision`, or `pre-existing gap` — the orchestrator uses these to triage.
+  decision`, `pre-existing gap`, or `unevidenced or low-cost` — the orchestrator
+  uses these to triage.
 - Run tests after all fixes: `npm test`, or the command AGENTS.md names.
 - Stage and commit when done. Push only when your prompt does not say "do not
   push": every ship-check dispatch says it, because the orchestrator pushes every phase's commits
@@ -210,6 +216,7 @@ Bug check complete:
   - Complex fix: B
   - Needs design decision: C
   - Pre-existing gap: D
+  - Unevidenced or low-cost: E
 - By dimension:
   - Description mismatch: A
   - SQL correctness: B
