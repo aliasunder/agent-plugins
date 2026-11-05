@@ -261,7 +261,8 @@ For each unresolved bot thread, do ALL of these in order:
      changes nothing a user can see (wording, a comment, a name, a formatting
      choice) is reported with the round count, not fixed; behavior defects are
      still fixed.
-   In particular:
+
+   On valid versus false positive, in particular:
    - **"False positive" means the finding is factually wrong** — the code pattern it
      describes does not actually exist, or the behavior it warns about cannot happen.
      "The code was already like this" is NOT a false positive — it's a valid finding on
@@ -298,7 +299,8 @@ For each unresolved bot thread, do ALL of these in order:
    Thread 3 (truncated sentence): False positive — line 621 is complete
    ```
 
-3. If valid, a defect or evidenced handling, and inside the cap: **make the code fix**.
+3. If valid, a defect or evidenced handling, and not a no-impact fix past the review
+   cap (item 1): **make the code fix**.
    If the lift is unclear, assess it first (how many lines? does it need tests? does it
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through
@@ -345,9 +347,9 @@ For each unresolved bot thread, do ALL of these in order:
    one batch of bot comments, is a round). The default cap is **4** rounds,
    measured on 2026-11-05 from the last behavior-changing round across 11 recent
    vault-cortex PRs (median 3, plus one; a test that changes what is asserted
-   counts as behavior). Every merge-ready note states the
+   counts as behavior). Every Step 5 report states the
    round count and the cap in force. Override the default on a PR when you give the
-   reason in that note: raise it while a round still finds behavior defects; lower it
+   reason in that report: raise it while a round still finds behavior defects; lower it
    when the late rounds are all wording. From the round after the cap, item 1's
    second bullet applies: no-impact small fixes are reported, not made.
 
@@ -709,6 +711,7 @@ PR #<number> status:
 - CI: all passing / N failing (names)
 - Reviews: approved / pending / changes-requested
 - Bot threads: all resolved (N handled, all replied to)
+- Bot review rounds: N of cap M (default 4, or raised/lowered: <reason>)
 - Non-thread findings: N handled (review bodies / PR comments — bot: A, Claude: B, human: C)
 - Claude threads: all resolved (N handled, all replied to)
 - Human threads: N unresolved (listed above)

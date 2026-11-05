@@ -250,7 +250,8 @@ comment mode.
      small or noticeable (lost data, silently wrong results, a blocked workflow).
      A security finding's scenario is the attacker's cheapest path, which counts as
      evidence. An evidence-based flag is not an environment-specific dismissal: the
-     finding is still reported, and `triage-finding` decides it.
+     finding is still reported, and ship-check's triage (the user, in a standalone
+     run) decides it.
    - **Small fix to a defect** (< 5 lines, no interface change, no behavioral risk)
      → fix it, at any confidence. A safe no-op change costs nothing; a real bug
      left unfixed does. "Low-risk" is a reason TO fix, not a reason to defer.

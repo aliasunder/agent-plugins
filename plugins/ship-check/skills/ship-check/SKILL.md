@@ -484,8 +484,9 @@ the cost of leaving a real bug is not.
 
 Low risk is not low cost for new handling. Code, a test or a doc paragraph for a
 scenario nobody has traced or reached adds something someone maintains, and the docs
-then describe an issue nobody has hit. That is why `unevidenced or low-cost` is never
-an edit here, however small the fix: `triage-finding` logs it with evidence or asks.
+then describe an issue nobody has hit. That is why the matrix never fixes
+`unevidenced or low-cost`, however small the fix: `triage-finding` logs it with
+evidence or asks, and only a `Fix` result it returns is applied (step 5).
 
 For a defect, defer only when the **fix itself** is uncertain, risky, too large for the
 triage matrix's fix rows (step 3), or requires a design decision.
@@ -1386,7 +1387,7 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
-- Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap, D unevidenced or low-cost), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
+- Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
