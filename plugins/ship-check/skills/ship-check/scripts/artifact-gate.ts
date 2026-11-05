@@ -63,6 +63,8 @@ const isExemptClass = (value: string): value is ExemptClass => EXEMPT_CLASSES.so
 
 const isJsonObject = (value: unknown): value is JsonObject => typeof value === "object" && value !== null && !Array.isArray(value)
 
+const isString = (value: unknown): value is string => typeof value === "string"
+
 const git = (repo: string, args: readonly string[]): string => {
   try {
     return execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
@@ -144,11 +146,15 @@ const dependencyBumpProblem = (before: JsonObject, after: JsonObject, liveTestPa
     for (const name of new Set([...oldKeys, ...newKeys])) {
       // A nested override (an object) that did not change compares by value, not by reference.
       if (sameJson(oldMap[name], newMap[name])) continue
-      const changed = name in newMap ? newMap[name] : oldMap[name]
+      // Both sides are checked: a move from `file:` to a range is a code change as much as the reverse.
+      const specs = [oldMap[name], newMap[name]].filter((spec) => spec !== undefined)
 
-      if (typeof changed !== "string") return `${mapName}.${name} is not a version string`
-      if (!REGISTRY_SPEC.test(changed)) return `${mapName}.${name} is not a registry version`
-      if (liveTestPackages.includes(name)) return `${name} is a live-test package`
+      if (!specs.every(isString)) return `${mapName}.${name} is not a version string`
+      if (!specs.every((spec) => REGISTRY_SPEC.test(spec))) return `${mapName}.${name} is not a registry version`
+      // An alias installs another package under this key, so the live-test check reads the alias target.
+      const live = specs.map((spec) => aliasTarget(spec) ?? name).find((installed) => liveTestPackages.includes(installed))
+
+      if (live) return `${live} is a live-test package`
       if (aliasTarget(oldMap[name]) !== aliasTarget(newMap[name])) return `${mapName}.${name} changes the package it installs`
     }
   }

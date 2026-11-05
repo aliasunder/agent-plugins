@@ -177,6 +177,14 @@ describe("dependency class", () => {
     assert.equal(classify(input(local.repo, local.base, local.head)).outcome, "artifact change")
     const tag = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "latest" }) })
     assert.equal(classify(input(tag.repo, tag.base, tag.head)).word, "exempt (dependency)")
+    const back = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "4.6.1" }) }, [], { "package.json": packageWith((p) => { p.dependencies.hono = "file:../hono" }) })
+    assert.match(firstReason(classify(input(back.repo, back.base, back.head))), /dependencies\.hono is not a registry version/)
+  })
+
+  it("reads a live-test package through its npm alias", () => {
+    const aliased = (range: string): string => packageWith((p) => { p.dependencies.hono = `npm:rrule@${range}` })
+    const { repo, base, head } = fixture({ "package.json": aliased("2.9.0") }, [], { "package.json": aliased("2.8.1") })
+    assert.match(firstReason(classify(input(repo, base, head))), /rrule is a live-test package/)
   })
 
   it("keeps a bump that also edits scripts", () => {
