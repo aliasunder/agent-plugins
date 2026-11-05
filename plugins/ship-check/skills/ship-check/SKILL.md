@@ -487,7 +487,8 @@ scenario nobody has traced or reached adds something someone maintains, and the 
 then describe an issue nobody has hit. That is why triage never writes the handling
 for an `unevidenced or low-cost` finding itself, however small the fix:
 `triage-finding` logs the finding with the evidence it searched or asks the user,
-and the handling is written only when `triage-finding` returns `Fix` (step 5).
+and the handling is written only when `triage-finding` returns `Fix`, or, without
+that skill, when the user approves it (step 5).
 
 For a defect, defer only when the **fix itself** is uncertain, risky, too large for the
 triage matrix's fix rows (step 3), or requires a design decision.
@@ -1157,7 +1158,7 @@ The review splits by file:
    Names still unfinished after the continuation make the step `partial`; never
    send a second continuation.
 8. **Triage the findings.** The reviewer reports without flag categories, so give
-   each Defect one of inter-phase triage's four categories (its step 1) yourself,
+   each Defect one of inter-phase triage's five categories (its step 1) yourself,
    then run inter-phase triage on each report's Defects and on your proofread
    Defects:
    - A fix that edits only description text is not an interface change. A fix that

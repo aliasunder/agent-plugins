@@ -255,7 +255,8 @@ For each unresolved bot thread, do ALL of these in order:
      issue, a documented workflow), or it is realistic but costs little when hit,
      the finding goes to `triage-finding` with the others this PR won't fix; without
      that skill, ask the user, stating the scenario, its cost and what evidence
-     was searched. Never write the handling, however small. A security finding's
+     was searched. However small the fix, never write the handling unless
+     `triage-finding` returns `Fix` or the user approves it. A security finding's
      scenario is the attacker's cheapest path, which counts as evidence.
    - **After the review cap, small fixes with no user-visible impact stop.** This
      skill carries a default cap on bot review rounds per PR (see "The review
@@ -351,9 +352,10 @@ For each unresolved bot thread, do ALL of these in order:
    is **4** rounds. That default comes from 11 recent vault-cortex PRs, counted on
    2026-11-05: the median PR's last round that changed behavior was round 3, and the
    cap adds one round to that. A test that changes what is asserted counted as a
-   behavior change. Every Step 5 report states the round count and the cap in force. Override the default on a PR when you give
-   the reason in that report: raise it while a round still finds behavior defects;
-   lower it when the late rounds are all wording.
+   behavior change. Every Step 5 report states the round count and the cap in
+   force. Override the default on a PR when you give the reason in that report:
+   raise it while a round still finds behavior defects; lower it when the late
+   rounds are all wording.
 
 5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
 

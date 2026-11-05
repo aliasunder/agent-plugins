@@ -521,7 +521,7 @@ yours. Convention violations in your fixes ship unchecked.
    - `needs design decision` — more than one valid approach; the user chooses.
    - `pre-existing gap` — the issue predates the change but the change revealed it.
    - `unevidenced or low-cost` — new handling for a scenario with no evidence that
-     it is realistic (the first bullet above); note whether its cost when hit is
+     it is realistic (step 3's first bullet); note whether its cost when hit is
      small or noticeable. Never an edit, whatever the fix size.
 4. Stage and commit all fixes. Push only in a standalone run. In a ship-check run
    (the dispatch says "do not push", or you run inline in the orchestrator's
