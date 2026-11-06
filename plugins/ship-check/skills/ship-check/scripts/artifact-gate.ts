@@ -338,11 +338,14 @@ const classifyLockfile = (file: ChangedFile): Verdict => {
   // The root entry mirrors package.json, so a lockfile-only change to it means the two files disagree. An
   // entry resolved off the registry (a git or file URL, or a link) installs code no version string names.
   if (changedKeys.includes("")) return { reason: "the lockfile's root entry changed without package.json" }
-  const offRegistry = changedKeys.find((key) => {
-    const entry = entryAt(key)
-    const resolved = entry?.resolved
-    return entry?.link === true || (typeof resolved === "string" && !REGISTRY_URL.test(resolved))
-  })
+  const resolvesOffRegistry = (entry: unknown): boolean => {
+    if (!isJsonObject(entry)) return false
+    const resolved = entry.resolved
+    return entry.link === true || (typeof resolved === "string" && !REGISTRY_URL.test(resolved))
+  }
+  // A move back from a git URL to the registry is a code change as much as the reverse, so both sides count.
+  const offRegistry = changedKeys.find((key) => resolvesOffRegistry(before[key]) || resolvesOffRegistry(after[key]))
+
   if (offRegistry) return { reason: `${offRegistry} resolves outside the npm registry` }
   // npm keys each installed copy `node_modules/<name>`, nested under its parent's path when it is not
   // hoisted. An entry installed under another path (an alias or a link) carries the real package in its
@@ -450,10 +453,10 @@ const TRANSPILE_OPTIONS = {
 const HASHBANG = /^#!.*/
 const USE_STRICT_LINE = /^\s*(["'])use strict\1\s*;?\s*$/gm
 const USE_STRICT = /(["'])use strict\1/g
-// The word that marks a macro import, which the transpiler would otherwise run. Any file that holds it is
-// refused before it is parsed, whatever the spelling around it, so `macro: false` is not the only guard;
-// a file that only mentions the word in a comment costs one extra live test.
-const MACRO_WORD = /macro/i
+// A macro import needs an import attribute, and only such an attribute can carry one, so any file holding
+// the word or an attribute clause is refused before it is parsed; `macro: false` stays the enforced guard,
+// and a file that only mentions the word in a comment costs one extra live test.
+const MACRO_MARKER = /macro|\b(with|assert)\s*\{/i
 
 /**
  * The file as the transpiler prints it, or undefined when it cannot parse the text or the text imports a
@@ -474,7 +477,7 @@ const classifyCode = (file: ChangedFile, loader: Loader): Verdict => {
   // An empty file is valid content, so the check is for a missing file, not a falsy one.
   if (before === undefined || after === undefined) return { reason: "file unreadable at one side" }
 
-  if (MACRO_WORD.test(before) || MACRO_WORD.test(after)) return { reason: "the file mentions a macro, which the gate never runs" }
+  if (MACRO_MARKER.test(before) || MACRO_MARKER.test(after)) return { reason: "the file mentions a macro, which the gate never runs" }
   const sameHashbang = HASHBANG.exec(before)?.[0] === HASHBANG.exec(after)?.[0]
   const sameDirectives = (before.match(USE_STRICT_LINE) ?? []).join("\n") === (after.match(USE_STRICT_LINE) ?? []).join("\n")
   // A directive that shares its line with code escapes the line match, so the literal's count is compared too.

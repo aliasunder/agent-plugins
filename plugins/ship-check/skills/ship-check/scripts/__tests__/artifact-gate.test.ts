@@ -283,6 +283,12 @@ describe("dependency class", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "node_modules/hono resolves outside the npm registry"))
   })
 
+  it("keeps a lockfile entry moving back from a git URL to the registry", () => {
+    const git = (resolved: string): string => lockfileWith({ ...LOCK_PACKAGES, "node_modules/hono": { version: "4.6.1", resolved } })
+    const { repo, base, head } = fixture({ "package-lock.json": git("https://registry.npmjs.org/hono/-/hono-4.6.1.tgz") }, [], { "package-lock.json": git("git+ssh://git@github.com/honojs/hono.git#deadbeef") })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "node_modules/hono resolves outside the npm registry"))
+  })
+
   it("keeps a lockfile whose root entry changed without package.json", () => {
     const { repo, base, head } = fixture({ "package-lock.json": lockfileWith({ ...LOCK_PACKAGES, "": { dependencies: { hono: "4.6.0", zod: "3.0.0" } } }) })
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "the lockfile's root entry changed without package.json"))
@@ -462,6 +468,17 @@ describe("comment class", () => {
     temporaryRoots.push(markerFolder)
     const marker = join(markerFolder, "macro-ran")
     const macro = `import { execSync } from "node:child_process" with { type: "macro" }\nexecSync("touch ${marker}")\n`
+    const { repo, base, head } = fixture({ "src/server.ts": `${macro}${SOURCE}` })
+    const result = classify(input(repo, base, head))
+    assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the file mentions a macro, which the gate never runs"), macroRan: false })
+  })
+
+  it("never runs a macro whose attribute hides the word behind an escape", () => {
+    const markerFolder = mkdtempSync(join(tmpdir(), "probe-artifact-gate-escaped-macro-"))
+    temporaryRoots.push(markerFolder)
+    const marker = join(markerFolder, "macro-ran")
+    // "macro" spells "macro" without the word appearing in the source text.
+    const macro = `import { execSync } from "node:child_process" with { type: "\\u006dacro" }\nexecSync("touch ${marker}")\n`
     const { repo, base, head } = fixture({ "src/server.ts": `${macro}${SOURCE}` })
     const result = classify(input(repo, base, head))
     assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the file mentions a macro, which the gate never runs"), macroRan: false })
