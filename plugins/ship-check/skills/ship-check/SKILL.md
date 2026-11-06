@@ -816,7 +816,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile`, append:>\nAudit paths: <the profile's Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile`, append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
 })
 ```
 
@@ -1334,16 +1334,17 @@ any mode and the step in default mode.
    `files` entry carries its reason. `local change` means only audit paths changed.
    `no artifact change` or `exempt (…)` ends the step with that summary. A file whose
    reason says "judge the hunk" may be recorded as `exempt (comment, judged)` only when
-   every changed line is plainly a comment, and never when a shebang, a parser
+   `Exempt:` lists `comment` and every changed line is plainly a comment, and never when a shebang, a parser
    directive (`# syntax=`) or a `#` inside a word changed; deploy when unsure.
    `local change` runs steps 3 and 4, then step 6 in place of step 5.
    A non-zero exit withholds the verdict with the script's error.
 3. **Current?** Apply pr-monitor Step 5's verification check. Current →
    `current (<headRefOid>)`, done; otherwise `stale since <Head>` (the evidence's
-   `Head:` SHA) or untested.
+   `Head:` SHA), or no evidence yet; both go on to step 4.
 4. **Mode.** In `--report`, `--comment` and local modes, end here with the
-   classification; deploy, ask and write nothing. Those modes have no Phase 6, so run
-   steps 1 to 3 after the tool-definition review, before the summary. In any mode, a
+   classification; deploy, ask and write nothing. Comment and local modes have no
+   Phase 6, so they run steps 1 to 3 after the tool-definition review, before the
+   summary; `--report` with a PR runs them at Phase 6's usual point. In any mode, a
    fork PR (`isCrossRepository`) → `needs the maintainer's live test`.
 5. **Deploy and probe** (default mode). In a worker the `lane-conductor` skill started:
    report `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5d-5g, then
