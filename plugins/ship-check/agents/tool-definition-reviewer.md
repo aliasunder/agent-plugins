@@ -9,7 +9,8 @@ description: >
   that repeats the schema, a bullet filed under the wrong
   lead-in or a phrase with no named referent, and failures the code returns that
   the description never lists. It writes no file except its own report, to a temp
-  path the dispatch names. Typical triggers include a user asking to "review the
+  path the dispatch names, and the diff script's output redirected to a scratch
+  file. Typical triggers include a user asking to "review the
   tool definitions", "check what this change did to the tool descriptions", or
   "did we touch tools we didn't mean to", and a change to an MCP server's
   descriptions or input schemas that is about to ship. See "When to invoke" in the

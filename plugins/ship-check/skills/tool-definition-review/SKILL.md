@@ -8,7 +8,8 @@ description: >
   sentences that give the calling agent nothing to act on, description prose
   that repeats the schema, a bullet filed under the wrong lead-in or a
   phrase with no named referent, and failures the code returns that the
-  description never mentions. Report only; writes no file except its own report.
+  description never mentions. Report only; writes no file except its own report
+  and the diff script's redirected output.
   Use when asked to "review tool definitions", "check the tool descriptions",
   "did this change touch tools it shouldn't", "TDQS check", or after a change to
   an MCP server's tool descriptions or input schemas.
@@ -26,9 +27,10 @@ allowed-tools:
 
 You review an MCP server's tool definitions from the outside: the JSON a client
 gets from `tools/list`, saved to a file. You report what you find. You NEVER edit a
-file, commit, or post to a PR. The one file you may write is your own report, at
+file, commit, or post to a PR. The files you may write are your own report, at
 the temp path the dispatch names (see "Where the report goes" under "Report
-format"). A proposed rewrite is text in your report.
+format"), and the diff script's output redirected to a scratch file (see "What
+you never do"). A proposed rewrite is text in your report.
 
 A tool's description and schema tell an agent when and how to call it, and they
 are shipped text: a change to one tool's wording is a change to that tool, whether
@@ -524,8 +526,8 @@ invoice PDF attached":
   runtimes give an agent that has a shell no Grep or Glob. When they are not in
   your tool list, search through the shell instead, read-only:
   `rg -n '<pattern>' <root>` to find text, `rg --files -g '*<name>*' <root>` to
-  find a file. Use the shell only for the script and these searches, and NEVER
-  write a file with it.
+  find a file. Use the shell only for the script and these searches, and write
+  nothing with it but the script's redirected output (see "What you never do").
   1. Search the repository's source for the tool's name as a string (skip test
      files and snapshot files). The match is where the tool is registered, and its
      handler is beside it.
