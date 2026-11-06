@@ -721,22 +721,23 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     `Head: <full SHA>`. The PR's author can edit the body, so the SHA must be 40 hex
     characters and the run id below digits only; any other value is missing evidence
     and goes into no command;
-  - its "On the instance" text names a test-deploy run id, the image revision and
+  - its "On the instance" paragraph names a test-deploy run id, the image revision and
     the digest, and `gh run view <id>` shows the profile's test-deploy workflow at
-    that head with `status: completed`, `conclusion: success` and a build job; the
-    local route writes `Image: none (local probes)` instead and has no run to check;
+    that head with `status: completed`, `conclusion: success` and a job that built
+    the image; the local route writes `Image: none (local probes)` instead and has no
+    run to check;
   - the gate script with `--range tested --from <Head> --to <headRefOid>` reports
-    `no artifact change` or `exempt`, or a `Reuse:` line names `<headRefOid>` with the
-    maintainer's words;
-  - every `Stand-in audit:` row reads `probed live`, `probed locally` or
-    `read from source` (an `unverified` row is a deferred finding).
+    `no artifact change` or `exempt`, or the section's `Reuse:` line names
+    `<headRefOid>` with the maintainer's words;
+  - every line of the section's `Stand-in audit:` reads `probed live`,
+    `probed locally` or `read from source` (an `unverified` line is a deferred finding).
 
   Refresh `headRefOid` and the body right before the verdict; fetch a missing
-  `<Head>` with `git fetch origin <Head>`, then fail closed. `--skip verification`
-  records "the user declined it" and satisfies this entry. Otherwise the snapshot
-  names what is missing, and a standalone run reads the ship-check skill's
-  "Verification (conditional)" section and runs it from there in default mode; a
-  read-only run reports the gap and stops.
+  `<Head>` with `git fetch origin <Head>`, and fail closed if it is still missing.
+  `--skip verification` records "the user declined it" and satisfies this entry.
+  Otherwise the snapshot names what is missing, and a standalone run runs ship-check's
+  "Verification (conditional)" section in default mode; a `--report` run reports the
+  gap and stops.
 
 If any prerequisite is not met, report a blocked status snapshot and return to the
 relevant step. Pending CI or approvals use the runtime's monitoring procedure;

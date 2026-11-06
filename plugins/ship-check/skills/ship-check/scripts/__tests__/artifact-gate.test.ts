@@ -134,14 +134,14 @@ const packageWith = (patch: (copy: typeof PACKAGE_JSON) => void): string => {
 /** The first file verdict's reason; a result with no files is a test bug, not a passing case. */
 const firstReason = (result: GateResult): string => {
   const first = result.files[0]
-  if (!first) throw new Error(`expected a file verdict, got ${result.word}`)
+  if (!first) throw new Error(`expected a file verdict, got ${result.summary}`)
   return first.reason
 }
 
 describe("dependency class", () => {
   it("exempts a version bump of an existing package", () => {
     const { repo, base, head } = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "4.6.1" }) })
-    assert.equal(classify(input(repo, base, head)).word, "exempt (dependency)")
+    assert.equal(classify(input(repo, base, head)).summary, "exempt (dependency)")
   })
 
   it("keeps a bump of a live-test package", () => {
@@ -163,7 +163,7 @@ describe("dependency class", () => {
 
   it("exempts an added override and keeps one for a live-test package", () => {
     const pinned = fixture({ "package.json": packageWith((p) => { Object.assign(p.overrides, { minimatch: "11.0.4" }) }) })
-    assert.equal(classify(input(pinned.repo, pinned.base, pinned.head)).word, "exempt (dependency)")
+    assert.equal(classify(input(pinned.repo, pinned.base, pinned.head)).summary, "exempt (dependency)")
     const live = fixture({ "package.json": packageWith((p) => { Object.assign(p.overrides, { rrule: "2.9.0" }) }) })
     const result = classify(input(live.repo, live.base, live.head))
     assert.equal(result.outcome, "artifact change")
@@ -176,7 +176,7 @@ describe("dependency class", () => {
     const local = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "file:../hono" }) })
     assert.equal(classify(input(local.repo, local.base, local.head)).outcome, "artifact change")
     const tag = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "latest" }) })
-    assert.equal(classify(input(tag.repo, tag.base, tag.head)).word, "exempt (dependency)")
+    assert.equal(classify(input(tag.repo, tag.base, tag.head)).summary, "exempt (dependency)")
     const back = fixture({ "package.json": packageWith((p) => { p.dependencies.hono = "4.6.1" }) }, [], { "package.json": packageWith((p) => { p.dependencies.hono = "file:../hono" }) })
     assert.match(firstReason(classify(input(back.repo, back.base, back.head))), /dependencies\.hono is not a registry version/)
   })
@@ -194,7 +194,7 @@ describe("dependency class", () => {
 
   it("exempts a lockfile-only change and keeps one that touches a live-test package", () => {
     const only = fixture({ "package-lock.json": LOCKFILE.replace('"version": "4.6.0"', '"version": "4.6.1"') })
-    assert.equal(classify(input(only.repo, only.base, only.head)).word, "exempt (dependency)")
+    assert.equal(classify(input(only.repo, only.base, only.head)).summary, "exempt (dependency)")
     const live = fixture({ "package-lock.json": LOCKFILE.replace('"version": "1.0.0"', '"version": "1.1.0"') })
     assert.match(firstReason(classify(input(live.repo, live.base, live.head))), /obsidian-headless is a live-test package/)
   })
@@ -215,7 +215,7 @@ describe("dependency class", () => {
 describe("scripts class", () => {
   it("exempts a script the image never runs", () => {
     const { repo, base, head } = fixture({ "package.json": packageWith((p) => { p.scripts.lint = "biome check ." }) })
-    assert.equal(classify(input(repo, base, head)).word, "exempt (scripts)")
+    assert.equal(classify(input(repo, base, head)).summary, "exempt (scripts)")
   })
 
   it("keeps a lifecycle hook and a pre/post variant of an image script", () => {
@@ -240,7 +240,7 @@ describe("scripts class", () => {
 describe("digest and action classes", () => {
   it("exempts a digest-only FROM change and keeps an image swap", () => {
     const digest = fixture({ Dockerfile: DOCKERFILE.replace("sha256:aaa", "sha256:bbb") })
-    assert.equal(classify(input(digest.repo, digest.base, digest.head)).word, "exempt (digest)")
+    assert.equal(classify(input(digest.repo, digest.base, digest.head)).summary, "exempt (digest)")
     const swap = fixture({ Dockerfile: DOCKERFILE.replace("node:24-trixie-slim@sha256:aaa", "node:25-trixie-slim@sha256:bbb") })
     assert.equal(classify(input(swap.repo, swap.base, swap.head)).outcome, "artifact change")
   })
@@ -259,7 +259,7 @@ describe("digest and action classes", () => {
 
   it("exempts an action version bump and keeps an action swap", () => {
     const bump = fixture({ ".github/workflows/test_deploy.yml": WORKFLOW.replace("@v4.2.2", "@v4.3.0") })
-    assert.equal(classify(input(bump.repo, bump.base, bump.head)).word, "exempt (action)")
+    assert.equal(classify(input(bump.repo, bump.base, bump.head)).summary, "exempt (action)")
     const swap = fixture({ ".github/workflows/test_deploy.yml": WORKFLOW.replace("actions/checkout@v4.2.2", "other/checkout@v4.2.2") })
     assert.equal(classify(input(swap.repo, swap.base, swap.head)).outcome, "artifact change")
   })
@@ -268,7 +268,7 @@ describe("digest and action classes", () => {
 describe("comment class", () => {
   it("exempts a TypeScript comment-only edit, regex with backticks included", () => {
     const { repo, base, head } = fixture({ "src/server.ts": SOURCE.replace("// count", "// returns the length") })
-    assert.equal(classify(input(repo, base, head)).word, "exempt (comment)")
+    assert.equal(classify(input(repo, base, head)).summary, "exempt (comment)")
   })
 
   it("keeps a code change", () => {
@@ -287,17 +287,17 @@ describe("comment class", () => {
 describe("paths and ranges", () => {
   it("ignores test files and reports no artifact change", () => {
     const { repo, base, head } = fixture({ "src/__tests__/server.test.ts": "export const x = 1\n" })
-    assert.equal(classify(input(repo, base, head)).word, "no artifact change")
+    assert.equal(classify(input(repo, base, head)).summary, "no artifact change")
   })
 
   it("reports a change under an audit path only as local change", () => {
     const { repo, base, head } = fixture({ "cli/src/docker.ts": "export const image = 'y'\n" })
-    assert.equal(classify(input(repo, base, head)).word, "local change (1 files)")
+    assert.equal(classify(input(repo, base, head)).summary, "local change (1 files)")
   })
 
   it("keeps a deleted artifact file", () => {
     const { repo, base, head } = fixture({}, ["rootfs/etc/run"])
-    assert.equal(classify(input(repo, base, head)).word, "artifact change (1 files: rootfs/etc/run)")
+    assert.equal(classify(input(repo, base, head)).summary, "artifact change (1 files: rootfs/etc/run)")
   })
 
   it("keeps a file with no class, such as .nvmrc", () => {
@@ -315,7 +315,7 @@ describe("paths and ranges", () => {
   it("compares trees in tested range, so a reset head is a change the pr range misses", () => {
     const { repo, base, head } = fixture({ "src/server.ts": SOURCE.replace("s.length", "s.length + 1") })
     // Compare the tested head with its own parent: the pr range sees nothing because the parent is an ancestor.
-    assert.equal(classify(input(repo, head, base)).word, "no artifact change")
+    assert.equal(classify(input(repo, head, base)).summary, "no artifact change")
     assert.equal(classify(input(repo, head, base, { range: "tested" })).outcome, "artifact change")
   })
 

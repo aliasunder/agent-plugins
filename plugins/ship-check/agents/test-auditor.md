@@ -114,7 +114,8 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
    branch's commits, and then you review the wrong files.
 
    Separate into test files (a `.test.` or `.spec.` file, or any file under a
-   `__tests__/` folder, such as a helper or fixture) and production files. Then
+   `__tests__/` folder, such as a helper or fixture) and production files. Then,
+   unless the dispatch says `Stand-in audit:` (that run skips the Fast exit),
    apply the test-audit skill's Fast exit: when there are 0 test files AND 0
    testable files (the skill's coverage gap step 1 says which files are not
    testable), report "0 test files, 0 testable files changed — nothing to audit"
@@ -202,6 +203,7 @@ Test audit complete:
 - Production bugs reported: P (each with its flag category, file:line, the breaking input and what happens; not fixed here)
 - Mutation-tested: L
 - Suite: passing / N failures (total test count)
+- Stand-in audit: <the skill's table, when the dispatch carries an `Audit paths:` line — or "not requested">
 - Dismissed: N (proof-of-dismissal one-liners follow — or "none")
 ```
 

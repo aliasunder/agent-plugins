@@ -41,8 +41,8 @@ Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (the reviewer reports; triage fixes)
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
 Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until stopped, merged or closed
-Verification (conditional, orchestrator) -> the project's live test, last in Phase 6 before the first merge-ready verdict,
-                                          only when CLAUDE.local.md has a verification profile and the PR changes artifact or audit paths
+Verification (conditional, orchestrator) -> the project's live test, run inside Phase 6 before its first merge-ready verdict,
+                                          only when CLAUDE.local.md has a verification profile and the PR changes paths it lists
 ```
 
 ## Attribution
@@ -595,7 +595,7 @@ the pipeline pushes nothing).
    head the last tool-definition review saw, recorded by that section's step 9),
    separate from the reviewed SHA.
 7. **Run the verification step last**, after steps 3-6, when every other merge-ready
-   prerequisite holds and the Step 4 follow-up check is quiet ("Verification
+   prerequisite holds and pr-monitor's Step 4 follow-up check is quiet ("Verification
    (conditional)"). It never runs before CI, the bots and the delta review are settled,
    so a bot round cannot stale its evidence a minute later.
 
@@ -1308,14 +1308,14 @@ verdict.
 
 ### Verification (conditional)
 
-A PR to a public service is not merge-ready until the live test its repo requires has
-run on the current head; without this step the rule held only when the session
-remembered it. The step runs in Phase 6, last: after every other merge-ready
-prerequisite holds and pr-monitor's Step 4 follow-up check is quiet, after the final
-design pass and the tool-definition re-review ("Pre-merge delta review", step 7). The
-rules (gate, exemption classes, evidence, reservation, return) live in the note the
-profile's `Rules:` line names; this section carries the order. It runs inline: the
-reservation, the peer and mailbox messages and the wakes belong to this session.
+A PR in a project with a verification profile is not merge-ready until the project's
+live test has run on the current head. The step runs in Phase 6, last: after every
+other merge-ready prerequisite holds and pr-monitor's Step 4 follow-up check is quiet,
+after the final design pass and the tool-definition re-review ("Pre-merge delta
+review", step 7). The note the profile's `Rules:` line names holds the rules: the gate,
+the exemption classes, the evidence, reserving the shared test instance and returning
+it; this section holds the order. It runs inline, because the reservation, the peer and
+mailbox messages and the scheduled wakeups belong to this session.
 `--skip verification` or an `--only` list without `verification` turns it off
 (pr-monitor records "the user declined it"); `--only verification` runs the gate in
 any mode and the step in default mode.
@@ -1326,36 +1326,37 @@ any mode and the step in default mode.
    existed. Unreadable → `profile unreadable`; withhold the verdict.
 2. **Gate.** Run the profile's `Gate:` command, this skill's script:
    ```
-   bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --json --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> --pathspec <each Artifact paths line> --audit-pathspec <each Artifact paths line, then each Audit paths line> [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
+   bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --json --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> --pathspec <each Artifact paths line> --audit-pathspec <each Audit paths line> [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
    ```
    When the runtime left `${CLAUDE_SKILL_DIR}` unreplaced (you see that literal text
    above), use the skills folder this `SKILL.md` was read from, as the tool-definition
-   step's plan command says. The profile's `Audit paths:` line names paths beyond the
-   artifact paths; pass both lists, one `--audit-pathspec` per line. The JSON's `word`
-   is the outcome; each `files` entry carries its reason.
-   `no artifact change` or `exempt (…)` ends the step with that word. A file whose
+   step's plan command says. The JSON's `summary` is the outcome to report; each
+   `files` entry carries its reason. `local change` means only audit paths changed.
+   `no artifact change` or `exempt (…)` ends the step with that summary. A file whose
    reason says "judge the hunk" may be recorded as `exempt (comment, judged)` only when
-   every changed line is plainly a comment, and never when a shebang, a `# directive=`
-   line or a `#` inside a word changed; deploy when unsure. `local change` runs steps 3
-   and 4, then step 7 in place of step 5.
+   every changed line is plainly a comment, and never when a shebang, a parser
+   directive (`# syntax=`) or a `#` inside a word changed; deploy when unsure.
+   `local change` runs steps 3 and 4, then step 6 in place of step 5.
    A non-zero exit withholds the verdict with the script's error.
 3. **Current?** Apply pr-monitor Step 5's verification check. Current →
-   `current (<headRefOid>)`, done; otherwise `stale since <Head>` or untested.
+   `current (<headRefOid>)`, done; otherwise `stale since <Head>` (the evidence's
+   `Head:` SHA) or untested.
 4. **Mode.** In `--report`, `--comment` and local modes, end here with the
    classification; deploy, ask and write nothing. Those modes have no Phase 6, so run
-   steps 1 to 3 after the tool-definition review, before the summary. A fork PR
-   (`isCrossRepository`) → `needs the maintainer's live test`.
-5. **Deploy and probe** (default mode). In a lane-conductor worker: report
-   `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5d-5g, then
+   steps 1 to 3 after the tool-definition review, before the summary. In any mode, a
+   fork PR (`isCrossRepository`) → `needs the maintainer's live test`.
+5. **Deploy and probe** (default mode). In a worker the `lane-conductor` skill started:
+   report `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5d-5g, then
    `LANE <X> VERIFIED HEAD <sha>` or `LANE <X> VERIFY FAILED`; the lead owns the hold
    note and the return. Otherwise post the stage plan, then:
-   - a. Behind main: the gate script on `<headRefOid>...origin/main`; empty or exempt →
-     continue; otherwise the note's behind-main rule (a clean merge is pushed, and the
-     step re-enters once CI, the bots and the delta review have run on the new head).
-   - b. Confirm local HEAD equals `headRefOid`. Take Phase 4's stand-in table, or
-     dispatch `ship-check:test-auditor` with `Stand-in audit:` and the Phase 4
-     template's `Audit paths:` lines, on the artifact delta since Phase 4's reviewed
-     SHA.
+   - a. Behind main: the gate script with `--from <headRefOid> --to origin/main`; empty
+     or exempt → continue; otherwise the note's behind-main rule (a clean merge is
+     pushed, and the step re-enters once CI, the bots and the delta review have run on
+     the new head).
+   - b. Confirm local HEAD equals `headRefOid`. Take Phase 4's stand-in table; when
+     artifact files changed since the head Phase 4 audited, dispatch
+     `ship-check:test-auditor` with `Stand-in audit:`, the Phase 4 template's
+     `Audit paths:` lines and `Range: <that head>..<headRefOid>`.
    - c. Reserve the instance per the note's reservation section (peers per the
      peer-messaging skill, the hold note to the user's mailbox, its waits).
    - d. Record the live image with the profile's `Confirm:` command and read the before
@@ -1363,23 +1364,23 @@ any mode and the step in default mode.
    - e. Snapshot `gh run list` for each `Workflows:` entry; nothing queued or running →
      run `Deploy:`, bind the new run and the image to `headRefOid` as the note's
      "Deploy and binding" section says.
-   - f. After values and each audit boundary, in the probe subagent; then the note's
-     post-probe re-read. Any other run or any change → `blocked (<what moved>)`,
-     return rule, stop.
-   - g. Write the evidence section the note describes, in the format the PRs already
-     use, with a fresh body read, a splice under the profile's `Evidence:` heading and
-     a re-read; no raw output, vault content or inspect JSON in the body.
+   - f. Read the after values and probe each audit boundary in the probe subagent; then
+     the note's post-probe re-read. Any other run or any change →
+     `blocked (<what moved>)`, return rule, stop.
+   - g. Write the evidence section the note describes, with a fresh body read, a
+     splice under the profile's `Evidence:` heading and a re-read; no raw output,
+     vault content or container inspect JSON in the body.
    - h. The return rule; tell peers and the mailbox the instance is free.
 
    When the profile's `Confirm before:` lists a command (`deploy`, `force-deploy`,
    `body-write`), ask the user before running it. A profile command marked
    *unverified* stops the step at that command and asks; never run it unasked.
-6. **Report** the `Verification:` line (Reporting).
-7. **Local route** (`local change`): no deploy. Probe each `probe locally` row of the
+6. **Local route** (`local change`): no deploy. Probe each `probe locally` row of the
    stand-in table in a subagent with throwaway local resources, write the evidence
    section with `Image: none (local probes)` and each row's outcome in the note's
    words (`probed locally`, `read from source`), and record a boundary that cannot be
    probed as `unverified: <why>`, a deferred finding that holds the verdict.
+7. **Report** the `Verification:` line (Reporting).
 
 ### Push the fixes
 
@@ -1558,7 +1559,7 @@ The user can customize the pipeline:
   still dispatches nothing when no tool-list file changed
 - `/ship-check --skip verification` — skip the verification step; pr-monitor then
   records that the user declined the live test (see "Verification (conditional)")
-- `/ship-check --only verification` — run the gate now, in any mode, and the whole
+- `/ship-check --only verification` — run the gate in any mode, and the whole
   step in default mode on a PR
 - `/ship-check --report` — report only, don't apply fixes or post PR comments (findings
   reported to the orchestrator). Alias: `--no-fix`.

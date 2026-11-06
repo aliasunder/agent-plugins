@@ -44,9 +44,15 @@ tool-list file (a server's `tools/list` saved as JSON):
 Dispatch it yourself for a server that commits no tool list (see Usage).
 
 The `ship-check` skill's verification step runs the project's live test last in
-Phase 6, before the first merge-ready verdict. It runs only when the project's `CLAUDE.local.md` has a
-`## Verification profile` and the PR changes a file under the profile's artifact
-paths that no exemption class covers. `--skip verification` turns it off.
+Phase 6, before the first merge-ready verdict. It runs only when the project's
+`CLAUDE.local.md` has a `## Verification profile` and the PR changes one of these:
+
+- a file under the profile's artifact paths that no exemption class covers: the step
+  deploys the PR and probes it
+- only files under the profile's audit paths: the step probes them locally, with no
+  deploy
+
+`--skip verification` turns it off.
 
 ## External Dependencies
 
@@ -88,7 +94,8 @@ guidance cannot be read or found, it reports the fallback and uses these default
 
 Guidance overrides the portable defaults. The selected model stays fixed through
 the run, including fresh-eyes, delta reviews and tool-definition continuations.
-The dispatcher never escalates to the Astra or Fable models without an explicit model choice.
+The dispatcher never escalates to the Astra or Fable models (other model tiers the
+guidance lists beside Sol and Opus) without an explicit model choice.
 
 | Option | Effect |
 |---|---|
@@ -101,9 +108,10 @@ The dispatcher never escalates to the Astra or Fable models without an explicit 
 
 Codex cold dispatches use dedicated `agent_type`, `fork_turns: "none"`, `model`
 and `reasoning_effort`. Claude uses dedicated `subagent_type`, `model` and supported
-`effort`; when the tool lacks effort, a verified matching setting on that same
-role is required. OpenCode Task has no per-call model/effort fields. The dispatcher
-reads the dedicated role's configured model and supported variant; when no model
+`effort`; when the Agent tool has no effort parameter, the dedicated role must
+already set the requested effort, and the dispatcher verifies that it does.
+OpenCode Task has no per-call model/effort fields. The dispatcher reads the
+dedicated role's configured model and supported variant; when no model
 is configured, it verifies the inherited parent model and variant. It labels the
 effective controls and reports requested choices the role cannot realize.
 Unsupported choices are reported without substitution.

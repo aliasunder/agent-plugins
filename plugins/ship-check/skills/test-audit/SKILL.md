@@ -381,9 +381,10 @@ profile supplies it) and the diff changes executable code under those paths. It 
 "do the tests exercise this against the real dependency, or against text the tests
 wrote?" Report only: it writes no test, runs no suite and commits nothing. Add its table
 to the normal Phase 4 report; a dispatch that says `Stand-in audit:` runs this section
-alone, skips the Fast exit and the other dimensions, and returns only the table.
+alone, skips the Fast exit (Scope) and the audit dimensions, and returns only the table.
 
-1. **List each changed behaviour** from the diff, not from the PR description.
+1. **List each changed behaviour** from the diff of the range the dispatch names (its
+   `Base:` or `Range:` line), not from the PR description.
 2. **For each one, name the layer that exercises it and what stands in for the real
    dependency there**: a stub whose return values the tests wrote, a fake script, a
    recorded fixture, or the real thing.
@@ -391,9 +392,9 @@ alone, skips the Fast exit and the other dimensions, and returns only the table.
    returns the shape the code expects tests the code's assumption, not the dependency
    (a parser that has only ever read output the tests wrote).
 4. **Say how each boundary can be checked**: `probe live` (through the deployed
-   service), `probe locally` (a throwaway local resource, such as a container never
-   started), or `read source` (the dependency is not installed; its source shows the
-   format). Boundary: a stub around a dependency the repo's own tests already run for
+   service), `probe locally` (a throwaway local resource, such as a container created
+   and never started), or `read source` (the dependency is not installed; its source
+   shows the format). Boundary: a stub around a dependency the repo's own tests already run for
    real elsewhere is not a finding; name that test.
 
 Report as a table: behaviour | layer | stand-in | boundary | check. The verification step
