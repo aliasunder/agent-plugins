@@ -94,6 +94,12 @@ const NPM_ALIAS = /^npm:(@?[^@]+)/
 const REGISTRY_SPEC = /^(?!.*\s)(?!.*\.(tgz|tar|tar\.gz)$)(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?(?!\.)[^:/#]*$/
 // An overrides key may name a version, `<package>@<range>`: group 1 is the package.
 const KEY_PACKAGE = /^(@?[^@]+)/
+// A lockfile entry's `resolved` URL on the npm registry; anything else (git, file, another host) is code the
+// version string does not name.
+const REGISTRY_URL = /^https:\/\/registry\.npmjs\.org\//
+// A workflow action version that is a release tag. A commit SHA can name a commit anywhere in the action's
+// fork network, so a bump to one is not exempt.
+const ACTION_TAG = /^v?\d+(\.\d+){0,2}$/
 // Splits a script's command into the words that can name another script.
 const COMMAND_WORD_BREAK = /[^\w:.@/-]+/
 // `@sha256:<hex>` inside a FROM line.
@@ -266,7 +272,7 @@ const dependencyBumpProblem = (
  * scripts map are read, so a call the PR adds or removes still counts.
  */
 const imageScriptNames = (scriptMaps: readonly JsonObject[], imageScripts: readonly string[]): Set<string> => {
-  const roots = [...LIFECYCLE_SCRIPTS, ...imageScripts.flatMap((script) => [script, `pre${script}`, `post${script}`])]
+  const roots = [...LIFECYCLE_SCRIPTS, ...imageScripts].flatMap((script) => [script, `pre${script}`, `post${script}`])
   const names = new Set(roots)
   const scriptNames = new Set(scriptMaps.flatMap((scriptMap) => Object.keys(scriptMap)))
 
@@ -285,13 +291,6 @@ const imageScriptNames = (scriptMaps: readonly JsonObject[], imageScripts: reado
     }
   }
   return names
-}
-
-const isImageScript = (scriptName: string, imageScripts: ReadonlySet<string>): boolean => {
-  if (LIFECYCLE_SCRIPTS.includes(scriptName)) return true
-  return [...imageScripts].some((script) => {
-    return scriptName === script || scriptName === `pre${script}` || scriptName === `post${script}`
-  })
 }
 
 const classifyPackageJson = (file: ChangedFile): Verdict => {
@@ -317,7 +316,7 @@ const classifyPackageJson = (file: ChangedFile): Verdict => {
   const newScripts = readObjectField(after, "scripts")
   const imageScripts = imageScriptNames([oldScripts, newScripts], file.input.imageScripts)
   const changedScripts = keysOfEither(oldScripts, newScripts).filter((key) => oldScripts[key] !== newScripts[key])
-  const imageScript = changedScripts.find((key) => isImageScript(key, imageScripts))
+  const imageScript = changedScripts.find((key) => imageScripts.has(key))
   return imageScript ? { reason: `scripts.${imageScript} runs during the image build` } : "scripts"
 }
 
@@ -331,10 +330,20 @@ const classifyLockfile = (file: ChangedFile): Verdict => {
   }
 
   const changedKeys = keysOfEither(before, after).filter((key) => !sameJson(before[key], after[key]))
-  const entryName = (key: string): unknown => {
+  const entryAt = (key: string): JsonObject | undefined => {
     const entry = after[key] ?? before[key]
-    return isJsonObject(entry) ? entry.name : undefined
+    return isJsonObject(entry) ? entry : undefined
   }
+  const entryName = (key: string): unknown => entryAt(key)?.name
+  // The root entry mirrors package.json, so a lockfile-only change to it means the two files disagree. An
+  // entry resolved off the registry (a git or file URL, or a link) installs code no version string names.
+  if (changedKeys.includes("")) return { reason: "the lockfile's root entry changed without package.json" }
+  const offRegistry = changedKeys.find((key) => {
+    const entry = entryAt(key)
+    const resolved = entry?.resolved
+    return entry?.link === true || (typeof resolved === "string" && !REGISTRY_URL.test(resolved))
+  })
+  if (offRegistry) return { reason: `${offRegistry} resolves outside the npm registry` }
   // npm keys each installed copy `node_modules/<name>`, nested under its parent's path when it is not
   // hoisted. An entry installed under another path (an alias or a link) carries the real package in its
   // `name` field.
@@ -364,7 +373,8 @@ const pairedLines = ({ input, path, oldCommit }: ChangedFile): LinePair[] | unde
   const added = body.filter((line) => line.startsWith("+")).map((line) => line.slice(1))
   const hunksPaired = lines.filter((line) => line.startsWith("@@")).every(hunkCountsMatch)
 
-  if (!hunksPaired || removed.length !== added.length || removed.length === 0) return undefined
+  // Equal counts in every hunk make the two lists equal in length, so only the empty case is left to check.
+  if (!hunksPaired || removed.length === 0) return undefined
   return removed.flatMap((line, index) => {
     const partner = added[index]
     // The counts are equal, so every removed line has a partner; this check only narrows the type.
@@ -403,6 +413,9 @@ const classifyWorkflow = (file: ChangedFile): Verdict => {
 
     if (!before || !after) return { reason: `a changed line is not a uses: line; ${JUDGE_THE_HUNK}` }
     if (before[1] !== after[1]) return { reason: `the action changes from ${before[1]} to ${after[1]}` }
+    const newVersion = after[2]
+
+    if (!newVersion || !ACTION_TAG.test(newVersion)) return { reason: "the action's new version is not a release tag" }
     // With the same action and version, the pair differs elsewhere on the line, or the line only moved;
     // neither is a version bump.
     if (before[2] === after[2]) return { reason: "a uses: line changes outside its version" }
@@ -437,10 +450,10 @@ const TRANSPILE_OPTIONS = {
 const HASHBANG = /^#!.*/
 const USE_STRICT_LINE = /^\s*(["'])use strict\1\s*;?\s*$/gm
 const USE_STRICT = /(["'])use strict\1/g
-// A macro import attribute in any of its spellings (`with`/`assert`, quoted or bare key), which the
-// transpiler would otherwise run; the text is refused before it is parsed, so `macro: false` is not the only
-// guard.
-const MACRO_IMPORT = /(["']?)type\1\s*:\s*(["'])macro\2/
+// The word that marks a macro import, which the transpiler would otherwise run. Any file that holds it is
+// refused before it is parsed, whatever the spelling around it, so `macro: false` is not the only guard;
+// a file that only mentions the word in a comment costs one extra live test.
+const MACRO_WORD = /macro/i
 
 /**
  * The file as the transpiler prints it, or undefined when it cannot parse the text or the text imports a
@@ -461,7 +474,7 @@ const classifyCode = (file: ChangedFile, loader: Loader): Verdict => {
   // An empty file is valid content, so the check is for a missing file, not a falsy one.
   if (before === undefined || after === undefined) return { reason: "file unreadable at one side" }
 
-  if (MACRO_IMPORT.test(before) || MACRO_IMPORT.test(after)) return { reason: "the file imports a macro, which the gate never runs" }
+  if (MACRO_WORD.test(before) || MACRO_WORD.test(after)) return { reason: "the file mentions a macro, which the gate never runs" }
   const sameHashbang = HASHBANG.exec(before)?.[0] === HASHBANG.exec(after)?.[0]
   const sameDirectives = (before.match(USE_STRICT_LINE) ?? []).join("\n") === (after.match(USE_STRICT_LINE) ?? []).join("\n")
   // A directive that shares its line with code escapes the line match, so the literal's count is compared too.

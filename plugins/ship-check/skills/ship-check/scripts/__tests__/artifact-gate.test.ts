@@ -277,6 +277,17 @@ describe("dependency class", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "obsidian-headless is a live-test package"))
   })
 
+  it("keeps a lockfile entry resolved outside the registry", () => {
+    const git = (resolved: string): string => lockfileWith({ ...LOCK_PACKAGES, "node_modules/hono": { version: "4.6.1", resolved } })
+    const { repo, base, head } = fixture({ "package-lock.json": git("git+ssh://git@github.com/honojs/hono.git#deadbeef") }, [], { "package-lock.json": git("https://registry.npmjs.org/hono/-/hono-4.6.1.tgz") })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "node_modules/hono resolves outside the npm registry"))
+  })
+
+  it("keeps a lockfile whose root entry changed without package.json", () => {
+    const { repo, base, head } = fixture({ "package-lock.json": lockfileWith({ ...LOCK_PACKAGES, "": { dependencies: { hono: "4.6.0", zod: "3.0.0" } } }) })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "the lockfile's root entry changed without package.json"))
+  })
+
   it("keeps a deleted lockfile", () => {
     const { repo, base, head } = fixture({}, ["package-lock.json"])
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "package-lock.json has no packages map at one side"))
@@ -404,6 +415,11 @@ describe("digest and action classes", () => {
     assert.deepEqual(classify(input(repo, base, head)), exemptChange(".github/workflows/test_deploy.yml", "action"))
   })
 
+  it("keeps an action bump to a commit SHA, which can name a fork's commit", () => {
+    const { repo, base, head } = fixture({ ".github/workflows/test_deploy.yml": WORKFLOW.replace("@v4.2.2", `@${"b".repeat(40)}`) })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange(".github/workflows/test_deploy.yml", "the action's new version is not a release tag"))
+  })
+
   it("keeps an action swap", () => {
     const { repo, base, head } = fixture({ ".github/workflows/test_deploy.yml": WORKFLOW.replace("actions/checkout@v4.2.2", "other/checkout@v4.2.2") })
     assert.deepEqual(classify(input(repo, base, head)), artifactChange(".github/workflows/test_deploy.yml", "the action changes from actions/checkout to other/checkout"))
@@ -448,7 +464,7 @@ describe("comment class", () => {
     const macro = `import { execSync } from "node:child_process" with { type: "macro" }\nexecSync("touch ${marker}")\n`
     const { repo, base, head } = fixture({ "src/server.ts": `${macro}${SOURCE}` })
     const result = classify(input(repo, base, head))
-    assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the file imports a macro, which the gate never runs"), macroRan: false })
+    assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the file mentions a macro, which the gate never runs"), macroRan: false })
   })
 
   // The transpiler inlines the running process's NODE_ENV, which `bun test` sets to "test".
