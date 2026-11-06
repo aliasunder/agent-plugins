@@ -147,12 +147,12 @@ const git = (repo: string, args: readonly string[]): string => {
   }
 }
 
-const changedFiles = (input: GateInput, pathspecs: readonly string[]): string[] => {
+/** The files under the pathspecs that differ between the old commit and the head. */
+const changedFiles = (input: GateInput, oldCommit: string, pathspecs: readonly string[]): string[] => {
   // With no pathspec after `--`, git diff would list every changed file in the repo.
   if (pathspecs.length === 0) return []
 
-  const range = input.range === "pr" ? [`${input.from}...${input.to}`] : [input.from, input.to]
-  const output = git(input.repo, ["diff", "--name-only", ...range, "--", ...pathspecs])
+  const output = git(input.repo, ["diff", "--name-only", oldCommit, input.to, "--", ...pathspecs])
   return output.split("\n").filter((line) => line.length > 0)
 }
 
@@ -236,14 +236,15 @@ const dependencyBumpProblem = (
     // An override pins a package the tree already holds, so adding or removing one is still a version bump.
     if (mapName !== "overrides" && packagesAddedOrRemoved) return `${mapName} adds or removes a package`
 
-    for (const name of new Set([...oldKeys, ...newKeys])) {
+    for (const name of keysOfEither(oldMap, newMap)) {
       // A nested override (an object) that did not change compares by value, not by reference.
       if (sameJson(oldMap[name], newMap[name])) continue
       // Both sides are checked: a move from `file:` to a range is a code change as much as the reverse.
       const specs = [oldMap[name], newMap[name]].filter((spec) => spec !== undefined)
 
       if (!specs.every(isString)) return `${mapName}.${name} is not a version string`
-      if (!specs.every((spec) => REGISTRY_SPEC.test(spec))) return `${mapName}.${name} is not a registry version`
+      // npm reads the tarball suffixes case-insensitively, so the spec is lowercased for the form check.
+      if (!specs.every((spec) => REGISTRY_SPEC.test(spec.toLowerCase()))) return `${mapName}.${name} is not a registry version`
       // The live-test check reads the package each side installs: an alias's target, or else the key without
       // the version an overrides key may carry.
       const keyPackage = KEY_PACKAGE.exec(name)?.[1] ?? name
@@ -435,9 +436,11 @@ const TRANSPILE_OPTIONS = {
 // comparison accepts.
 const HASHBANG = /^#!.*/
 const USE_STRICT_LINE = /^\s*(["'])use strict\1\s*;?\s*$/gm
-// A macro import, which the transpiler would otherwise run; the text is refused before it is parsed, so
-// `macro: false` is not the only guard.
-const MACRO_IMPORT = /\btype\s*:\s*(["'])macro\1/
+const USE_STRICT = /(["'])use strict\1/g
+// A macro import attribute in any of its spellings (`with`/`assert`, quoted or bare key), which the
+// transpiler would otherwise run; the text is refused before it is parsed, so `macro: false` is not the only
+// guard.
+const MACRO_IMPORT = /(["']?)type\1\s*:\s*(["'])macro\2/
 
 /**
  * The file as the transpiler prints it, or undefined when it cannot parse the text or the text imports a
@@ -461,8 +464,10 @@ const classifyCode = (file: ChangedFile, loader: Loader): Verdict => {
   if (MACRO_IMPORT.test(before) || MACRO_IMPORT.test(after)) return { reason: "the file imports a macro, which the gate never runs" }
   const sameHashbang = HASHBANG.exec(before)?.[0] === HASHBANG.exec(after)?.[0]
   const sameDirectives = (before.match(USE_STRICT_LINE) ?? []).join("\n") === (after.match(USE_STRICT_LINE) ?? []).join("\n")
+  // A directive that shares its line with code escapes the line match, so the literal's count is compared too.
+  const sameDirectiveCount = (before.match(USE_STRICT) ?? []).length === (after.match(USE_STRICT) ?? []).length
 
-  if (!sameHashbang || !sameDirectives) return { reason: "code changed beyond comments" }
+  if (!sameHashbang || !sameDirectives || !sameDirectiveCount) return { reason: "code changed beyond comments" }
 
   const strippedBefore = stripComments(before, loader)
   const strippedAfter = stripComments(after, loader)
@@ -497,16 +502,17 @@ const classifyFile = (file: ChangedFile): FileVerdict => {
 }
 
 export const classify = (input: GateInput): GateResult => {
-  const artifactFiles = changedFiles(input, input.pathspecs)
+  // One old commit serves the file list and every file read, so the two cannot disagree.
+  const oldCommit = resolveOldCommit(input)
+  const artifactFiles = changedFiles(input, oldCommit, input.pathspecs)
   // Audit-path files count when no artifact file needs the live test: an unexempt artifact change already
   // deploys, and the deploy covers them.
-  const auditFiles = changedFiles(input, input.auditPathspecs)
+  const auditFiles = changedFiles(input, oldCommit, input.auditPathspecs)
     .filter((path) => !artifactFiles.includes(path))
     .map((path) => ({ path, exemptAs: undefined, reason: "audit path" }))
 
   if (artifactFiles.length === 0 && auditFiles.length === 0) return { outcome: "no artifact change", summary: "no artifact change", files: [] }
 
-  const oldCommit = resolveOldCommit(input)
   const files = artifactFiles.map((path) => classifyFile({ input, path, oldCommit }))
   const unexemptFiles = files.filter((file) => !file.exemptAs)
 

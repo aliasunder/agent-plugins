@@ -575,7 +575,7 @@ describe("paths and ranges", () => {
   it("throws a GitError on a commit git does not know", () => {
     const { repo, base } = fixture({ ".nvmrc": "25\n" })
     const unknown = "0".repeat(40)
-    const command = `git diff --name-only ${base}...${unknown} -- ${ARTIFACT_PATHSPECS.join(" ")}`
+    const command = `git merge-base ${base} ${unknown}`
     assert.throws(() => classify(input(repo, base, unknown)), gitErrorFrom(command))
   })
 
@@ -610,7 +610,7 @@ describe("command line", () => {
     const { repo, base } = fixture({ ".nvmrc": "25\n" })
     const { status, stdout, stderr } = runCli(["--repo", repo, "--from", base, "--to", "nope", "--pathspec", "src/"])
     // git's own message follows the prefix and varies by git version.
-    const prefix = `git diff --name-only ${base}...nope -- src/ failed: `
+    const prefix = `git merge-base ${base} nope failed: `
     assert.deepEqual({ status, stdout, stderrPrefix: stderr.slice(0, prefix.length) }, { status: 2, stdout: "", stderrPrefix: prefix })
   })
 

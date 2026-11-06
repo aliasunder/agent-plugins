@@ -594,10 +594,8 @@ the pipeline pushes nothing).
    gates decide whether tool text changed. It tracks its own tool-review commit (the
    head the last tool-definition review saw, recorded by that section's step 9),
    separate from the reviewed SHA.
-7. **Run the verification step last**, after steps 3-6, when every other merge-ready
-   prerequisite holds and pr-monitor's Step 4 follow-up check is quiet ("Verification
-   (conditional)"). It never runs before CI, the bots and the delta review are settled,
-   so a bot round cannot stale its evidence a minute later.
+7. **Run the verification step last**, after steps 3-6, as "Verification
+   (conditional)" says; a bot round after it would stale its evidence.
 
 ## Execution
 
