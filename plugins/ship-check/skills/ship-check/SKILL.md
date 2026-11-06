@@ -1329,9 +1329,9 @@ any mode and the step in default mode.
    bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --json --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> --pathspec <each Artifact paths line> --audit-pathspec <each Audit paths line> [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
    ```
    When the runtime left `${CLAUDE_SKILL_DIR}` unreplaced (you see that literal text
-   above), use the skills folder this `SKILL.md` was read from, as the tool-definition
-   step's plan command says. The JSON's `summary` is the outcome to report; each
-   `files` entry carries its reason. `local change` means only audit paths changed.
+   above), put the folder this `SKILL.md` was read from in its place. The JSON's
+   `summary` is the outcome to report; each `files` entry carries its reason.
+   `local change` means only audit paths changed.
    `no artifact change` or `exempt (…)` ends the step with that summary. A file whose
    reason says "judge the hunk" may be recorded as `exempt (comment, judged)` only when
    `Exempt:` lists `comment` and every changed line is plainly a comment, and never when a shebang, a parser

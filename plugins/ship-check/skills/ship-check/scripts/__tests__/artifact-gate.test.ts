@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync, spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { after, describe, it } from "node:test"
@@ -186,6 +186,12 @@ describe("dependency class", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "rrule is a live-test package"))
   })
 
+  it("keeps a bump of a live-test package whose overrides key names a version", () => {
+    const pinned = (version: string): string => packageWith((manifest) => { Object.assign(manifest.overrides, { "rrule@^2": version }) })
+    const { repo, base, head } = fixture({ "package.json": pinned("2.9.0") }, [], { "package.json": pinned("2.8.1") })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "rrule is a live-test package"))
+  })
+
   it("keeps a change inside a nested override", () => {
     const { repo, base, head } = fixture({ "package.json": packageWith((manifest) => { manifest.overrides["@scope/transformers"].sharp = "0.35.6" }) })
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "overrides.@scope/transformers is not a version string"))
@@ -196,6 +202,7 @@ describe("dependency class", () => {
     { label: "a file: spec", spec: "file:../hono" },
     { label: "a tarball URL", spec: "https://registry.example.com/hono-4.6.1.tgz" },
     { label: "an npm alias with no range", spec: "npm:hono" },
+    { label: "a directory spec", spec: ".." },
   ]
   for (const { label, spec } of OFF_REGISTRY_SPECS) {
     it(`keeps a move to ${label}, which leaves the registry`, () => {
@@ -241,6 +248,14 @@ describe("dependency class", () => {
 
   it("exempts a lockfile-only change", () => {
     const { repo, base, head } = fixture({ "package-lock.json": lockfileWith({ ...LOCK_PACKAGES, "node_modules/hono": { version: "4.6.1" } }) })
+    assert.deepEqual(classify(input(repo, base, head)), exemptChange("package-lock.json", "dependency"))
+  })
+
+  it("exempts a bump in a lockfile larger than 1 MiB", () => {
+    // Past the 1 MiB of output a child process may write by default, so the read needs the raised limit.
+    const fillers = Object.fromEntries(Array.from({ length: 9000 }, (_, index) => [`node_modules/filler-${index}`, { version: "1.0.0", integrity: `sha512-${"a".repeat(88)}` }]))
+    const large = (version: string): string => lockfileWith({ ...LOCK_PACKAGES, ...fillers, "node_modules/hono": { version } })
+    const { repo, base, head } = fixture({ "package-lock.json": large("4.6.1") }, [], { "package-lock.json": large("4.6.0") })
     assert.deepEqual(classify(input(repo, base, head)), exemptChange("package-lock.json", "dependency"))
   })
 
@@ -305,6 +320,12 @@ describe("scripts class", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "scripts.gen runs during the image build"))
   })
 
+  it("keeps a script that the pre variant of a reached script reaches", () => {
+    const chained = (gen: string): string => packageWith((manifest) => { Object.assign(manifest.scripts, { "build:server": "npm run compile", precompile: "npm run gen", compile: "tsc", gen }) })
+    const { repo, base, head } = fixture({ "package.json": chained("node gen.js --strict") }, [], { "package.json": chained("node gen.js") })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "scripts.gen runs during the image build"))
+  })
+
   it("follows npm run past its flags to the script name", () => {
     const chained = (compile: string): string => packageWith((manifest) => { Object.assign(manifest.scripts, { "build:server": "npm run --silent compile", compile }) })
     const { repo, base, head } = fixture({ "package.json": chained("tsc --strict") }, [], { "package.json": chained("tsc") })
@@ -350,6 +371,28 @@ describe("digest and action classes", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("Dockerfile", `a changed line is not a FROM line; ${JUDGE}`))
   })
 
+  it("keeps a FROM line moved to another stage beside its digest bump", () => {
+    // The move puts `RUN npm ci` in the runtime stage; pairing across hunks would read two digest bumps.
+    const stages = (digest: string, lines: readonly string[]): string => `${[`FROM node@sha256:${digest} AS build`, ...lines, "COPY . ."].join("\n")}\n`
+    const { repo, base, head } = fixture(
+      { Dockerfile: stages("bbb", ["FROM alpine@sha256:bbb AS runtime", "RUN npm ci"]) },
+      [],
+      { Dockerfile: stages("aaa", ["RUN npm ci", "FROM alpine@sha256:aaa AS runtime"]) },
+    )
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("Dockerfile", `lines added or removed, not paired; ${JUDGE}`))
+  })
+
+  it("keeps a uses: step moved ahead of a run: step beside its version bump", () => {
+    // The final newline keeps `run: echo hi` the same line wherever it sits, so git splits the change into two hunks.
+    const steps = (lines: readonly string[]): string => `${["jobs:", "  deploy:", "    steps:", ...lines.map((line) => `      - ${line}`)].join("\n")}\n`
+    const { repo, base, head } = fixture(
+      { ".github/workflows/test_deploy.yml": steps(["uses: actions/checkout@v4.3.0", "uses: actions/setup-node@v5", "run: echo hi"]) },
+      [],
+      { ".github/workflows/test_deploy.yml": steps(["uses: actions/checkout@v4.2.2", "run: echo hi", "uses: actions/setup-node@v4"]) },
+    )
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange(".github/workflows/test_deploy.yml", `lines added or removed, not paired; ${JUDGE}`))
+  })
+
   it("exempts an action version bump", () => {
     const { repo, base, head } = fixture({ ".github/workflows/test_deploy.yml": WORKFLOW.replace("@v4.2.2", "@v4.3.0") })
     assert.deepEqual(classify(input(repo, base, head)), exemptChange(".github/workflows/test_deploy.yml", "action"))
@@ -391,6 +434,32 @@ describe("comment class", () => {
     const { repo, base, head } = fixture({ "src/server.ts": "export const = ;\n" })
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("src/server.ts", "the transpiler could not parse the file"))
   })
+
+  it("keeps a macro import and never runs it", () => {
+    const markerFolder = mkdtempSync(join(tmpdir(), "probe-artifact-gate-macro-"))
+    temporaryRoots.push(markerFolder)
+    const marker = join(markerFolder, "macro-ran")
+    const macro = `import { execSync } from "node:child_process" with { type: "macro" }\nexecSync("touch ${marker}")\n`
+    const { repo, base, head } = fixture({ "src/server.ts": `${macro}${SOURCE}` })
+    const result = classify(input(repo, base, head))
+    assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the transpiler could not parse the file"), macroRan: false })
+  })
+
+  // The transpiler inlines the running process's NODE_ENV, which `bun test` sets to "test".
+  const inlinedNodeEnv = JSON.stringify(process.env.NODE_ENV ?? "development")
+
+  // Each edit changes how the file runs, and the transpiler's default settings print the same text for both sides.
+  const RUNTIME_EDITS = [
+    { label: "a changed hashbang", path: "src/cli.ts", before: "#!/usr/bin/env node\nconsole.log(1)\n", after: "#!/usr/bin/env bun\nconsole.log(1)\n" },
+    { label: "a removed \"use strict\" directive", path: "src/legacy.js", before: "\"use strict\";\nmodule.exports = () => { undeclared = 1 }\n", after: "module.exports = () => { undeclared = 1 }\n" },
+    { label: "process.env.NODE_ENV swapped for the value the transpiler inlines", path: "src/mode.ts", before: "export const mode = process.env.NODE_ENV\n", after: `export const mode = ${inlinedNodeEnv}\n` },
+  ]
+  for (const { label, path, before, after } of RUNTIME_EDITS) {
+    it(`keeps ${label}`, () => {
+      const { repo, base, head } = fixture({ [path]: after }, [], { [path]: before })
+      assert.deepEqual(classify(input(repo, base, head)), artifactChange(path, "code changed beyond comments"))
+    })
+  }
 
   it("keeps a shell comment edit for judgement", () => {
     const { repo, base, head } = fixture({ "rootfs/etc/run": SHELL_SCRIPT.replace("# start", "# start the server") })

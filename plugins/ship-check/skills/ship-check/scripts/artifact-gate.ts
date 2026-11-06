@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 // Classifies a PR's change for ship-check's verification step: which files under the artifact paths
 // changed between two commits, and whether every change fits a selected exemption class. The project's
-// verification profile (a section of its CLAUDE.local.md) supplies every flag; GateInput documents each.
-// A file the script cannot prove exempt is an artifact change. Exit codes: 0 classified, 2 git failure,
-// 1 any other error.
+// verification profile (a section of its CLAUDE.local.md) supplies the path, exemption, script and package
+// flags, and the caller the repo and the commits; GateInput documents each. A file the script cannot prove
+// exempt is an artifact change. Exit codes: 0 classified, 2 git failure, 1 any other error.
 import { execFileSync } from "node:child_process"
 import { basename, extname } from "node:path"
 import { parseArgs } from "node:util"
@@ -13,7 +13,7 @@ import { parseArgs } from "node:util"
  * - `dependency`: registry version bumps in package.json, or a package-lock.json change
  * - `digest`: Dockerfile FROM lines that change only their `@sha256:` digest
  * - `action`: workflow `uses:` lines that change only the action's version
- * - `comment`: JS or TS files whose transpiled output is unchanged
+ * - `comment`: JS or TS files whose transpiled output, `#!` line and "use strict" directives are unchanged
  * - `scripts`: package.json scripts the image build never runs
  */
 const EXEMPT_CLASSES = ["dependency", "digest", "action", "comment", "scripts"] as const
@@ -82,13 +82,18 @@ const LIFECYCLE_SCRIPTS: readonly string[] = [
 ]
 // A changed line of a `-U0` diff body, read after the first hunk header so the `---`/`+++` file headers are skipped.
 const CHANGED_LINE = /^[+-]/
+// A hunk header, `@@ -<start>[,<removed>] +<start>[,<added>] @@`: groups 1 and 2 are the two counts, and a
+// count git leaves out is 1.
+const HUNK_HEADER = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/
 // `npm:<package>@<range>` installs another package under the key's name: group 1 is that package.
 const NPM_ALIAS = /^npm:(@?[^@]+)/
 // A spec that resolves on the npm registry: a range, a tag, or an `npm:` alias with a range. Anything with a `:`,
-// `/` or `#` beyond that points outside the registry.
+// `/` or `#` beyond that, or a leading `.`, points outside the registry.
 // - Matches: `^1.2.3`, `latest`, `1.x || 2.x`, `npm:@scope/pkg@^2`
-// - Fails: `file:../pkg`, `github:owner/repo#ref`, `https://…/pkg.tgz`, `npm:pkg` (an alias with no range)
-const REGISTRY_SPEC = /^(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?[^:/#]*$/
+// - Fails: `file:../pkg`, `..`, `github:owner/repo#ref`, `https://…/pkg.tgz`, `npm:pkg` (an alias with no range)
+const REGISTRY_SPEC = /^(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?(?!\.)[^:/#]*$/
+// An overrides key may name a version, `<package>@<range>`: group 1 is the package.
+const KEY_PACKAGE = /^(@?[^@]+)/
 // `npm run <name>` or `npm run-script <name>` inside a script's command, after any flags: group 1 is the name.
 const NPM_RUN = /\bnpm\s+run(?:-script)?\s+(?:--?\S+\s+)*([\w:.-]+)/g
 // `@sha256:<hex>` inside a FROM line.
@@ -123,9 +128,19 @@ const isJsonObject = (value: unknown): value is JsonObject => {
 
 const isString = (value: unknown): value is string => typeof value === "string"
 
+// By default execFileSync fails once a child's output passes 1 MiB, and a large project's package-lock.json
+// runs to several megabytes.
+const GIT_OUTPUT_LIMIT_BYTES = 256 * 1024 * 1024
+
 const git = (repo: string, args: readonly string[]): string => {
   try {
-    return execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+    return execFileSync("git", ["-C", repo, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: GIT_OUTPUT_LIMIT_BYTES,
+      // PATH_ABSENT matches git's English messages, which a translated git prints in the user's language.
+      env: { ...process.env, LC_ALL: "C" },
+    })
   } catch (error) {
     const stderr = isJsonObject(error) && typeof error.stderr === "string" ? error.stderr : ""
     throw new GitError(`git ${args.join(" ")} failed: ${stderr.trim() || String(error)}`, stderr)
@@ -229,8 +244,10 @@ const dependencyBumpProblem = (
 
       if (!specs.every(isString)) return `${mapName}.${name} is not a version string`
       if (!specs.every((spec) => REGISTRY_SPEC.test(spec))) return `${mapName}.${name} is not a registry version`
-      // An alias installs another package under this key, so the live-test check reads the alias target.
-      const installedPackages = specs.map((spec) => aliasTarget(spec) ?? name)
+      // The live-test check reads the package each side installs: an alias's target, or else the key without
+      // the version an overrides key may carry.
+      const keyPackage = KEY_PACKAGE.exec(name)?.[1] ?? name
+      const installedPackages = specs.map((spec) => aliasTarget(spec) ?? keyPackage)
       const livePackage = installedPackages.find((installed) => liveTestPackages.includes(installed))
 
       if (livePackage) return `${livePackage} is a live-test package`
@@ -257,7 +274,12 @@ const imageScriptNames = (scriptMaps: readonly JsonObject[], imageScripts: reado
 
       if (typeof command !== "string") continue
       for (const match of command.matchAll(NPM_RUN)) {
-        if (match[1]) names.add(match[1])
+        const reached = match[1]
+
+        if (!reached) continue
+
+        // `npm run <name>` runs pre<name> and post<name> too, and their commands can reach further scripts.
+        for (const script of [reached, `pre${reached}`, `post${reached}`]) names.add(script)
       }
     }
   }
@@ -322,15 +344,26 @@ const classifyLockfile = (file: ChangedFile): Verdict => {
   return livePackage ? { reason: `${livePackage} is a live-test package` } : "dependency"
 }
 
-/** Removed and added lines of a `-U0` diff, paired in order; undefined when their counts differ or nothing changed. */
+/** Whether a `-U0` hunk header removes as many lines as it adds; false for a header HUNK_HEADER cannot read. */
+const hunkCountsMatch = (header: string): boolean => {
+  const counts = HUNK_HEADER.exec(header)
+  return counts !== null && (counts[1] ?? "1") === (counts[2] ?? "1")
+}
+
+/**
+ * Removed and added lines of a `-U0` diff, paired in order; undefined when nothing changed or a hunk's
+ * counts differ. Pairing across hunks would match a line removed in one place with one added in another,
+ * so a moved FROM or `uses:` line would pass as a bump.
+ */
 const pairedLines = ({ input, path, oldCommit }: ChangedFile): LinePair[] | undefined => {
   const lines = git(input.repo, ["diff", "-U0", oldCommit, input.to, "--", path]).split("\n")
   const firstHunk = lines.findIndex((line) => line.startsWith("@@"))
   const body = firstHunk === -1 ? [] : lines.slice(firstHunk).filter((line) => CHANGED_LINE.test(line))
   const removed = body.filter((line) => line.startsWith("-")).map((line) => line.slice(1))
   const added = body.filter((line) => line.startsWith("+")).map((line) => line.slice(1))
+  const hunksPaired = lines.filter((line) => line.startsWith("@@")).every(hunkCountsMatch)
 
-  if (removed.length !== added.length || removed.length === 0) return undefined
+  if (!hunksPaired || removed.length !== added.length || removed.length === 0) return undefined
   return removed.flatMap((line, index) => {
     const partner = added[index]
     // The counts are equal, so every removed line has a partner; this check only narrows the type.
@@ -377,20 +410,34 @@ const classifyWorkflow = (file: ChangedFile): Verdict => {
 }
 
 // Every option that drops or rewrites code stays off: two sources that differ only in code it removed
-// would compare equal, and a real change would pass as comment-only. No macros are configured, so the
-// PR's text is parsed, never run.
+// would compare equal, and a real change would pass as comment-only.
+// - `macro: false` stops the transpiler running a `with { type: "macro" }` import while it reads the PR's
+//   text; such an import can run any command on the reviewer's machine.
+// - `define` maps each value the transpiler substitutes by default to itself, so a PR that swaps
+//   `process.env.NODE_ENV` for the literal `"development"` is still a code change.
 const TRANSPILE_OPTIONS = {
   deadCodeElimination: false,
   treeShaking: false,
   trimUnusedImports: false,
   minifyWhitespace: false,
   inline: false,
+  macro: false,
+  define: {
+    "process.env.NODE_ENV": "process.env.NODE_ENV",
+    "process.env.BUN_ENV": "process.env.BUN_ENV",
+    "process.browser": "process.browser",
+  },
 } as const
 
+// The transpiler drops a leading `#!` line and every "use strict" directive, though either changes how the
+// file runs, so classifyCode compares them itself.
+const HASHBANG = /^#!.*/
+const USE_STRICT = /(["'])use strict\1/g
+
 /**
- * The file as the transpiler prints it, or undefined when it cannot parse the text. The output drops
- * comments, and it also drops TypeScript types and the source's formatting, so a type-only or
- * reformat-only edit prints the same text too.
+ * The file as the transpiler prints it, or undefined when it cannot parse the text or the text imports a
+ * macro. The output drops comments, and it also drops TypeScript types and the source's formatting, so a
+ * type-only or reformat-only edit prints the same text too.
  */
 const stripComments = (text: string, loader: Loader): string | undefined => {
   try {
@@ -405,6 +452,11 @@ const classifyCode = (file: ChangedFile, loader: Loader): Verdict => {
   const after = newContent(file)
   // An empty file is valid content, so the check is for a missing file, not a falsy one.
   if (before === undefined || after === undefined) return { reason: "file unreadable at one side" }
+
+  const sameHashbang = HASHBANG.exec(before)?.[0] === HASHBANG.exec(after)?.[0]
+  const sameStrictCount = (before.match(USE_STRICT) ?? []).length === (after.match(USE_STRICT) ?? []).length
+
+  if (!sameHashbang || !sameStrictCount) return { reason: "code changed beyond comments" }
 
   const strippedBefore = stripComments(before, loader)
   const strippedAfter = stripComments(after, loader)
