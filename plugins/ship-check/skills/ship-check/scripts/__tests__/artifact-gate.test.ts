@@ -299,6 +299,12 @@ describe("scripts class", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "scripts.compile runs during the image build"))
   })
 
+  it("keeps a script a lifecycle script reaches through npm run", () => {
+    const chained = (gen: string): string => packageWith((manifest) => { Object.assign(manifest.scripts, { prepare: "npm run gen", gen }) })
+    const { repo, base, head } = fixture({ "package.json": chained("node gen.js --strict") }, [], { "package.json": chained("node gen.js") })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "scripts.gen runs during the image build"))
+  })
+
   it("follows npm run past its flags to the script name", () => {
     const chained = (compile: string): string => packageWith((manifest) => { Object.assign(manifest.scripts, { "build:server": "npm run --silent compile", compile }) })
     const { repo, base, head } = fixture({ "package.json": chained("tsc --strict") }, [], { "package.json": chained("tsc") })

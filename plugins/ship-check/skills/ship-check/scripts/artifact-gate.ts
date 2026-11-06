@@ -245,7 +245,9 @@ const dependencyBumpProblem = (
  * from both versions of the scripts map so a call the PR adds or removes still counts.
  */
 const imageScriptNames = (scriptMaps: readonly JsonObject[], imageScripts: readonly string[]): Set<string> => {
-  const names = new Set(imageScripts)
+  // The lifecycle scripts and the pre/post variants run too, so a script they reach is an image script.
+  const roots = [...LIFECYCLE_SCRIPTS, ...imageScripts.flatMap((script) => [script, `pre${script}`, `post${script}`])]
+  const names = new Set(roots)
 
   // A Set's iterator also visits names added during the loop, so each newly reached script is scanned in
   // turn and the loop ends once no command reaches a new name.
