@@ -1321,8 +1321,8 @@ mailbox messages and the scheduled wakeups belong to this session.
 any mode and the step in default mode.
 
 1. **Profile.** Read the project's `CLAUDE.local.md` section `## Verification profile`
-   fresh every time (`rg -n` on the file where it is on disk; the vault tools
-   otherwise). Missing → `no profile`, and the run behaves as before this step
+   fresh every time (the vault tools where they exist, since the file can be a vault
+   symlink the shell rules protect; otherwise `rg -n` on the file). Missing → `no profile`, and the run behaves as before this step
    existed. Unreadable → `profile unreadable`; withhold the verdict.
 2. **Gate.** Run the profile's `Gate:` command, this skill's script:
    ```
@@ -1331,7 +1331,7 @@ any mode and the step in default mode.
    When the runtime left `${CLAUDE_SKILL_DIR}` unreplaced (you see that literal text
    above), put the folder this `SKILL.md` was read from in its place. The JSON's
    `summary` is the outcome to report; each `files` entry carries its reason.
-   `local change` means only audit paths changed.
+   `local change` means audit paths changed and no artifact file needs the live test.
    `no artifact change` or `exempt (…)` ends the step with that summary. A file whose
    reason says "judge the hunk" may be recorded as `exempt (comment, judged)` only when
    `Exempt:` lists `comment` and every changed line is plainly a comment, and never when a shebang, a parser
@@ -1347,10 +1347,11 @@ any mode and the step in default mode.
    summary; `--report` with a PR runs them at Phase 6's usual point. In any mode, a
    fork PR (`isCrossRepository`) → `needs the maintainer's live test`.
 5. **Deploy and probe** (default mode). In a worker the `lane-conductor` skill started:
-   report `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5d-5g, then
-   `LANE <X> VERIFIED HEAD <sha>` or `LANE <X> VERIFY FAILED`; the lead owns the hold
-   note and the return. Otherwise post the stage plan, then:
-   - a. Behind main: the gate script with `--from <headRefOid> --to origin/main`; empty
+   report `LANE <X> INSTANCE REQUEST`, wait for the grant, run 5b and 5d-5h (the
+   return as the kickoff says), then `LANE <X> VERIFIED HEAD <sha>` or
+   `LANE <X> VERIFY FAILED`; the lead owns the hold note, confirm-test and the
+   behind-main assessment. Otherwise post the stage plan, then:
+   - a. Behind main: the gate script with `--from <headRefOid> --to origin/<base-branch>`; empty
      or exempt → continue; otherwise the note's behind-main rule (a clean merge is
      pushed, and the step re-enters once CI, the bots and the delta review have run on
      the new head).

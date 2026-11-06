@@ -331,6 +331,12 @@ describe("scripts class", () => {
     const { repo, base, head } = fixture({ "package.json": chained("tsc --strict") }, [], { "package.json": chained("tsc") })
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "scripts.compile runs during the image build"))
   })
+
+  it("keeps a script an image script reaches by name without npm run", () => {
+    const chained = (test: string): string => packageWith((manifest) => { Object.assign(manifest.scripts, { "build:server": "npm test && tsc", test }) })
+    const { repo, base, head } = fixture({ "package.json": chained("vitest run --bail") }, [], { "package.json": chained("vitest run") })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "scripts.test runs during the image build"))
+  })
 })
 
 describe("digest and action classes", () => {
@@ -442,7 +448,7 @@ describe("comment class", () => {
     const macro = `import { execSync } from "node:child_process" with { type: "macro" }\nexecSync("touch ${marker}")\n`
     const { repo, base, head } = fixture({ "src/server.ts": `${macro}${SOURCE}` })
     const result = classify(input(repo, base, head))
-    assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the transpiler could not parse the file"), macroRan: false })
+    assert.deepEqual({ result, macroRan: existsSync(marker) }, { result: artifactChange("src/server.ts", "the file imports a macro, which the gate never runs"), macroRan: false })
   })
 
   // The transpiler inlines the running process's NODE_ENV, which `bun test` sets to "test".
@@ -471,6 +477,25 @@ describe("paths and ranges", () => {
   it("ignores test files and reports no artifact change", () => {
     const { repo, base, head } = fixture({ "src/__tests__/server.test.ts": "export const x = 1\n" })
     assert.deepEqual(classify(input(repo, base, head)), NO_ARTIFACT_CHANGE)
+  })
+
+  it("reports an exempt artifact change beside an audit-path change as local change", () => {
+    const { repo, base, head } = fixture({ "package.json": packageWith((manifest) => { manifest.dependencies.hono = "4.6.1" }), "cli/src/docker.ts": "export const image = 'y'\n" })
+    assert.deepEqual(classify(input(repo, base, head)), {
+      outcome: "local change",
+      summary: "local change (1 files)",
+      files: [
+        { path: "package.json", exemptAs: "dependency", reason: "dependency" },
+        { path: "cli/src/docker.ts", exemptAs: undefined, reason: "audit path" },
+      ],
+    })
+  })
+
+  it("keeps a spec with whitespace or a tarball suffix", () => {
+    const padded = fixture({ "package.json": packageWith((manifest) => { manifest.dependencies.hono = " 4.6.1" }) })
+    assert.deepEqual(classify(input(padded.repo, padded.base, padded.head)), artifactChange("package.json", "dependencies.hono is not a registry version"))
+    const tarball = fixture({ "package.json": packageWith((manifest) => { manifest.dependencies.hono = "hono-4.6.1.tgz" }) })
+    assert.deepEqual(classify(input(tarball.repo, tarball.base, tarball.head)), artifactChange("package.json", "dependencies.hono is not a registry version"))
   })
 
   it("reports a change under an audit path only as local change", () => {

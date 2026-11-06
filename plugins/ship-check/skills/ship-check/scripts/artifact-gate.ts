@@ -44,7 +44,7 @@ export type GateResult = {
    * - `no artifact change`: nothing under the artifact or audit paths changed
    * - `exempt`: every changed artifact file fits a selected exemption class
    * - `artifact change`: an artifact file fits none, so the PR needs the live test
-   * - `local change`: only audit paths changed, so local probes replace the live test
+   * - `local change`: audit paths changed and no artifact file needs the live test, so local probes replace it
    */
   outcome: "no artifact change" | "exempt" | "artifact change" | "local change"
   /** The outcome with its counts and classes, as the step reports it: `artifact change (2 files: …)`. */
@@ -91,11 +91,11 @@ const NPM_ALIAS = /^npm:(@?[^@]+)/
 // `/` or `#` beyond that, or a leading `.`, points outside the registry.
 // - Matches: `^1.2.3`, `latest`, `1.x || 2.x`, `npm:@scope/pkg@^2`
 // - Fails: `file:../pkg`, `..`, `github:owner/repo#ref`, `https://…/pkg.tgz`, `npm:pkg` (an alias with no range)
-const REGISTRY_SPEC = /^(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?(?!\.)[^:/#]*$/
+const REGISTRY_SPEC = /^(?!.*\s)(?!.*\.(tgz|tar|tar\.gz)$)(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?(?!\.)[^:/#]*$/
 // An overrides key may name a version, `<package>@<range>`: group 1 is the package.
 const KEY_PACKAGE = /^(@?[^@]+)/
-// `npm run <name>` or `npm run-script <name>` inside a script's command, after any flags: group 1 is the name.
-const NPM_RUN = /\bnpm\s+run(?:-script)?\s+(?:--?\S+\s+)*([\w:.-]+)/g
+// Splits a script's command into the words that can name another script.
+const COMMAND_WORD_BREAK = /[^\w:.@/-]+/
 // `@sha256:<hex>` inside a FROM line.
 const DIGEST = /@sha256:[0-9a-f]+/
 // A Dockerfile FROM instruction.
@@ -258,13 +258,16 @@ const dependencyBumpProblem = (
 }
 
 /**
- * The scripts the image runs: the listed ones plus every script they reach through `npm run <name>`, read
- * from both versions of the scripts map so a call the PR adds or removes still counts.
+ * The scripts the image runs: the listed ones, the lifecycle scripts, their pre/post variants, and every
+ * script those reach. A script is reached when its name appears as a word in a reached command, whatever
+ * runs it (`npm run`, `npm test`, `npm-run-all`, `bun run`, a shell chain); a word that is also a script
+ * name but means something else makes an extra artifact change, never a missed one. Both versions of the
+ * scripts map are read, so a call the PR adds or removes still counts.
  */
 const imageScriptNames = (scriptMaps: readonly JsonObject[], imageScripts: readonly string[]): Set<string> => {
-  // The lifecycle scripts and the pre/post variants run too, so a script they reach is an image script.
   const roots = [...LIFECYCLE_SCRIPTS, ...imageScripts.flatMap((script) => [script, `pre${script}`, `post${script}`])]
   const names = new Set(roots)
+  const scriptNames = new Set(scriptMaps.flatMap((scriptMap) => Object.keys(scriptMap)))
 
   // A Set's iterator also visits names added during the loop, so each newly reached script is scanned in
   // turn and the loop ends once no command reaches a new name.
@@ -273,13 +276,10 @@ const imageScriptNames = (scriptMaps: readonly JsonObject[], imageScripts: reado
       const command = scriptMap[name]
 
       if (typeof command !== "string") continue
-      for (const match of command.matchAll(NPM_RUN)) {
-        const reached = match[1]
-
-        if (!reached) continue
-
-        // `npm run <name>` runs pre<name> and post<name> too, and their commands can reach further scripts.
-        for (const script of [reached, `pre${reached}`, `post${reached}`]) names.add(script)
+      for (const word of command.split(COMMAND_WORD_BREAK)) {
+        if (!scriptNames.has(word)) continue
+        // Running <name> runs pre<name> and post<name> too, and their commands can reach further scripts.
+        for (const script of [word, `pre${word}`, `post${word}`]) names.add(script)
       }
     }
   }
@@ -430,9 +430,14 @@ const TRANSPILE_OPTIONS = {
 } as const
 
 // The transpiler drops a leading `#!` line and every "use strict" directive, though either changes how the
-// file runs, so classifyCode compares them itself.
+// file runs, so classifyCode compares them itself. A directive is a line holding only the string; a
+// directive that moves between a file's prologue and a function body keeps the same list, which the
+// comparison accepts.
 const HASHBANG = /^#!.*/
-const USE_STRICT = /(["'])use strict\1/g
+const USE_STRICT_LINE = /^\s*(["'])use strict\1\s*;?\s*$/gm
+// A macro import, which the transpiler would otherwise run; the text is refused before it is parsed, so
+// `macro: false` is not the only guard.
+const MACRO_IMPORT = /\btype\s*:\s*(["'])macro\1/
 
 /**
  * The file as the transpiler prints it, or undefined when it cannot parse the text or the text imports a
@@ -453,10 +458,11 @@ const classifyCode = (file: ChangedFile, loader: Loader): Verdict => {
   // An empty file is valid content, so the check is for a missing file, not a falsy one.
   if (before === undefined || after === undefined) return { reason: "file unreadable at one side" }
 
+  if (MACRO_IMPORT.test(before) || MACRO_IMPORT.test(after)) return { reason: "the file imports a macro, which the gate never runs" }
   const sameHashbang = HASHBANG.exec(before)?.[0] === HASHBANG.exec(after)?.[0]
-  const sameStrictCount = (before.match(USE_STRICT) ?? []).length === (after.match(USE_STRICT) ?? []).length
+  const sameDirectives = (before.match(USE_STRICT_LINE) ?? []).join("\n") === (after.match(USE_STRICT_LINE) ?? []).join("\n")
 
-  if (!sameHashbang || !sameStrictCount) return { reason: "code changed beyond comments" }
+  if (!sameHashbang || !sameDirectives) return { reason: "code changed beyond comments" }
 
   const strippedBefore = stripComments(before, loader)
   const strippedAfter = stripComments(after, loader)
@@ -492,20 +498,21 @@ const classifyFile = (file: ChangedFile): FileVerdict => {
 
 export const classify = (input: GateInput): GateResult => {
   const artifactFiles = changedFiles(input, input.pathspecs)
+  // Audit-path files count when no artifact file needs the live test: an unexempt artifact change already
+  // deploys, and the deploy covers them.
+  const auditFiles = changedFiles(input, input.auditPathspecs)
+    .filter((path) => !artifactFiles.includes(path))
+    .map((path) => ({ path, exemptAs: undefined, reason: "audit path" }))
 
-  // Audit paths count only when no artifact path changed: an artifact change already needs the live test.
-  if (artifactFiles.length === 0) {
-    const auditFiles = changedFiles(input, input.auditPathspecs)
-
-    if (auditFiles.length === 0) return { outcome: "no artifact change", summary: "no artifact change", files: [] }
-
-    const files = auditFiles.map((path) => ({ path, exemptAs: undefined, reason: "audit path" }))
-    return { outcome: "local change", summary: `local change (${auditFiles.length} files)`, files }
-  }
+  if (artifactFiles.length === 0 && auditFiles.length === 0) return { outcome: "no artifact change", summary: "no artifact change", files: [] }
 
   const oldCommit = resolveOldCommit(input)
   const files = artifactFiles.map((path) => classifyFile({ input, path, oldCommit }))
   const unexemptFiles = files.filter((file) => !file.exemptAs)
+
+  if (unexemptFiles.length === 0 && auditFiles.length > 0) {
+    return { outcome: "local change", summary: `local change (${auditFiles.length} files)`, files: [...files, ...auditFiles] }
+  }
 
   if (unexemptFiles.length > 0) {
     const paths = unexemptFiles.map((file) => file.path).join(", ")
