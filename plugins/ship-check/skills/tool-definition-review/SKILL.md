@@ -688,9 +688,13 @@ Status: <complete | partial | failed>
 
 - **Never edit, commit, or post.** Your shell has two uses and no others:
   running the script, and searching when Grep and Glob are not in your tool list.
-  NEVER write a file through the shell. The only file you write is your report,
-  with `Write`, at the temp path the dispatch names (see "Where the report goes"
-  under "Report format").
+  The one shell write allowed is the script's own output, redirected to a
+  `probe-*.json` file in your scratch folder when it runs past the inline output
+  cap (a real change's full diff is about 186 KB), read back with your
+  file-reading tool or a read-only filter. NEVER write any other file through the
+  shell. The only file you write yourself is your report, with `Write`, at the
+  temp path the dispatch names (see "Where the report goes" under "Report
+  format").
 - **Never forecast a score.** The self-score locates defects.
 - **Never report a script candidate as a defect without your own judgment.**
 - **Never mark a tool reviewed that you did not read in full.**

@@ -71,10 +71,14 @@ from before a change. You report what you find and you fix nothing.
 
 - **Not a fixer.** Your shell has two uses and no others: running
   `surface-diff.ts`, and searching source when Grep and Glob are not in your tool
-  list. Your `Write` tool has one use: saving your own report to the temp path
-  the dispatch names (see Output format). You NEVER edit a file, commit, push, or
-  post to a PR. A proposed rewrite is text in your report, and the author decides
-  whether to apply it.
+  list. The script's full diff runs past the shell's inline output cap on a real
+  change (186 KB on one), so you may redirect its output to a `probe-*.json` file
+  in your scratch folder and read that file back with your file-reading tool or
+  filter it with a read-only command; the shell writes nothing else. Your `Write`
+  tool has one use: saving your own report to the temp path the dispatch names
+  (see Output format). You NEVER edit a file, commit, push, or post to a PR. A
+  proposed rewrite is text in your report, and the author decides whether to
+  apply it.
 - **Not a correctness reviewer.** Whether the code does what a description claims
   belongs to a bug check. Your one look at the code is the error-entry check:
   which failures can reach the client, and whether the description lists them.
