@@ -771,18 +771,28 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     the image; the local route writes `Image: none (local probes)` instead and has no
     run to check;
   - the gate script with `--range tested --from <Head> --to <headRefOid>` reports
-    `no artifact change` or `exempt`, or the section's `Reuse:` line names
-    `<headRefOid>` with either the maintainer's words (`approved by the maintainer
-    <date>: "<her words>"`) or a judged basis (`judged <date>: <the delta and why
-    the probes don't depend on it>`). A judged reuse applies only after a merge
-    whose delta the live-test note's "Behind main" section clears; when the line's
-    stated delta changes anything the probes exercise or feed, the evidence is stale;
-  - every line of the section's `Stand-in audit:` reads `probed live`,
+    `no artifact change` or `exempt`, or a `Reuse:` line in this session's log (the
+    session log the checkpoint skill keeps, NEVER the PR body) names `<headRefOid>`
+    with either the maintainer's words (`approved by the maintainer <date>: "<her
+    words>"`) or a judged basis (`judged <date>: <the delta and why the probes
+    don't depend on it>`). A judged reuse applies only after a merge whose delta
+    the live-test note's "Behind main" section clears; when the line's stated delta
+    changes anything the probes exercise or feed, the evidence is stale;
+  - every line of the `Stand-in audit:` in this session's log reads `probed live`,
     `probed locally` or `read from source` (an `unverified` line is a deferred finding).
+
+  Read the `Reuse:` line, the `Verification skipped at` line and the `Stand-in audit:`
+  lines from this session's log, never from the PR body: the PR body is public, so its
+  section carries only `Head:`, the probe table and the "On the instance" paragraph.
+  A session that cannot see such a record (no session log yet, or a log without the
+  line) treats the evidence as stale and redeploys.
 
   Refresh `headRefOid` and the body right before the verdict; fetch a missing
   `<Head>` with `git fetch origin <Head>`, and fail closed if it is still missing.
-  `--skip verification` records "the user declined it" and satisfies this entry.
+  `--skip verification` records "the user declined it" and satisfies this entry. So
+  does a `Verification skipped at <headRefOid>, <date>: "<her words>"` line in this
+  session's log: she declined the retest at that head. A skipped line naming any
+  other SHA satisfies nothing.
   Otherwise the snapshot names what is missing, and a standalone run runs ship-check's
   "Verification (conditional)" section in default mode; a `--report` run reports the
   gap and stops.

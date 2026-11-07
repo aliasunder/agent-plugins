@@ -399,7 +399,8 @@ alone, skips the Fast exit (Scope) and the audit dimensions, and returns only th
 
 Report as a table: behaviour | layer | stand-in | boundary | check. The verification step
 runs the probes and rewrites each row's check as its outcome (`probed live`,
-`probed locally`, `read from source` or `unverified: <why>`); this audit only names them.
+`probed locally`, `read from source` or `unverified: <why>`) in the session log, NEVER
+the public PR body; this audit only names them.
 
 ## Mutation testing
 

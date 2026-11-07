@@ -1380,7 +1380,8 @@ any mode and the step in default mode.
      reason to merge or to deploy again, so with none of the three, continue at the
      current head. After a merge, the step re-enters once CI, the bots and the delta
      review have run on the new head, and the same section judges whether the new head
-     needs another deploy or takes a judged `Reuse:` line; when unsure, deploy.
+     needs another deploy or takes a judged `Reuse:` line, written to this session's
+     log (never the PR body); when unsure, deploy.
    - b. Confirm local HEAD equals `headRefOid`. Take Phase 4's stand-in table; when
      artifact files changed since the head Phase 4 audited, dispatch
      `ship-check:test-auditor` with `Stand-in audit:`, the Phase 4 template's
@@ -1397,7 +1398,17 @@ any mode and the step in default mode.
      `blocked (<what moved>)`, return rule, stop.
    - g. Write the evidence section the note describes, with a fresh body read, a
      splice under the profile's `Evidence:` heading and a re-read; no raw output,
-     vault content or container inspect JSON in the body.
+     vault content or container inspect JSON in the body. The PR body is public,
+     so its section carries only `Head: <full SHA>`, the
+     `| Probe | Before | After |` table and the "On the instance" paragraph, and it
+     ends there. Write the internal records to this session's log (the session log
+     the checkpoint skill keeps; run that skill to create the log when the session
+     has none), NEVER the PR body: the `Stand-in audit:` lines
+     (Phase 4's table with each check rewritten as its outcome), any `Reuse:` line
+     and any `Verification skipped at` line.
+     - Wrong: a `Stand-in audit:` block or a `Reuse:` line in the PR body.
+     - Right: the PR section ends at the "On the instance" paragraph, and the
+       session log holds the stand-in audit and any reuse or skipped-retest line.
    - h. The return rule; tell peers and the mailbox the instance is free.
 
    When the profile's `Confirm before:` lists a command (`deploy`, `force-deploy`,
@@ -1407,10 +1418,12 @@ any mode and the step in default mode.
    test deploy. A profile command marked *unverified* stops the step at that
    command and asks; never run it unasked.
 6. **Local route** (`local change`): no deploy. Probe each `probe locally` row of the
-   stand-in table in a subagent with throwaway local resources, write the evidence
-   section with `Image: none (local probes)` and each row's outcome in the note's
-   words (`probed locally`, `read from source`), and record a boundary that cannot be
-   probed as `unverified: <why>`, a deferred finding that holds the verdict.
+   stand-in table in a subagent with throwaway local resources, write the PR's
+   evidence section with `Image: none (local probes)`, and write each row's outcome
+   in the note's words (`probed locally`, `read from source`) as the `Stand-in audit:`
+   lines in this session's log, NEVER the PR body (5g's Wrong/Right pair applies).
+   Record a boundary that cannot be probed as `unverified: <why>`, a deferred finding
+   that holds the verdict.
 7. **Report** the `Verification:` line (Reporting).
 
 ### Push the fixes
