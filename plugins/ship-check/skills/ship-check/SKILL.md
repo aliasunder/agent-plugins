@@ -1397,8 +1397,11 @@ any mode and the step in default mode.
    - h. The return rule; tell peers and the mailbox the instance is free.
 
    When the profile's `Confirm before:` lists a command (`deploy`, `force-deploy`,
-   `body-write`), ask the user before running it. A profile command marked
-   *unverified* stops the step at that command and asks; never run it unasked.
+   `body-write`), ask the user before running it. With no `Confirm before:` line,
+   run every command without asking: a clear check (nothing queued, no peer hold,
+   no foreign `:test` build) is the go-ahead, and the user is never a gate on a
+   test deploy. A profile command marked *unverified* stops the step at that
+   command and asks; never run it unasked.
 6. **Local route** (`local change`): no deploy. Probe each `probe locally` row of the
    stand-in table in a subagent with throwaway local resources, write the evidence
    section with `Image: none (local probes)` and each row's outcome in the note's
