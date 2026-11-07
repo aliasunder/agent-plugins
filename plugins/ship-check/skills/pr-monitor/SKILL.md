@@ -195,12 +195,26 @@ gh pr view <number> --json mergeable,mergeStateStatus
 Summarize blockers: failing CI, missing approvals, unresolved threads,
 unanswered non-thread bot findings, conflicts. Unknown mergeability remains a blocker.
 
-**Bring a moved base branch in as soon as it moves, without waiting to be asked.**
+**Merge a moved base branch only when the PR needs it.** Being behind the base is
+NOT a reason to merge: the base's commits had their own reviews, GitHub merges the
+PR onto the current base, and a merge restarts CI, the review bots and any live test.
 On every pass, fetch the base and check whether the PR branch already contains it:
 `git fetch origin <base>` then `git merge-base --is-ancestor origin/<base> HEAD`.
-When it does not, merge the base into the PR branch (never rebase: a merge needs no
-force push and keeps every commit ID), push, and run Step 4's follow-up check for
-that push. Three exceptions:
+When it does not, merge the base only when one of these holds:
+- `gh pr view <number> --json mergeStateStatus` reports `DIRTY` (a conflict) or
+  `BEHIND` (a branch rule requires an up-to-date branch).
+- `git diff HEAD...origin/<base>` touches a file the PR changes, a function or type
+  the PR calls, shared configuration, a dependency or the build.
+
+Otherwise leave the branch alone and report "behind <base> by <n> commits,
+independent of this PR; no merge" (`<n>` from `git rev-list --count HEAD..origin/<base>`).
+- Wrong: merging main because it gained unrelated commits, which restarts every
+  check and any live test for nothing new.
+- Right: a `CLEAN` PR whose files don't overlap the new base commits stays at its head.
+
+When a merge is needed, merge the base into the PR branch (never rebase: a merge
+needs no force push and keeps every commit ID), push, and run Step 4's follow-up
+check for that push. Three exceptions:
 - When the project's instructions or a coordinating lead own base updates, report
   the moved base to them and follow their instructions instead.
 - When the project has live-test rules for the PR, follow those.
@@ -758,7 +772,11 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     run to check;
   - the gate script with `--range tested --from <Head> --to <headRefOid>` reports
     `no artifact change` or `exempt`, or the section's `Reuse:` line names
-    `<headRefOid>` with the maintainer's words;
+    `<headRefOid>` with either the maintainer's words (`approved by the maintainer
+    <date>: "<her words>"`) or a judged basis (`judged <date>: <the delta and why
+    the probes don't depend on it>`). A judged reuse applies only after a merge
+    whose delta the live-test note's "Behind main" section clears; when the line's
+    stated delta changes anything the probes exercise or feed, the evidence is stale;
   - every line of the section's `Stand-in audit:` reads `probed live`,
     `probed locally` or `read from source` (an `unverified` line is a deferred finding).
 

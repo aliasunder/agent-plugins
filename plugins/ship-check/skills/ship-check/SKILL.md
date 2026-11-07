@@ -1374,9 +1374,13 @@ any mode and the step in default mode.
    `LANE <X> VERIFY FAILED`; the lead owns the hold note, confirm-test and the
    behind-main assessment. Otherwise post the stage plan, then:
    - a. Behind main: the gate script with `--from <headRefOid> --to origin/<base-branch>`; empty
-     or exempt → continue; otherwise the note's behind-main rule (a clean merge is
-     pushed, and the step re-enters once CI, the bots and the delta review have run on
-     the new head).
+     or exempt → continue; otherwise the note's "Behind main" section decides. That
+     section merges `origin/<base-branch>` only on a conflict (`DIRTY`), a required up-to-date
+     branch (`BEHIND`) or a base change the PR depends on; being behind alone is NOT a
+     reason to merge or to deploy again, so with none of the three, continue at the
+     current head. After a merge, the step re-enters once CI, the bots and the delta
+     review have run on the new head, and the same section judges whether the new head
+     needs another deploy or takes a judged `Reuse:` line; when unsure, deploy.
    - b. Confirm local HEAD equals `headRefOid`. Take Phase 4's stand-in table; when
      artifact files changed since the head Phase 4 audited, dispatch
      `ship-check:test-auditor` with `Stand-in audit:`, the Phase 4 template's
