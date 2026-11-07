@@ -1,6 +1,148 @@
 # Changelog
 
 
+## [1.2.1] — 2026-11-07
+
+### Features
+
+- **ship-check:** Deliver PR review-response rules at their moment
+- **ship-check:** Run the project's live test as a conditional verification step
+- **ship-check:** Add artifact-gate.ts, the verification step's change classifier
+- **ship-check:** Fix defects, flag unevidenced new handling, cap no-impact fixes after review round 4
+- **ship-check:** Fully review only the first tool-list file and proofread the rest
+- **pr-monitor:** Self-arm adaptive OpenCode monitoring loops
+- **ship-check:** Let the tool-definition re-review skip a reorder-only edit
+- **ship-check:** The design pass reads shipped agent instructions as code
+- **ship-check:** Run a whole-PR design pass after Phase 5 and before the first merge-ready verdict
+- **ship-check:** Dimension 8 keeps guards whose message carries the recovery, and proposes ones another layer enforces
+- **ship-check:** Dimension 8 proposes rare-and-cheap guards instead of weighing them away
+- **ship-check:** Add code-quality dimension 8, a report-only whole-change design pass
+- **ship-check:** Triage deferred findings as each phase defers them
+- **ship-check:** Delta reviews send the test auditor when new commits change tests
+- **ship-check:** Phases commit and the orchestrator pushes once after Phase 5
+- **pr-monitor:** Post a merge-ready verdict to the user's inbox in the ship-check pipeline
+- **ship-check:** Triage findings a PR won't fix with triage-finding when available
+- **tool-definition-review:** Add a caller-use sweep that judges every sentence claim by claim
+- **scripts:** Make headless runs wait for their agents and report any that did not finish
+- **scripts:** Run a plugin from a checkout in a headless Claude Code session
+- **tool-definition-review:** Ask whether the caller can act on each added sentence
+- Choose review models and reasoning effort explicitly
+- **ship-check:** Dispatch the tool-definition reviewer when a tool list changes
+- **ship-check:** Surface-diff --plan turns changed tool lists into reviewer dispatches
+
+### Bug Fixes
+
+- **ship-check:** Keep the stand-in audit and reuse records out of public PR bodies
+- **pr-monitor:** Merge a moved base only when the PR needs it
+- **tool-definition-review:** Let the reviewer redirect the diff script's output to a scratch file
+- **ship-check:** Check both lockfile sides for off-registry entries and refuse any import attribute before parsing
+- **ship-check:** Keep off-registry lockfile entries, SHA action bumps and any macro mention as artifact changes
+- **ship-check:** Refuse macro imports before parsing, match directives by line, reach scripts by name
+- **ship-check:** Stop the artifact gate running PR macros and closing false exemptions
+- **ship-check:** Follow npm run from lifecycle scripts and pre/post variants too
+- **ship-check:** Check both sides of a dependency spec and read a live-test package through its alias
+- **ship-check:** Close the gate gaps the paired reviews found
+- **review:** Artifact gate catches lockfile bumps, deletions, aliases and npm ci hooks
+- **ship-check:** Compare a nested override by value when checking a dependency bump
+- **ship-check:** Treat an added or removed package.json override as a dependency bump
+- **review:** Low-cost evidenced handling is flagged too; post-cap reply form, round definition and override record
+- **ship-check:** Keep security findings out of the unevidenced re-categorization
+- **review:** Align plan-reviewer exception, sibling category claim and cap size wording
+- Pr-review's test step no longer says fixes change no behavior
+- Correct category count and handling-approval rules in review skills
+- **review:** Align review-cap gate, report field and triage wording
+- **tool-definition-review:** Fail absence, implied-consequence and mechanism clauses on sight
+- **fresh-eyes:** Scope metadata checks to Node reads
+- **fresh-eyes:** Support scoped Codex source reads
+- Preserve monitor state and readiness checks
+- **opencode:** Use native reviewer dispatch controls
+- **triage:** Design-pass final pass under --report with a PR, --only lists, a trigger that ignores its own fixes and base merges
+- Design pass re-checks edits after its continuation, keeps cut and kept pieces decided
+- **triage:** A protective piece is the user's decision even when it predates the change; restores go to her only with new evidence
+- **review:** Design pass runs once in pr-monitor, cut list format and scope
+- **ship-check:** Dimension 8 never calls a publish, release or delete that is hard to undo a cheap failure
+- **ship-check:** Dimension 8 runs option experiments in /tmp by absolute path, never cd
+- **triage:** Report-only runs list triage results, Pending holds the verdict, local mode reads commit messages
+- Close re-ask and never-routed paths in ship-check triage
+- **triage:** Settle reserved findings' results and Pending's effect on the verdict
+- **review:** Route every triage-finding result and keep user-only findings unfixed
+- **ship-check:** Correct which regression tests a delta review audits, and quote-safe pr-monitor replies
+- **ship-check:** Stale --local claim, regression tests on triage-finding fixes, sibling gaps
+- **ship-check:** No last-tag fallback on a branch, and fresh-eyes skips deleted files
+- **review:** Route a failing gap test to the production-bug report
+- **test-audit:** Report production bugs to triage without writing a failing test
+- **ship-check:** Triage Phase 5's flags — complex fix drops the risk clause, proposals carry categories
+- Push-step gaps, stale fix-or-flag summaries, and narrow test-file searches
+- **ship-check:** One fix-or-flag rule for every reviewer, and Phase 4 flags its production bugs
+- **review:** Push-failure path, local-mode wording, safe .filter(Boolean) fix, HEAD SHA reports
+- **code-quality:** Flag redundant .filter() type predicates instead of asking for them
+- **test-audit:** Match test-auditor's exit to the skill's fast exit, and give named-file audits a coverage range
+- **ship-check:** Local mode reviews unpushed commits before falling back to the last tag
+- **tool-definition-review:** Cap sweeps at four tools and keep contrast sentences
+- **ship-check:** Standalone runs on the default branch ask for a base; correct merge-base and dispatch claims
+- **review:** Resolve local-mode bases with merge-base and carry Base into inline/fork runs
+- **ship-check:** Diff every phase against the PR's merge base, not local main
+- Match the Phase 3 pause rules to the skill and keep the headless note to what the run knows
+- **scripts:** Remove --out again whenever <out>.stderr cannot be created
+- **review:** Keep comment moves that dimension 4 asks for
+- **review:** Name a cut fact the way the Facts line names it
+- **review:** Leave no empty output when a headless run cannot start
+- **code-quality:** Let a project format rule justify reshaping a comment
+- **tool-definition-review:** Judge caller use against the definition without the sentence
+- **code-quality:** Treat a comment that repeats the file's own text as restating
+- **code-quality:** Judge each fresh-eyes pause before editing for it
+- Apply only user-stated constraints to model selection
+- Preserve guidance selection and inherited review controls
+- **review:** Refuse a plan whose copies differ only in letter case
+- **review:** Report --since removals the review never saw, and name a missing repository as one
+- **review:** Pair renamed tool lists in --since plans and read from the repository top
+
+### Refactoring
+
+- **ship-check:** One old commit for the gate's file list and reads; widen the macro guard
+- **review:** Write only the tool lists the printed plan names
+- **review:** Stop copying --since tool lists that nothing reads
+- **ship-check:** Pr-review hands tool definitions to the tool-definition step
+
+### Documentation
+
+- **ship-check:** With no Confirm-before line, the verification step deploys without asking
+- **tool-definition-review:** Say the redirect allowance in the summary, lead and trace text too
+- **ship-check:** Settle the verification step's read-only run point, judged exemptions and audit paths
+- **ship-check:** Name the design pass in both READMEs
+- **ship-check:** Give every tool-definition dispatch the same intended-tools list
+- **ship-check:** Settle the tool-definition step's open points from a dry run
+- **ship-check:** Describe the tool-definition reviewer as a pipeline step
+
+### CI / Infrastructure
+
+- Bump umm-actually to v0.4.11 (#36)
+- Pin the test workflow to the Bun the tests run with locally
+
+### Maintenance
+
+- **deps:** Bump actions/create-github-app-token from 3.2.0 to 3.3.0 (#35)
+
+### Other Changes
+
+- Pin whole artifact-gate results, split multi-case tests and cover untested branches
+- Clarify the artifact gate and the verification step's skill text
+- Clarify defect vs new-handling wording across review skills
+- Clarify monitoring coverage and scheduling state
+- Clarify PR monitoring instructions and mode boundaries
+- Resolve design-pass referents, triggers and cut-list rules
+- Resolve referents and routing gaps in ship-check triage steps
+- **ship-check:** Carry the test-audit wording fixes to the other phase agents and skills
+- Resolve fresh-eyes pauses in test-audit and ship-check instructions
+- **ship-check:** Define undefined terms, fix forward references and report slots
+- **ship-check:** One name per review range value and stated reasons for each base
+- **scripts:** Cover the headless runner's input errors, signal exit and model passthrough
+- Resolve fresh-eyes pauses in the headless runner and reviewer skills
+- **scripts:** Run every command-line test against the stub claude
+- **review:** Pin the --plan branches that no test could fail on
+- Name the plan's commits, path maps, and outputs; spell out the tool-definition step's lookups
+
+
 ## [1.2.0] — 2026-10-08
 
 ### Features
