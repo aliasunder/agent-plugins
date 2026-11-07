@@ -195,6 +195,17 @@ gh pr view <number> --json mergeable,mergeStateStatus
 Summarize blockers: failing CI, missing approvals, unresolved threads,
 unanswered non-thread bot findings, conflicts. Unknown mergeability remains a blocker.
 
+**Bring a moved base branch in as soon as it moves, without waiting to be asked.**
+On every pass, fetch the base and check whether the PR branch already contains it:
+`git fetch origin <base>` then `git merge-base --is-ancestor origin/<base> HEAD`.
+When it does not, merge the base into the PR branch (never rebase: a merge needs no
+force push and keeps every commit ID), push, and run Step 4's follow-up check for
+that push. Three exceptions:
+- When the project's instructions or a coordinating lead own base updates, report
+  the moved base to them and follow their instructions instead.
+- When the project has live-test rules for the PR, follow those.
+- When the merge conflicts, abort it (`git merge --abort`) and ask the maintainer.
+
 In OpenCode, complete the required Step 3 work this pass is authorized to perform.
 If checks or approvals remain pending, use **OpenCode loop scheduling** below and
 end the turn; do not repeatedly poll inside a busy turn.
@@ -238,7 +249,9 @@ piece stays cut until she decides.
 
 ### Bot threads (qodo, CodeRabbit, etc.)
 
-For each unresolved bot thread, do ALL of these in order:
+For each unresolved bot thread, do items 1–4 in order. Items 5 and 6 (reply, then
+resolve) run after the round's fixes are committed and pushed ("After handling all
+threads"), so each fix reply names a commit the PR already has.
 
 1. **Evaluate**: valid finding or false positive? Check against AGENTS.md conventions.
 
@@ -309,6 +322,8 @@ For each unresolved bot thread, do ALL of these in order:
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through
    `triage-finding` when it is available.
+   A wording suggestion on public prose or a diagram, and an over-claim finding,
+   follow the ship-check skill's "Copy and claims" instruction.
 
 4. **Sweep the class repo-wide, before you commit.** A bot flags instances; the next
    pass flags the sibling you left, and the point-fix loop is how a PR ends up with
@@ -362,7 +377,8 @@ For each unresolved bot thread, do ALL of these in order:
    so the next wake keeps it. Past the cap, item 4's sweep fixes only behavior
    defects; no-impact siblings are reported with the finding.
 
-5. **Reply to the comment** -- do this BEFORE resolving, for EVERY bot comment.
+5. **Reply to the comment** -- after the round's fixes are pushed, and BEFORE
+   resolving, for EVERY bot comment.
 
    Since `gh` posts as the user's account, every reply MUST include an attribution
    footer. Use the pipeline's verified `Attribution model ID` when ship-check supplied
@@ -386,8 +402,8 @@ For each unresolved bot thread, do ALL of these in order:
      }) { comment { id } }
    }'
    ```
-   - **Valid finding** -- reply explaining what you fixed:
-     *"Fixed -- [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+   - **Valid finding** -- reply with the pushed commit that carries the fix, then what changed:
+     *"Fixed in [short SHA]: [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **Result from `triage-finding`** -- post the reply it gives, with the same footer:
@@ -441,10 +457,10 @@ For each unresolved bot thread, do ALL of these in order:
 
 ### Claude threads (human account with Claude footer)
 
-Handle the same way as bot threads -- evaluate, reply, fix if valid, resolve. These are
-from another Claude instance and do not require user approval. Include in your reply
-that you're addressing feedback from another Claude session, e.g.:
-*"Addressed -- [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+Handle the same way as bot threads -- evaluate, fix if valid, then after the push reply
+and resolve. These are from another Claude instance and do not require user approval.
+Include in your reply that you're addressing feedback from another Claude session, e.g.:
+*"Fixed in [short SHA]: [description]. (Responding to Claude-authored review.)\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
 
 ### Bot and Claude findings without a thread (review bodies, PR-level comments — from 2d)
 
@@ -457,7 +473,8 @@ findings, not decoration.
 There is no thread to resolve, so the disposition must land on the PR as
 a reply instead: post one `gh pr comment` covering the body-only findings
 you handled — name each finding by its review ID and description, state
-fixed/intentional with the reasoning, include the same attribution footer.
+fixed (with the pushed commit) or intentional with the reasoning, include the same
+attribution footer.
 A finding answered nowhere on the PR is indistinguishable from one that was
 never read. When `triage-finding` ran, state each outcome it returned, leave
 pending findings out, and resolve nothing.
@@ -503,9 +520,13 @@ cycles, not a comment-per-instance conversation. Like item 4's sweep, this pass
 never reopens or fixes a finding `triage-finding` logged, or one the user
 deferred or dismissed.
 
-If you fixed any code: stage, commit, push. Then **go to Step 4** -- this is mandatory.
+If you fixed any code: stage, commit, push. Then post the replies and resolve the
+threads (items 5 and 6 under "Bot threads", the Claude-thread replies and the
+body-only comment), each fix reply naming the pushed commit that carries it, and
+**go to Step 4** -- this is mandatory.
 
-If no fixes were needed and no code was pushed: **go to Step 5.**
+If no fixes were needed and no code was pushed: post the replies and resolutions the
+same way, then **go to Step 5.**
 
 ## Step 4: Follow-up check after pushing (MANDATORY)
 
@@ -689,6 +710,15 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   don't match, re-fetch with `--paginate` before proceeding
 - If code was pushed during this run: at least one follow-up check (Step 4) completed
   after the most recent push with no new unresolved threads
+- **Follow-ups offered:** each tracked follow-up for this PR's work (an issue, or a
+  card on the project's task board) has been offered to the maintainer once for
+  absorbing into the open PR when its cost is reasonable
+- **Tool text**, in a run outside ship-check: when the PR changes MCP tool text
+  (descriptions or input schemas), a tool-definition review covers the current
+  head's tool text; run one before the first merge-ready verdict, and again only when
+  tool text changed since. Pure reorders are exempt. Read the ship-check skill's
+  "Tool-definition review (conditional)" section and run it from there. In ship-check's
+  Phase 6, that skill's "Pre-merge delta review", step 6, covers it.
 - No new unresolved threads in the most recent status pass
 - **Pipeline context only (ship-check Phase 6)**: the pre-merge delta review has run
   against the current head — the diff from the reviewed SHA was checked,

@@ -111,6 +111,27 @@ The harness appends its own `Co-Authored-By` trailer automatically; the `Ship-Ch
 trailer supplements it with the phase and the agent's actual model, not the
 dispatching session's.
 
+## Copy and claims
+
+Add this instruction to each phase dispatch prompt that can edit (phases 1, 3, 4 and
+5) and to each delta review dispatch, next to the attribution instruction. The
+orchestrator follows it for its own inter-phase triage fixes, and pr-monitor for its
+fixes and for bot wording suggestions:
+
+```
+Public prose and diagrams already on the base branch are established text. Fix a
+factual error in it and report the fix. Never reword accurate established text for
+style alone. For any other change to it, report the exact replacement and its reason
+instead of making it.
+
+In any text, resolve an over-claim by first asking whether the same accuracy fits in
+fewer words and whether the claim belongs in this document at all; then qualify it,
+move it to the document that owns the mechanism, or delete it.
+
+Make each fix the way this dispatch makes fixes: a commit, or a recommendation when
+the dispatch is report-only.
+```
+
 ## Before starting
 
 1. **Check for a PR.** Run `gh pr view` on the current branch.
@@ -572,6 +593,9 @@ the pipeline pushes nothing).
    Model and effort follow Execution below: retain the run's selected model;
    bug-checker uses the Adversarial review task class, code-quality-reviewer and
    test-auditor the Ordinary review class (the task-class table under "Resolve model and effort").
+   When successive delta rounds keep finding nearby corner cases of the same
+   mechanism, offer the maintainer a cap: fix this round's findings and track the
+   rest, instead of starting another round.
 4. **Fixes written during monitoring are never exempt.** Code the orchestrator or
    pr-monitor itself authors in the bot-response cycle is unreviewed content like any
    other — it enters the next delta. Do not reason "the pipeline wrote it, so it's
