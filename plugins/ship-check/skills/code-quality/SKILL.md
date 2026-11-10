@@ -610,7 +610,7 @@ in the code uses the skip's words.
 | When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
-| Does each guard, check, catch and option earn its place? | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, or publishes, releases or deletes something that is hard to undo, and no other layer already enforces the case |
+| Does each guard, check, catch and option earn its place? Weigh how often its case occurs and what failing there costs against what the piece costs on every run, whether or not its case occurs | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, or publishes, releases or deletes something that is hard to undo, and no other layer already enforces the case. This skip does not cover a piece that, on every run, throws away or repeats work an earlier run already did and could reuse (deletes a cache or index the run then rebuilds in full, recomputes every entry to catch a rare change), to cover a rare case: propose it with both costs named. Checking the input the run receives (validating each item, one lookup per call) is not that, however large the input |
 
 **Four counters.** Each one rebuts a dismissal that has kept redundant code
 through past reviews:
@@ -629,11 +629,15 @@ through past reviews:
   guard, check, catch or option. The user decides every removal of one, so do not
   decide it for her: when its case is rare and failing there is cheap and visible (a red
   run, a clear error, a re-run that works), propose removing it, with the case, how
-  often it occurs and what failing there costs. Skip it only when its case is common
-  in supported use, or when failing there is not cheap: it loses data, breaks
-  security, gives wrong output that nobody sees, publishes, releases or deletes
-  something that is hard to undo, or leaves the user without the recovery the
-  guard's own message gives (below), and no other layer already enforces the case.
+  often it occurs, what failing there costs and what the piece costs on every run.
+  Skip it only when its case is common in supported use, or when failing there is not
+  cheap: it loses data, breaks security, gives wrong output that nobody sees,
+  publishes, releases or deletes something that is hard to undo, or leaves the user
+  without the recovery the guard's own message gives (below), and no other layer
+  already enforces the case. The exception is a piece that, on every run, throws away
+  or repeats work an earlier run already did and could reuse, to cover a rare case:
+  the guard row sends it to the user with both costs, even when failing there is
+  costly. Checking the run's own input is not that, however large the input.
   - **Cheap means the recovery works.** Before proposing a removal, read what is
     left when the guard is gone: the error, and the recovery it points the user
     to. Keep the guard when its own message is what sends the user to the right
@@ -663,8 +667,9 @@ through past reviews:
 | Code that existed before the change | `pre-existing gap` |
 
 Every `needs design decision` proposal states the case, how often it occurs, what
-failing there costs, and any layer that already enforces it: a branch ruleset and
-who can bypass it, a type, or a check at the same boundary.
+failing there costs, what the piece costs on every run, and any layer that already
+enforces it: a branch ruleset and who can bypass it, a type, or a check at the same
+boundary.
 
 Wrong: two HTTP handlers each parse and validate the same `page`, `limit` and
 `cursor` query, and the review reports a naming nit inside one of them.
@@ -679,7 +684,17 @@ Right: `[design] cache.ts:18 — the write lock guards two jobs writing one key 
 same second; that case is rare, and failing there costs one corrupt cache entry
 that the next run rebuilds → proposal (needs design decision): −20 lines and a
 cleanup path, 1 file, tests: drop the lock test in cache.test.ts, risk: the rare
-double write leaves one bad entry until the next run`.
+double write leaves one bad entry until the next run; per-run cost: one lock per
+write`.
+
+Wrong: a sync job deletes its whole local index before every run so an interrupted
+earlier run can never leave stale entries, and the review keeps it because a stale
+index returns wrong results that nobody sees.
+Right: `[design] sync.ts:22 — deleting the index before every run rebuilds every
+entry on every run to cover an interrupted run, which is rare; the index already
+rebuilds entries whose content hash changed → proposal (needs design decision): −6
+lines, 1 file, tests: drop the delete-first test, risk: an interrupted run leaves
+stale entries until a forced rebuild; per-run cost removed: one full rebuild`.
 
 Wrong: a client passes `{ cache: "default" }` to every `fetch` call, and the review
 confirms the responses are correct.
