@@ -244,10 +244,9 @@ A related hazard: the checkout itself can change out from under the pipeline
 out where the pipeline started, pin a dedicated detached review worktree at the PR
 head (`git worktree add --detach <path> origin/<branch>`) and point subsequent
 phases at it. Remove that review worktree when the PR is merged or closed, or the
-user stops the pipeline: run `bun ~/.agents/scripts/leftovers.ts own --session
-<your session id> --path <path>`, read its plan, then rerun with `--apply`
-(the `land-task` skill, where installed, carries the full procedure). Never use
-`git worktree remove --force` around a refusal; report it.
+user stops the pipeline: where the `land-task` skill is installed, name the worktree to
+its `own` command, which carries the exact command line; otherwise run
+`git worktree remove <path>`. Never use `--force` around a refusal; report it.
 
 ### Non-inline findings still land on the PR
 
