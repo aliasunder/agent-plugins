@@ -623,10 +623,10 @@ carries that sentence as its test.
   - Count an instance only when the text fails the test as written, not when it
     could read more clearly. Put each candidate you drop on a `Cleared:` line
     with its reason, such as the noun a pronoun refers to.
-  - Report defects only in in-scope tools: the `Review only:` names, or every
-    tool `--names` lists when the dispatch has no `Review only:` line. You may
-    read another tool's definition in the same surface file when the test needs
-    it.
+  - Report defects only in in-scope tools: the `Review only:` names, or the
+    `inScope` list `--names` prints when the dispatch has no `Review only:`
+    line. You may read another tool's definition in the same surface file when
+    the test needs it.
   - A class whose test needs handler code (a list the code contradicts, a claim
     only the handler can confirm) is not swept: name the class on its defect,
     write no `Class:` line, and do not test other tools for it. Bug-check covers

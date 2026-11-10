@@ -632,9 +632,8 @@ the pipeline pushes nothing).
    to test the change live, or before the first merge-ready verdict, whichever
    comes first. Then run the re-review in "Tool-definition review (conditional)".
    Run the re-review even when step 2 of this section found the delta trivial — its own
-   gates decide whether tool text changed. It tracks its own tool-review commit (the
-   head the last tool-definition review saw, recorded by that section's step 9),
-   separate from the reviewed SHA.
+   gates decide whether tool text changed. It tracks its own tool-review commit,
+   which that section's step 9 records, separate from the reviewed SHA.
 7. **Run the verification step last**, after steps 3-6, as "Verification
    (conditional)" says; a bot round after it would stale its evidence.
 
@@ -856,7 +855,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile` (read as "Verification (conditional)", step 1, says, following a `Profile:` line), append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile` (read as 'Verification (conditional)', step 1, says, following a `Profile:` line), append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
 })
 ```
 
@@ -1672,8 +1671,8 @@ moves:
 
 1. Take a fresh merge base: `git fetch origin <base-branch>`, then
    `git merge-base origin/<base-branch> <head>`, with `<base-branch>` the PR's base
-   branch and `<head>` the PR's `headRefOid`. With no PR, use the default branch
-   (usually `main`) and local HEAD.
+   branch and `<head>` the PR's `headRefOid`. With no PR, take REVIEW_BASE as the
+   merge base and local HEAD as the head.
 2. Run `git diff --numstat --no-renames <merge base>...<head> -- '*.md' ':(exclude,glob)**/skills/**' ':(exclude,glob)**/agents/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/fixtures/**' ':(exclude,glob)**/templates/**'`.
    The exclusions leave out agent instructions (skills and agent definitions) and
    test fixtures and templates, which are not documents a person reads.

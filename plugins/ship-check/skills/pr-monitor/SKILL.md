@@ -731,9 +731,10 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 - **Tool text**, in a run outside ship-check: when the PR changes MCP tool text
   (descriptions or input schemas), a tool-definition review covers the current
   head's tool text; run one before the first merge-ready verdict, and again only when
-  tool text changed since. Pure reorders are exempt. Read the ship-check skill's
-  "Tool-definition review (conditional)" section and run it from there. In ship-check's
-  Phase 6, that skill's "Pre-merge delta review", step 6, covers it.
+  tool text changed since. Pure reorders are exempt, and so are fixes the user
+  accepted without another review at the ship-check skill's round question. Read
+  that skill's "Tool-definition review (conditional)" section and run it from there.
+  In ship-check's Phase 6, that skill's "Pre-merge delta review", step 6, covers it.
 - No new unresolved threads in the most recent status pass
 - **Pipeline context only (ship-check Phase 6)**: the pre-merge delta review has run
   against the current head — the diff from the reviewed SHA was checked,
