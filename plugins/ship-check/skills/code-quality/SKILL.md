@@ -630,14 +630,9 @@ through past reviews:
   decide it for her: when its case is rare and failing there is cheap and visible (a red
   run, a clear error, a re-run that works), propose removing it, with the case, how
   often it occurs, what failing there costs and what the piece costs on every run.
-  Skip it only when its case is common in supported use, or when failing there is not
-  cheap: it loses data, breaks security, gives wrong output that nobody sees,
-  publishes, releases or deletes something that is hard to undo, or leaves the user
-  without the recovery the guard's own message gives (below), and no other layer
-  already enforces the case. The exception is a piece that, on every run, throws away
-  or repeats work an earlier run already did and could reuse, to cover a rare case:
-  the guard row sends it to the user with both costs, even when failing there is
-  costly. Checking the run's own input is not such a piece, however large the input.
+  Skip it only on the guard row's skip in the table above, which also states when
+  the skip does not apply; the two bullets below say how to judge "cheap" and
+  "another layer".
   - **Cheap means the recovery works.** Before proposing a removal, read what is
     left when the guard is gone: the error, and the recovery it points the user
     to. Keep the guard when its own message is what sends the user to the right

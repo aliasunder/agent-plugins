@@ -336,9 +336,8 @@ threads"), so each fix reply names a commit the PR already has.
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through
    `triage-finding` when it is available.
-   A wording suggestion on public prose or a diagram, an over-claim finding, and a
-   finding that a document omits something follow the ship-check skill's "Copy and
-   claims" instruction.
+   Every fix to prose or a diagram, a bot's wording suggestion included, follows the
+   ship-check skill's "Copy and claims" instruction.
 
 4. **Sweep the class repo-wide, before you commit.** A bot flags instances; the next
    pass flags the sibling you left, and the point-fix loop is how a PR ends up with
@@ -729,11 +728,10 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   card on the project's task board) has been offered to the maintainer once for
   absorbing into the open PR when its cost is reasonable
 - **Tool text**, in a run outside ship-check: when the PR changes MCP tool text
-  (descriptions or input schemas), a tool-definition review covers the current
-  head's tool text; run one before the first merge-ready verdict, and again only when
-  tool text changed since. Pure reorders are exempt, and so are fixes the user
-  accepted without another review at the ship-check skill's round question. Read
-  that skill's "Tool-definition review (conditional)" section and run it from there.
+  (descriptions or input schemas), run a tool-definition review before the first
+  merge-ready verdict, and again only when tool text changed since the tool-review
+  commit that review records. Pure reorders are exempt. Read the ship-check skill's
+  "Tool-definition review (conditional)" section and run it from there.
   In ship-check's Phase 6, that skill's "Pre-merge delta review", step 6, covers it.
 - No new unresolved threads in the most recent status pass
 - **Pipeline context only (ship-check Phase 6)**: the pre-merge delta review has run

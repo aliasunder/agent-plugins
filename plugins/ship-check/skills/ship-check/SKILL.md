@@ -1251,8 +1251,8 @@ The review splits by file:
    `<name> (<tool>): <test>`, the test being one sentence in the words of the check
    that found it. A text class is a fault that the tool definitions in the surface
    file alone can settle. "The re-review", step 6, sweeps these classes; each
-   re-review keeps the field and adds the classes it sweeps, so a later sweep reads
-   each test from it.
+   re-review keeps the field, adds the classes it sweeps and marks them swept
+   (re-review step 7), so a later sweep reads each test and mark from it.
 
 #### The re-review
 
@@ -1305,15 +1305,15 @@ step of the numbered list above and "re-review step N" a step of this list.
 6. **Sweep the classes.** Run this step when she chose to fix at least one
    text-class defect this round (main step 9 defines a text class), such as an
    unexplained returned field or a dangling referent. Run it also when the
-   `classes:` field names a class not yet swept, even in a round with no such
-   fix. A class whose test needs the handler code stays with bug-check and you.
+   `classes:` field holds an entry with no sweep mark, even in a round with no
+   such fix. A class whose test needs the handler code stays with bug-check and
+   you.
    - **Classes to sweep:** each text class this round's accepted defects name,
-     plus each text class confirmed on tool text earlier this session that has
-     not been swept, read with its test from the `classes:` field of the latest
-     `Tool Definitions:` summary line. Each class carries its one-sentence test. When
-     a named check found the accepted instance (a Structure test, a caller-use
-     shape), copy that check's words: a paraphrase can narrow the test and miss
-     instances.
+     plus each `classes:` entry with no sweep mark, read with its test from the
+     latest `Tool Definitions:` summary line. Each class carries its one-sentence
+     test. When a named check found the accepted instance (a Structure test, a
+     caller-use shape), copy that check's words: a paraphrase can narrow the test
+     and miss instances.
    - **The first file:** plan as main step 3 ("Plan the dispatches") does,
      without `--since`, in a fresh parent folder, and send `Pass: class` over
      the first file's `batches` (every tool the PR changes in that file, eight
@@ -1328,10 +1328,10 @@ step of the numbered list above and "re-review step N" a step of this list.
      the first file gets a reviewer). Read its whole definition with
      `bun <script> --current <that file's current> --show '<tool>'`, apply the
      test, and report only instances in its proofread lines.
-   - **A class swept earlier this session** is swept again only over tools
-     changed since then: plan with `--since <the HEAD_SHA that sweep read>
-     --since-from <its MERGE_BASE>`. Classes with different scopes go in
-     separate dispatch sets.
+   - **A class this round accepts again after an earlier sweep** is swept only
+     over tools changed since then: plan with `--since <the SHA in its sweep
+     mark> --since-from <the merge base in its mark>`. Classes with different
+     scopes go in separate dispatch sets.
    - **A `partial` report:** re-dispatch its unfinished tools once, four per
      dispatch, half the eight a batch holds, since that batch did not finish.
      List tools still unfinished to her with the class questions; the verdict
@@ -1347,12 +1347,11 @@ step of the numbered list above and "re-review step N" a step of this list.
    these fixes, so the next re-review reads them; the round question's
    no-further-review answer records the fix commit instead. In the same
    `Tool Definitions:` summary line, write `re-review round <n>`, with n the
-   round count that bullet keeps, and `swept:`, listing every class swept this
-   session as `<class> at <HEAD_SHA read> (merge base <MERGE_BASE>)`, and add to
-   `classes:` each class this round swept that it does not list yet, with its
-   test. The summary line is rewritten on each pass, so carry the earlier
-   `classes:` and `swept:` entries forward; a class swept again replaces its
-   `swept:` entry.
+   round count that bullet keeps. In `classes:`, add each class this round swept
+   that it does not list yet, with its test, and give each class this round
+   swept the sweep mark `swept at <HEAD_SHA read> (merge base <MERGE_BASE>)`,
+   replacing an earlier mark. The summary line is rewritten on each pass, so
+   carry the earlier `classes:` entries forward.
 8. Record the new tool-review commit as in main step 9 ("Record the tool-review
    commit").
 
@@ -1659,7 +1658,7 @@ Ship check complete:
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Docs:         <path>[ (generated)] <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
-- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test> | …; re-review round <n>; swept: <class> at <HEAD_SHA read> (merge base <MERGE_BASE>), …; accepted unreviewed: <tools> at <SHA>
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test>[ — swept at <HEAD_SHA read> (merge base <MERGE_BASE>)] | …; re-review round <n>; accepted unreviewed: <tools> at <SHA>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">

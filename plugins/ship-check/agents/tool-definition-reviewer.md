@@ -133,11 +133,8 @@ Follow your preloaded tool-definition-review skill:
 8. **A `Pass: class` dispatch** runs steps 1 to 3 and 6, then reads each
    `Review only:` tool with `--show` and applies only the class tests its
    `Classes:` line names, at most eight tools. It is exempt from steps 4, 5
-   and 7: no cold read, no diff read, and no `Structure:`, marks, `Facts:`,
-   caller-use, error-entry or candidate lines. Write one `Skipped: class pass`
-   line in their place, one `<tool>: <defect numbers> | none` line per tool,
-   and any other fault you notice on one untriaged `Noticed:` line, never
-   under Defects. The skill's "Every instance of a defect" section governs.
+   and 7: no cold read and no diff read. The skill's "The `Pass: class`
+   dispatch" section says which report lines replace them.
 
 ## Sequential thinking triggers
 

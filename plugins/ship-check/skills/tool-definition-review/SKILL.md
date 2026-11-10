@@ -49,7 +49,7 @@ whose input is missing is **skipped and listed as skipped**, never guessed at.
 | Repository root | no | Where the server's source lives | Error-entry check skipped |
 | Grader results | no | A file of scores and written reasons from an outside service that grades tool definitions, such as Glama's Tool Definition Quality Score | Noise section skipped |
 | `Review only:` list | no | Names that limit which tools you review in this dispatch. It is NOT the intended-tools list | Scope comes from the script |
-| `Pass:` line | no | `cold`, `diff` or `class`. A `Pass: class` dispatch runs only the class tests its `Classes:` line names (see "Every instance of a defect") and carries no intended tools, base surface or repository root | Do both reads, cold first |
+| `Pass:` line | no | `cold`, `diff` or `class` (see "The `Pass: class` dispatch") | Do both reads, cold first |
 | `Classes:` line | with `Pass: class` | One line per class: its name, its one-sentence test, a quoted instance the user accepted as a defect, and the fix applied or accepted for it. Use the instance and its fix as the model for each instance you report and its `Proposed:` line | — |
 | `Sweep:` line | no | `caller use`. The caller-use check judges every sentence of each in-scope tool, changed or not. A sweep dispatch is `Pass: diff` with no base surface, so its diff read is the caller-use and duplicated-fact checks, plus the error-entry check when it names a repository root | The caller-use check judges only the sentences a change added or reworded |
 
@@ -171,8 +171,9 @@ Three fable-mode rules apply here in a particular way:
   a file and line, every `MISSING` line is a numbered defect, every fault on a
   `Structure:` line is a numbered defect, every sentence or clause that failed
   the caller-use check is a numbered defect, every numbered text-class defect
-  names its class and the first instance of each class carries its `Class:`
-  line (see "Every instance of a defect"), every mark below 5 has evidence,
+  names its class and, outside a class pass, the first instance of each class
+  carries its `Class:` line (see "Every instance of a defect"), every mark
+  below 5 has evidence,
   and no tool in scope lacks an entry. The cold-read marks are final once the diff
   read starts. What the diff read finds goes under the diff check that found it.
 - **"Confirm before you flag" is satisfied by the trace.** fable-mode says never
@@ -612,7 +613,8 @@ carries that sentence as its test.
   named check did), then apply that test to every other in-scope tool before
   you go on. Write each instance as its own numbered defect naming the class.
   Under the first instance of each class only, add
-  `Class: <name> — <test> — checked <N> tools in this dispatch`.
+  `Class: <name> — <test> — checked <N> tools in this dispatch`, except in a
+  `Pass: class` dispatch, whose per-tool lines already show what it checked.
 - **Condition:** every numbered text-class defect, in both reads and in a
   `Pass: class` dispatch.
 - **Boundary:**
@@ -686,7 +688,7 @@ Per tool
 Defects
 1. <tool> — <rubric clause or check, or the text class>: "<quoted text>". <Why it is a defect.>
    Proposed: "<replacement text>"
-   Class: <name> — <test> — checked <N> tools in this dispatch   (under the first instance of each text class only)
+   Class: <name> — <test> — checked <N> tools in this dispatch   (under the first instance of each text class only; not in a Pass: class report)
 
 Unintended text changes        (or "All text changes" with no intended-tools list)
 - "<shared line or sentence>" added to <N> tools: <names>
