@@ -294,6 +294,40 @@ describe("dependency class", () => {
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "the lockfile's root entry changed without package.json"))
   })
 
+  it("exempts a bump npm writes to both package.json and the lockfile's root entry", () => {
+    const { repo, base, head } = fixture({
+      "package.json": packageWith((manifest) => {
+        manifest.dependencies.hono = "4.6.1"
+      }),
+      "package-lock.json": lockfileWith({ ...LOCK_PACKAGES, "": { dependencies: { hono: "4.6.1", rrule: "2.8.1" } }, "node_modules/hono": { version: "4.6.1" } }),
+    })
+    assert.deepEqual(classify(input(repo, base, head)), {
+      outcome: "exempt",
+      summary: "exempt (dependency)",
+      files: [
+        { path: "package-lock.json", exemptAs: "dependency", reason: "dependency" },
+        { path: "package.json", exemptAs: "dependency", reason: "dependency" },
+      ],
+    })
+  })
+
+  it("keeps a lockfile whose root entry names another version than package.json", () => {
+    const { repo, base, head } = fixture({
+      "package.json": packageWith((manifest) => {
+        manifest.dependencies.hono = "4.6.1"
+      }),
+      "package-lock.json": lockfileWith({ ...LOCK_PACKAGES, "": { dependencies: { hono: "4.6.2", rrule: "2.8.1" } } }),
+    })
+    assert.deepEqual(classify(input(repo, base, head)), {
+      outcome: "artifact change",
+      summary: "artifact change (1 files: package-lock.json)",
+      files: [
+        { path: "package-lock.json", exemptAs: undefined, reason: "the lockfile's root entry changed without package.json" },
+        { path: "package.json", exemptAs: "dependency", reason: "dependency" },
+      ],
+    })
+  })
+
   it("keeps a deleted lockfile", () => {
     const { repo, base, head } = fixture({}, ["package-lock.json"])
     assert.deepEqual(classify(input(repo, base, head)), artifactChange("package-lock.json", "package-lock.json has no packages map at one side"))
@@ -441,6 +475,11 @@ describe("comment class", () => {
   it("exempts a TypeScript comment-only edit, regex with backticks included", () => {
     const { repo, base, head } = fixture({ "src/server.ts": SOURCE.replace("// count", "// returns the length") })
     assert.deepEqual(classify(input(repo, base, head)), exemptChange("src/server.ts", "comment"))
+  })
+
+  it("reads a file whose path has non-ASCII letters", () => {
+    const { repo, base, head } = fixture({ "src/café.ts": SOURCE.replace("// count", "// returns the length") }, [], { "src/café.ts": SOURCE })
+    assert.deepEqual(classify(input(repo, base, head)), exemptChange("src/café.ts", "comment"))
   })
 
   it("keeps a code change", () => {

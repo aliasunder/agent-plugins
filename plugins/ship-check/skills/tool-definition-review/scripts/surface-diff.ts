@@ -576,7 +576,7 @@ export type FileSide =
   | { kind: "notToolList"; reason: string }
 
 /**
- * One file as a `--since` plan reads it at its two extra commits: `since` (the head the last review saw) and
+ * One file as a `--since` plan reads it at its two extra commits: `since` (the commit the last review recorded) and
  * `sinceFrom` (the merge base that review used). `path` is the file's path at `since`; `sinceFrom` is read at the
  * path the file had at that merge base, which differs when the branch renamed the file before the review.
  */
@@ -1210,7 +1210,7 @@ const readSide = (repo: string, { commit, path }: FileAtCommit): FileSide => {
  * The commits a plan compares, named after their options:
  * - `from`: the commit the change starts from, the current merge base with the base branch.
  * - `to`: the head under review.
- * - `since`: the head the last tool review saw (`--since` mode only).
+ * - `since`: the commit the last tool review recorded (`--since` mode only).
  * - `sinceFrom`: the merge base that review used (`--since` mode only).
  */
 type PlanCommits = { from: string; to: string; since: string | null; sinceFrom: string | null }

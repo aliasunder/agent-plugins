@@ -704,7 +704,7 @@ confirms the responses are correct.
 Right: `[design] client.ts:9 — "default" is fetch's default cache mode: removing
 the option changes no request, its case never occurs, and removing it costs
 nothing → proposal (needs design decision): −1 option in 6 calls, 1 file, tests
-unchanged, risk: none`.
+unchanged, risk: none; per-run cost: none`.
 
 **Cut list.** A cut is a piece the user decided to remove this session. The
 orchestrator lists them under `Cuts:` in the dispatch, one line per piece: the

@@ -1247,11 +1247,12 @@ The review splits by file:
    or partial or failed once the user accepted the missing coverage. A partial or
    failed step the user has not accepted keeps the previous tool-review commit, so
    its tools are reviewed again next time. In the same line, write `classes:`
-   listing every text-class fix applied in this review's triage and in Phase 1 or
-   Phase 5 triage, as `<name> (<tool>)`. A text class is a fault that the tool
-   definitions in the surface file alone can settle, named with a one-sentence
-   test. "The re-review", step 6, sweeps these classes, and each re-review keeps
-   the field.
+   listing every text-class fix applied in this review's triage, as
+   `<name> (<tool>): <test>`, the test being one sentence in the words of the check
+   that found it. A text class is a fault that the tool definitions in the surface
+   file alone can settle. "The re-review", step 6, sweeps these classes; each
+   re-review keeps the field and adds the classes it sweeps, so a later sweep reads
+   each test from it.
 
 #### The re-review
 
@@ -1308,8 +1309,8 @@ step of the numbered list above and "re-review step N" a step of this list.
    fix. A class whose test needs the handler code stays with bug-check and you.
    - **Classes to sweep:** each text class this round's accepted defects name,
      plus each text class confirmed on tool text earlier this session that has
-     not been swept, read from the `classes:` field of the latest `Tool
-     Definitions:` summary line. Each class carries its one-sentence test. When
+     not been swept, read with its test from the `classes:` field of the latest
+     `Tool Definitions:` summary line. Each class carries its one-sentence test. When
      a named check found the accepted instance (a Structure test, a caller-use
      shape), copy that check's words: a paraphrase can narrow the test and miss
      instances.
@@ -1336,8 +1337,9 @@ step of the numbered list above and "re-review step N" a step of this list.
      List tools still unfinished to her with the class questions; the verdict
      waits until they are swept or she accepts the gap.
    - **Ask:** drop sweep instances she already decided this session (same tool,
-     same sentence). Ask about the rest once per class, listing its instances.
-     Sweep findings NEVER start another sweep in this round.
+     same sentence). Pass the rest to `triage-finding` as findings the user
+     decides, one call per class listing its instances, so she gets one question
+     per class. Sweep findings NEVER start another sweep in this round.
 7. **Commit and record.** From the second re-review (in local mode, from the
    first), ask the round question (the "From the second re-review, the user
    decides…" bullet below) after the sweep's answers. Then apply every accepted
@@ -1346,9 +1348,11 @@ step of the numbered list above and "re-review step N" a step of this list.
    no-further-review answer records the fix commit instead. In the same
    `Tool Definitions:` summary line, write `re-review round <n>`, with n the
    round count that bullet keeps, and `swept:`, listing every class swept this
-   session as `<class> at <HEAD_SHA read> (merge base <MERGE_BASE>)`. The
-   summary line is rewritten on each pass, so carry the earlier `swept:` entries
-   forward; a class swept again replaces its entry.
+   session as `<class> at <HEAD_SHA read> (merge base <MERGE_BASE>)`, and add to
+   `classes:` each class this round swept that it does not list yet, with its
+   test. The summary line is rewritten on each pass, so carry the earlier
+   `classes:` and `swept:` entries forward; a class swept again replaces its
+   `swept:` entry.
 8. Record the new tool-review commit as in main step 9 ("Record the tool-review
    commit").
 
@@ -1409,7 +1413,7 @@ step of the numbered list above and "re-review step N" a step of this list.
 | Default | After Phase 5; re-review before each merge-ready verdict | First review: triage, fixes committed and pushed by "Push the fixes". Re-review: to the user | Runs in step 6 | From round 2 |
 | `--comment` | After Phase 5; no re-review (Phase 6 is skipped) | One PR-level comment holding each report's Defects and Unintended text changes, posted under "Non-inline findings still land on the PR" with component `tool-definitions`; nothing edited | Not applicable: no re-review | Not applicable |
 | `--report` | After Phase 5; re-review whenever a merge-ready verdict is checked or ship-check runs again in the session | To the user only; `--report` wins over every other mode's fixing rule | Never: nothing is fixed in the run | Never asked; the summary line still writes `re-review round <n>` |
-| `--local`, `--diff` on a branch | On the range; then, when triage committed a tool-text fix, one re-review before the summary | First review: triage, fixes committed. Re-review: to the user | Runs when a re-review's triage accepts a tool-text fix, including repeated runs in one session | From round 1, because one local run has one re-review: the same two options, and `accepted unreviewed` recorded when she chooses no further re-review |
+| `--local`, `--diff` on a branch | On the range; then, when triage committed a tool-text fix, one re-review before the summary | First review: triage, fixes committed. Re-review: to the user | Runs in step 6 of each re-review, including repeated runs in one session | From round 1, because a local run makes its re-review before the summary: the same two options. "One more re-review" runs another before the summary; "no further re-review" records `accepted unreviewed` |
 | `--local` on `main` or a detached head | On the range | To the user only, under the local-on-`main` rule | Never | Never |
 | Standalone pr-monitor's tool-text re-review | Before a merge-ready verdict, when tool text changed since the last review (pr-monitor's "Tool text" item runs this section) | As in default | As in default (it runs this section) | As in default |
 | `--inline`, `--fork` | Invoke the `tool-definition-review` skill in this context or a fork with the same inputs, file by file, at most eight tools per diff pass | As in default; the status can be `complete` and is labelled "not cold", because the cold read ran with this session's context instead of a stranger's | As in default | As in default |
@@ -1654,8 +1658,8 @@ Ship check complete:
 - Bug Check:    N findings, M fixed (by dimension)
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
-- Docs:         <path> <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
-- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>), …; re-review round <n>; swept: <class> at <HEAD_SHA read> (merge base <MERGE_BASE>), …; accepted unreviewed: <tools> at <SHA>
+- Docs:         <path>[ (generated)] <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
+- Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test> | …; re-review round <n>; swept: <class> at <HEAD_SHA read> (merge base <MERGE_BASE>), …; accepted unreviewed: <tools> at <SHA>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
@@ -1680,7 +1684,7 @@ moves:
    listed path exists at one side.
 3. For each file, take the head line count with `git show <head>:<path> | wc -l`
    (0 when the PR deletes it) and the base count as head − added + removed. Mark a
-   file whose first ten lines say it is generated `(generated)`.
+   file whose first ten lines say it is generated with `(generated)` after its path.
 
 The line reports numbers only; whether an addition serves its reader is the fixer's
 and the user's judgment ("Copy and claims").

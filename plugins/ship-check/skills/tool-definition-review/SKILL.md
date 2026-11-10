@@ -648,7 +648,7 @@ it names:
 - It is exempt from the cold read and the diff read, and from their per-tool
   lines (`Marks:`, `Structure:`, `Facts:`, `Caller use:`, `Errors:`,
   `Candidates:`). Write one `Skipped: class pass` line in their place.
-- Keep the report's header lines, Unintended text changes (none, since there is
+- Keep the report's header lines, the text-changes section (empty, since there is
   no base), `Unfinished entries:` and `Status:`. Under Per tool, write one line
   per tool, `<tool>: <defect numbers> | none`, before the numbered defects.
 - Review at most eight tools. Any beyond eight, and any you cannot finish, are

@@ -820,6 +820,7 @@ PR #<number> status:
 - Human threads: N unresolved (listed above)
 - Issue comment coverage: N/M evaluated (pipeline replies excluded)
 - Docs: <the ship-check skill's "Docs:" line, at this head>
+- Tool Definitions: <the ship-check skill's "Tool Definitions:" line, when the Tool text entry ran a review>
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
 

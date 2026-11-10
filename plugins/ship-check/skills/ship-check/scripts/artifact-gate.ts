@@ -6,7 +6,7 @@
 // documents each. A file the script cannot prove exempt is an artifact change. Exit codes: 0 classified,
 // 2 git failure, 1 any other error.
 import { execFileSync } from "node:child_process"
-import { basename, extname } from "node:path"
+import { basename, extname, posix } from "node:path"
 import { parseArgs } from "node:util"
 
 /**
@@ -164,7 +164,9 @@ const changedFiles = (input: GateInput, oldCommit: string, pathspecs: readonly s
   // With no pathspec after `--`, git diff would list every changed file in the repo.
   if (pathspecs.length === 0) return []
 
-  const output = git(input.repo, ["diff", "--name-only", oldCommit, input.to, "--", ...pathspecs])
+  // Without core.quotepath=off, git prints a path with non-ASCII letters quoted and octal-escaped, which
+  // `git show` cannot read back.
+  const output = git(input.repo, ["-c", "core.quotepath=off", "diff", "--name-only", oldCommit, input.to, "--", ...pathspecs])
   return output.split("\n").filter((line) => line.length > 0)
 }
 
@@ -321,6 +323,24 @@ const classifyPackageJson = (file: ChangedFile): Verdict => {
   return imageScript ? { reason: `scripts.${imageScript} runs during the image build` } : "scripts"
 }
 
+/**
+ * Whether every root-entry field the change touched equals the same field of the package.json beside the
+ * lockfile at the head. npm copies package.json's dependency maps and version into the root entry, so a bump that
+ * edits package.json changes the root entry too.
+ */
+const rootFollowsPackageJson = (file: ChangedFile, before: unknown, after: unknown): boolean => {
+  if (!isJsonObject(before) || !isJsonObject(after)) return false
+
+  const manifestPath = posix.join(posix.dirname(file.path), "package.json")
+  const manifest = parseJson(fileAt({ repo: file.input.repo, commit: file.input.to, path: manifestPath }))
+
+  if (!manifest) return false
+
+  return keysOfEither(before, after)
+    .filter((key) => !sameJson(before[key], after[key]))
+    .every((key) => sameJson(after[key], manifest[key]))
+}
+
 /** The lockfile is exempt unless a live-test package's entry changed. */
 const classifyLockfile = (file: ChangedFile): Verdict => {
   const before = readObjectField(parseJson(oldContent(file)) ?? {}, "packages")
@@ -332,8 +352,11 @@ const classifyLockfile = (file: ChangedFile): Verdict => {
 
   const changedKeys = keysOfEither(before, after).filter((key) => !sameJson(before[key], after[key]))
 
-  // The root entry mirrors package.json, so a lockfile-only change to it means the two files disagree.
-  if (changedKeys.includes("")) return { reason: "the lockfile's root entry changed without package.json" }
+  // The root entry mirrors package.json, so a root change the head's package.json does not carry means the two
+  // files disagree. package.json's own verdict decides whether its change is exempt.
+  if (changedKeys.includes("") && !rootFollowsPackageJson(file, before[""], after[""])) {
+    return { reason: "the lockfile's root entry changed without package.json" }
+  }
 
   // An entry resolved off the registry (a git or file URL, or a link) installs code no version string names.
   const resolvesOffRegistry = (entry: unknown): boolean => {

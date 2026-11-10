@@ -39,8 +39,11 @@ tool-list file (a server's `tools/list` saved as JSON):
    file, the pipeline proofreads only the lines that file words differently, for
    typos and broken sentences.
 2. Before each merge-ready verdict, it reviews again any tool text edited since
-   the last tool review. From the second re-review round (the first, in a local
-   run), the user can accept that round's fixes without another review.
+   the last tool review. When the user accepts a fix for a fault class, such as
+   an unexplained returned field, the reviewer also checks every tool the PR
+   changed in that file for the same fault. From the second re-review round (the
+   first, in a local run), the user can accept that round's fixes without another
+   review.
 
 Dispatch it yourself for a server that commits no tool list (see Usage).
 
