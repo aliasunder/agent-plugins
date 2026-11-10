@@ -114,9 +114,10 @@ dispatching session's.
 ## Copy and claims
 
 Add this instruction to each phase dispatch prompt that can edit (phases 1, 3, 4 and
-5) and to each delta review dispatch, next to the attribution instruction. The
-orchestrator follows it for its own inter-phase triage fixes, and pr-monitor for its
-fixes and for bot wording suggestions:
+5) and to each delta review dispatch, next to the attribution instruction, and to
+every prompt the orchestrator or pr-monitor writes to hand a fix to another runtime.
+The orchestrator follows it for its own inter-phase triage fixes, and pr-monitor for
+its fixes and for bot wording suggestions:
 
 ```
 Public prose and diagrams already on the base branch are established text. Fix a
@@ -124,9 +125,18 @@ factual error in it and report the fix. Never reword accurate established text f
 style alone. For any other change to it, report the exact replacement and its reason
 instead of making it.
 
-In any text, resolve an over-claim by first asking whether the same accuracy fits in
-fewer words and whether the claim belongs in this document at all; then qualify it,
-move it to the document that owns the mechanism, or delete it.
+In any text, before you add, qualify or cut a claim for a finding or a task, decide
+what this document's reader needs and at what detail, whether the same accuracy fits
+in fewer words, and whether the fact belongs in this document at all. Then extend,
+generalize, qualify (re-scope the claim itself), move it to the document or comment
+that owns the mechanism, or delete it, and name that choice in the fix's report. A
+wrong fact is always corrected. Never patch an over-claim by adding caveat sentences,
+and never add code-level detail (data structures, log message names, test mechanics)
+because a finding or suggestion lists it: a design or security document carries the
+design and its visible limits. A reference the reader looks up entry by entry (a
+settings table, an option or error-code list) takes the missing entry in its format;
+a list inside a design or security document is not one. When a fix carries the same
+claim to sibling documents, judge each document's reader separately.
 
 Make each fix the way this dispatch makes fixes: a commit, or a recommendation when
 the dispatch is report-only.
@@ -1549,6 +1559,7 @@ Ship check complete:
 - Bug Check:    N findings, M fixed (by dimension)
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
+- Docs:         <path> <base> → <head> lines (+<added>/−<removed>); … at <head, full> (merge base <full>) | none changed
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
@@ -1558,6 +1569,21 @@ Ship check complete:
 - Dismissed:    N across phases — includes fresh-eyes pauses code-quality dismissed and proof-of-dismissal lines from each phase (or "none")
 - Verdict:      ship / ship-with-minor-fixes / needs-changes
 ```
+
+The `Docs:` line shows how much the PR grew each document, so growth from late review
+rounds is visible before merge. Compute it once per head and reuse it until the head
+moves:
+
+1. Take a fresh merge base: `git fetch origin <base-branch>`, then
+   `git merge-base origin/<base-branch> <head>`, with `<head>` the PR's `headRefOid`
+   (local HEAD when there is no PR).
+2. Run `git diff --numstat <merge base>...<head> -- '*.md' ':(exclude,glob)**/skills/**' ':(exclude,glob)**/agents/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/fixtures/**' ':(exclude,glob)**/templates/**'`.
+3. For each file, take the head line count with `git show <head>:<path> | wc -l`
+   (0 when the PR deletes it) and the base count as head − added + removed. Mark a
+   file whose first ten lines say it is generated `(generated)`.
+
+The line reports numbers only; whether an addition serves its reader is the fixer's
+and the user's judgment ("Copy and claims").
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
 finding it deferred, from a phase, a delta review, a design pass or the
@@ -1590,6 +1616,7 @@ Ship check complete (comment mode):
 - Test Audit:   N findings commented (test quality); K coverage gaps reported
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
+- Docs:         <the default-mode Docs line, at the PR head>
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
 - Verification: <the gate's classification | no profile | profile unreadable | skipped | not selected> (comment mode deploys nothing)
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)

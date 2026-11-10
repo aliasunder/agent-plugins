@@ -336,15 +336,17 @@ threads"), so each fix reply names a commit the PR already has.
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through
    `triage-finding` when it is available.
-   A wording suggestion on public prose or a diagram, and an over-claim finding,
-   follow the ship-check skill's "Copy and claims" instruction.
+   A wording suggestion on public prose or a diagram, an over-claim finding, and a
+   finding that a document omits something follow the ship-check skill's "Copy and
+   claims" instruction.
 
 4. **Sweep the class repo-wide, before you commit.** A bot flags instances; the next
    pass flags the sibling you left, and the point-fix loop is how a PR ends up with
    100+ comments. Generalize each valid finding to the pattern it represents — the
    same claim on another doc surface, the same code shape in another function, the
    same missing guard on another entry point — then fix every instance in the SAME
-   commit.
+   commit. A document claim swept to sibling documents gets each document's own reader
+   judgment ("Copy and claims").
 
    **Run the search, don't recall it.** Name a search term that finds the flagged
    pattern, such as the old value or the code shape, then search the whole repo:
@@ -818,8 +820,12 @@ PR #<number> status:
 - Claude threads: all resolved (N handled, all replied to)
 - Human threads: N unresolved (listed above)
 - Issue comment coverage: N/M evaluated (pipeline replies excluded)
+- Docs: <the ship-check skill's "Docs:" line, at this head>
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
+
+The `Docs:` line is the one ship-check's Reporting section defines, computed the same
+way; when ship-check runs, both reports print the same value for the same head.
 
 **Pipeline context only: post a merge-ready verdict to the user's inbox.** When the
 verdict is merge-ready and the pre-merge delta review covers the current head, run
