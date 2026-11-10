@@ -1287,9 +1287,9 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
    since then. A `base` of null marks a file that was not a tool list at the
    review; its tools are reviewed with no base.
 5. **Triage and hold.** Triage as in step 8 above ("Triage the findings"),
-   except that every re-review finding goes to the user, with `triage-finding`'s Instructions input "fix now or
-   dismiss; no card: a tool-text fix found while the PR is open lands in that PR
-   (2026-11-07)". NEVER fix a re-review finding through triage: each round
+   except that every re-review finding goes to the user, with `triage-finding`'s
+   Instructions input "the user decides this finding; fix now or dismiss; no card:
+   a tool-text fix found while the PR is open lands in that PR (2026-11-07)". NEVER fix a re-review finding through triage: each round
    rereads whole tools and can raise new small defects, and fixing them would
    start the loop again. The user's earlier decisions stand for text that did not
    change. Collect her answers. A `Fix` result here is held as an instruction,
@@ -1322,7 +1322,7 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
      --since-from <its MERGE_BASE>`. Classes with different scopes go in
      separate dispatch sets.
    - **A `partial` report:** re-dispatch its unfinished tools once, four per
-     dispatch. List tools still unfinished to her with the round's question; the
+     dispatch. List tools still unfinished to her with the class questions; the
      verdict waits until they are swept or she accepts the gap.
    - **Ask:** drop sweep instances she already decided this session (same tool,
      same sentence). Ask about the rest once per class, listing its instances.
@@ -1446,9 +1446,10 @@ any mode and the step in default mode.
    Unreadable, a `Profile:` link that does not resolve, a wikilink with no vault tools,
    or a linked note without the labels → `profile unreadable`; withhold the verdict.
    When Phase 4 noted `stand-in audit owed (profile unreadable)` and this read
-   succeeds, dispatch `ship-check:test-auditor` now with `Stand-in audit:`, the
+   succeeds, dispatch `ship-check:test-auditor` once, now, with `Stand-in audit:`, the
    Phase 4 template's `Audit paths:` lines built from this read and
-   `Base: <REVIEW_BASE>`, and use its table wherever this step says Phase 4's table.
+   `Base: <REVIEW_BASE>`. Its table and the head it read stand in for Phase 4's
+   wherever this step names Phase 4's table or the head Phase 4 audited.
 2. **Gate.** Run the profile's `Gate:` command, this skill's script:
    ```
    bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --json --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> --pathspec <each Artifact paths line> --audit-pathspec <each Audit paths line> [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
@@ -1649,7 +1650,7 @@ moves:
 1. Take a fresh merge base: `git fetch origin <base-branch>`, then
    `git merge-base origin/<base-branch> <head>`, with `<head>` the PR's `headRefOid`
    (local HEAD when there is no PR).
-2. Run `git diff --numstat <merge base>...<head> -- '*.md' ':(exclude,glob)**/skills/**' ':(exclude,glob)**/agents/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/fixtures/**' ':(exclude,glob)**/templates/**'`.
+2. Run `git diff --numstat --no-renames <merge base>...<head> -- '*.md' ':(exclude,glob)**/skills/**' ':(exclude,glob)**/agents/**' ':(exclude,glob)**/__tests__/**' ':(exclude,glob)**/fixtures/**' ':(exclude,glob)**/templates/**'`.
 3. For each file, take the head line count with `git show <head>:<path> | wc -l`
    (0 when the PR deletes it) and the base count as head − added + removed. Mark a
    file whose first ten lines say it is generated `(generated)`.

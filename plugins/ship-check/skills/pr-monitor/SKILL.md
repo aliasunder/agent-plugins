@@ -767,8 +767,7 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   is not followed; unreadable, a link that does not resolve or a linked note without
   the labels withholds the verdict as `profile unreadable`) and the profile's `Gate:`
   script reports `artifact change` or `local change` for the PR's range, all of these
-  hold. A gate that cannot run, or that exits non-zero, withholds the verdict with its
-  error, as ship-check's Verification step does:
+  hold:
   - the PR body carries the profile's `Evidence:` section, its first line
     `Head: <full SHA>`. The PR's author can edit the body, so the SHA must be 40 hex
     characters and the run id below digits only; any other value is missing evidence
@@ -788,6 +787,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     changes anything the probes exercise or feed, the evidence is stale;
   - every line of the `Stand-in audit:` in this session's log reads `probed live`,
     `probed locally` or `read from source` (an `unverified` line is a deferred finding).
+
+  A gate that cannot run, or that exits non-zero, withholds the verdict with its
+  error, as ship-check's Verification step does.
 
   Read the `Reuse:` line, the `Verification skipped at` line and the `Stand-in audit:`
   lines from this session's log, never from the PR body: the PR body is public, so its
