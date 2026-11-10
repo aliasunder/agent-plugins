@@ -49,7 +49,8 @@ whose input is missing is **skipped and listed as skipped**, never guessed at.
 | Repository root | no | Where the server's source lives | Error-entry check skipped |
 | Grader results | no | A file of scores and written reasons from an outside service that grades tool definitions, such as Glama's Tool Definition Quality Score | Noise section skipped |
 | `Review only:` list | no | Names that limit which tools you review in this dispatch. It is NOT the intended-tools list | Scope comes from the script |
-| `Pass:` line | no | `cold` or `diff` | Do both reads, cold first |
+| `Pass:` line | no | `cold`, `diff` or `class`. A `Pass: class` dispatch runs only the class tests its `Classes:` line names (see "Every instance of a defect") and carries no intended tools, base surface or repository root | Do both reads, cold first |
+| `Classes:` line | with `Pass: class` | One line per class: its name, its one-sentence test, its quoted accepted instance, and the fix the user accepted (or, for a class seeded from the first review, the fix applied in that review's triage) | — |
 | `Sweep:` line | no | `caller use`. The caller-use check judges every sentence of each in-scope tool, changed or not. A sweep dispatch is `Pass: diff` with no base surface, so its diff read is the caller-use and duplicated-fact checks, plus the error-entry check when it names a repository root | The caller-use check judges only the sentences a change added or reworded |
 
 A surface file is an object with a `tools` array, a bare array of tools, or a
@@ -155,8 +156,9 @@ for this dispatch. Each stage has a check that can fail:
 | Stage | Passes when |
 |---|---|
 | Scope | `--names` ran, and you wrote down the number of tools in scope |
-| Cold read (not in a `Pass: diff` dispatch) | Every in-scope tool has six marks and a `Structure:` line, and every mark below 5 has its quoted text or its statement of what is absent |
-| Diff read (not in a `Pass: cold` dispatch) | Every tool you took through it has a `Facts:` count, a `Caller use:` count, one `Errors:` line for each failure traced, and a verdict on each candidate that is not pre-existing |
+| Cold read (not in a `Pass: diff` or `Pass: class` dispatch) | Every in-scope tool has six marks and a `Structure:` line, and every mark below 5 has its quoted text or its statement of what is absent |
+| Diff read (not in a `Pass: cold` or `Pass: class` dispatch) | Every tool you took through it has a `Facts:` count, a `Caller use:` count, one `Errors:` line for each failure traced, and a verdict on each candidate that is not pre-existing |
+| Class pass (`Pass: class` only) | Every in-scope tool, at most eight, was read in full with `--show`, has its per-tool line (`<tool>: <defect numbers> \| none`), and was tested against every class the `Classes:` line names |
 | Count | The `Unfinished entries:` number equals the entries you counted, and the `Status:` line follows from that number |
 
 When a stage fails its check, redo the work or mark the tools it left unfinished
@@ -168,7 +170,9 @@ Three fable-mode rules apply here in a particular way:
   cold-read mark.** Check the report against this skill: every `MISSING` line has
   a file and line, every `MISSING` line is a numbered defect, every fault on a
   `Structure:` line is a numbered defect, every sentence or clause that failed
-  the caller-use check is a numbered defect, every mark below 5 has evidence,
+  the caller-use check is a numbered defect, every numbered text-class defect
+  names its class and the first instance of each class carries its `Class:`
+  line (see "Every instance of a defect"), every mark below 5 has evidence,
   and no tool in scope lacks an entry. The cold-read marks are final once the diff
   read starts. What the diff read finds goes under the diff check that found it.
 - **"Confirm before you flag" is satisfied by the trace.** fable-mode says never
@@ -589,11 +593,62 @@ message has no entry, and it is produced in a helper the change never touched.
   reason names a real gap, that gap is a defect under the rubric, and it goes in
   Defects with its own evidence.
 
+## Every instance of a defect
+
+One review found an unexplained returned field, the fix landed, and the next
+round found the next one in the same `Returns:` line.
+
+A **text class** is a fault the tool definitions in this surface file decide: an
+unexplained returned field, a dangling referent, a claim whose condition the
+tool's own text shows but the sentence leaves out. A class names a fault one
+sentence of test can decide, never a quality ("unclear wording" is not a class),
+and every class travels with that sentence.
+
+- **Action:** when you write a numbered defect of a text class, name the class
+  and its one-sentence test, then apply that test to every other tool this
+  dispatch reads before you go on. Write each instance as its own numbered
+  defect naming the class. Under the first instance of each class only, add
+  `Class: <name> — <test> — checked <N> tools in this dispatch`.
+- **Condition:** every numbered text-class defect, in both reads and in a
+  `Pass: class` dispatch.
+- **Boundary:**
+  - Apply the same test only. In a cold or diff read, anything else you notice
+    is its own defect with its own check. In a `Pass: class` dispatch it goes on
+    one `Noticed:` line, never under Defects, and nothing on that line is
+    triaged.
+  - Report defects only in `Review only:` tools. You may read another tool's
+    definition in the same surface file when the test needs it.
+  - A class whose test needs handler code (a list the code contradicts, a claim
+    only the handler can confirm) is not swept: name it and leave it to
+    bug-check.
+  - The `Class:` line covers this dispatch only; ship-check's sweep closes
+    coverage across dispatches.
+
+Example: `Class: unexplained returned field — a field the Returns text lists with
+no meaning stated anywhere in the tool's definition — checked 8 tools in this
+dispatch`.
+
+### The `Pass: class` dispatch
+
+A `Pass: class` dispatch carries a `Classes:` line and runs only the class tests
+it names:
+
+- Read each `Review only:` tool's current text with `--show`. The dispatch
+  carries no `Intended tools:`, `Base surface:` or `Repository root:` line.
+- It is exempt from the cold read and the diff read, and from their per-tool
+  lines (`Marks:`, `Structure:`, `Facts:`, `Caller use:`, `Errors:`,
+  `Candidates:`). Write one `Skipped: class pass` line in their place.
+- Keep the report's header lines, Unintended text changes (none, since there is
+  no base), `Unfinished entries:` and `Status:`. Under Per tool, write one line
+  per tool, `<tool>: <defect numbers> | none`, before the numbered defects.
+- Review at most eight tools. Any beyond eight, and any you cannot finish, are
+  `not reviewed` under `Unfinished entries:`, and the status is `partial`.
+
 ## Report format
 
 ```
 Tool definition review
-- Read: <cold | diff | cold then diff in one dispatch (cold read kept apart by instruction only)>
+- Read: <cold | diff | cold then diff in one dispatch (cold read kept apart by instruction only) | class>
 - Surfaces: current <path> (<commit, tag, or "as given">); base <path or none>
 - Inputs: intended tools <names | not stated>; repository root <path | none>; grader results <path | none>; review only <names | not given>
 - Script: <ran | could not run: reason>
@@ -616,10 +671,12 @@ Per tool
   Candidates: "<overlap text>" → <cut from description | cut from schema | belongs in both> — <reason>;
               <N> pre-existing on <parameters>
 <name> — not reviewed
+  (in a Pass: class report, one line per tool instead of the entries above: <tool>: <defect numbers> | none)
 
 Defects
-1. <tool> — <rubric clause or check>: "<quoted text>". <Why it is a defect.>
+1. <tool> — <rubric clause or check, or the text class>: "<quoted text>". <Why it is a defect.>
    Proposed: "<replacement text>"
+   Class: <name> — <test> — checked <N> tools in this dispatch   (under the first instance of each text class only)
 
 Unintended text changes        (or "All text changes" with no intended-tools list)
 - "<shared line or sentence>" added to <N> tools: <names>
@@ -629,8 +686,9 @@ Unintended text changes        (or "All text changes" with no intended-tools lis
 Grader noise
 - <tool> <dimension> <score>: "<quoted reason>" describes a <higher score>
 
+Noticed: <Pass: class only: other faults you saw, untriaged | none>
 Cleared: <a suspicion you checked> — <why it is not a defect>
-Skipped: <check> — <the input that was missing>
+Skipped: <check> — <the input that was missing>   (a Pass: class report: Skipped: class pass)
 Unfinished entries: <N> — <the tools marked not reviewed or not traced, or "none">
 Status: <complete | partial | failed>
 ```
@@ -639,7 +697,10 @@ Status: <complete | partial | failed>
   Co is Conciseness, and Cm is Completeness.
 - A `Pass: cold` report has Marks and a `Structure:` line, and no Facts, Caller
   use, Errors, or Candidates lines. A `Pass: diff` report has Facts, Caller use,
-  Errors, and Candidates lines, and no Marks or `Structure:` line.
+  Errors, and Candidates lines, and no Marks or `Structure:` line. A
+  `Pass: class` report has one `<tool>: <defect numbers> | none` line per tool,
+  a `Noticed:` line and a `Skipped: class pass` line, and none of the other
+  per-tool lines.
 - The `Errors:` block has one line for each failure traced. Every `MISSING` line
   is also a numbered item under Defects, and so is every fault on a `Structure:`
   line and every sentence or clause on a `Caller use:` line that failed.

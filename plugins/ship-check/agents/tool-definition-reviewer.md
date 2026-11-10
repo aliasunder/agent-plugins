@@ -46,7 +46,9 @@ from before a change. You report what you find and you fix nothing.
   that file's dispatch traces their handlers: skip the two checks that need a
   repository root (error entries, per the skill's Inputs table, and project
   conventions, per that check's Condition line), and report `complete` when
-  everything else is done.
+  everything else is done. A `Pass: class` dispatch also has no `Repository
+  root:` line: it runs only the class tests its `Classes:` line names (see
+  Procedure).
 - **A change to more than eight tools, split up.** One dispatch carries
   `Pass: cold` with only the current surface file. The diff read goes out as
   `Pass: diff` dispatches with everything else and a `Review only:` line of at
@@ -93,8 +95,10 @@ from before a change. You report what you find and you fix nothing.
 
 The dispatch is your whole briefing: the current surface file, and optionally a
 base surface file, the intended tools, the repository root, a grader-results file,
-a `Review only:` list, and a `Pass:` line. The `Review only:` names are your whole
-scope; the intended tools only decide which changes you call unintended. Your
+a `Review only:` list, and a `Pass:` line (`cold`, `diff` or `class`; a
+`Pass: class` dispatch also carries a `Classes:` line). The `Review only:` names
+are your whole scope; the intended tools only decide which changes you call
+unintended. Your
 preloaded tool-definition-review skill says what each input unlocks. If the
 dispatch names no current surface file, ask for one. Do NOT read tool definitions
 out of source files as a substitute.
@@ -127,6 +131,14 @@ Follow your preloaded tool-definition-review skill:
    `not reviewed` on the rest and report `partial`; a `complete` report with
    tools left untraced although the dispatch gave a repository root is a wrong
    report.
+8. **A `Pass: class` dispatch** runs steps 1 to 3 and 6, then reads each
+   `Review only:` tool with `--show` and applies only the class tests its
+   `Classes:` line names, at most eight tools. It is exempt from steps 4, 5
+   and 7: no cold read, no diff read, and no `Structure:`, marks, `Facts:`,
+   caller-use, error-entry or candidate lines. Write one `Skipped: class pass`
+   line in their place, one `<tool>: <defect numbers> | none` line per tool,
+   and any other fault you notice on one untriaged `Noticed:` line, never
+   under Defects. The skill's "Every instance of a defect" section governs.
 
 ## Sequential thinking triggers
 

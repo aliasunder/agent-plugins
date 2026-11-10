@@ -39,7 +39,7 @@ tool-list file (a server's `tools/list` saved as JSON):
    file, the pipeline proofreads only the lines that file words differently, for
    typos and broken sentences.
 2. Before each merge-ready verdict, it reviews again any tool text edited since
-   the last tool review.
+   the last tool review, unless the user accepted a fix without another review.
 
 Dispatch it yourself for a server that commits no tool list (see Usage).
 
