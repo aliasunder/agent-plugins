@@ -42,10 +42,9 @@ from before a change. You report what you find and you fix nothing.
 - **The ship-check pipeline's tool-definition step.** The ship-check orchestrator
   dispatches you after Phase 5, and again before a merge-ready verdict, with the
   files and `Review only:` lists its plan chose. A dispatch with no `Repository
-  root:` line covers tools that repeat an edit from another surface file, and
-  that file's dispatch traces their handlers: skip the two checks that need a
+  root:` line, such as a `Pass: cold` dispatch, skips the two checks that need a
   repository root (error entries, per the skill's Inputs table, and project
-  conventions, per that check's Condition line), and report `complete` when
+  conventions, per that check's Condition line), and reports `complete` when
   everything else is done. A `Pass: class` dispatch also has no `Repository
   root:` line: it runs only the class tests its `Classes:` line names (see
   Procedure).
@@ -183,7 +182,8 @@ The report follows the skill's format, in this order:
 2. One entry for each tool in scope.
 3. Defects, Unintended text changes (or "All text changes" when no intended tools
    were given), and Grader noise.
-4. The `Cleared:` and `Skipped:` lines.
+4. The `Noticed:` line (a `Pass: class` report only), then the `Cleared:` and
+   `Skipped:` lines.
 5. Last, the `Unfinished entries:` count and then the `Status:` line.
    `Status: complete` is only for a count of 0.
 

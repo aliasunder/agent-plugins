@@ -39,7 +39,8 @@ tool-list file (a server's `tools/list` saved as JSON):
    file, the pipeline proofreads only the lines that file words differently, for
    typos and broken sentences.
 2. Before each merge-ready verdict, it reviews again any tool text edited since
-   the last tool review, unless the user accepted a fix without another review.
+   the last tool review. From the second re-review round (the first, in a local
+   run), the user can accept that round's fixes without another review.
 
 Dispatch it yourself for a server that commits no tool list (see Usage).
 
@@ -112,10 +113,10 @@ Codex cold dispatches use dedicated `agent_type`, `fork_turns: "none"`, `model`
 and `reasoning_effort`. Claude uses dedicated `subagent_type`, `model` and supported
 `effort`; when the Agent tool has no effort parameter, the dedicated role must
 already set the requested effort, and the dispatcher verifies that it does.
-OpenCode Task has no per-call model/effort fields. The dispatcher reads the
-dedicated role's configured model and supported variant; when no model
-is configured, it verifies the inherited parent model and variant. It labels the
-effective controls and reports requested choices the role cannot realize.
+OpenCode uses native `subagent` with the dedicated role and a verified
+`provider/model#variant` on each call; the generated reviewer roles carry no
+model. The dispatcher labels the effective controls and reports requested choices
+it cannot realize.
 Unsupported choices are reported without substitution.
 
 For standalone agents, first read the [skill's Execution guidance](skills/ship-check/SKILL.md#execution)

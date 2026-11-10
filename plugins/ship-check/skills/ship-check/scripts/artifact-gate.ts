@@ -88,9 +88,11 @@ const HUNK_HEADER = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/
 // `npm:<package>@<range>` installs another package under the key's name: group 1 is that package.
 const NPM_ALIAS = /^npm:(@?[^@]+)/
 // A spec that resolves on the npm registry: a range, a tag, or an `npm:` alias with a range. Anything with a `:`,
-// `/` or `#` beyond that, or a leading `.`, points outside the registry.
-// - Matches: `^1.2.3`, `latest`, `1.x || 2.x`, `npm:@scope/pkg@^2`
-// - Fails: `file:../pkg`, `..`, `github:owner/repo#ref`, `https://…/pkg.tgz`, `npm:pkg` (an alias with no range)
+// `/` or `#` beyond that, or a leading `.`, points outside the registry. The pattern also refuses any whitespace
+// and a `.tgz`, `.tar` or `.tar.gz` ending, so a padded spec or a range such as `1.x || 2.x` is an artifact change.
+// - Matches: `^1.2.3`, `latest`, `1.x`, `npm:@scope/pkg@^2`
+// - Fails: `file:../pkg`, `..`, `github:owner/repo#ref`, `https://…/pkg.tgz`, `pkg-1.0.0.tgz`, `1.x || 2.x`,
+//   `npm:pkg` (an alias with no range)
 const REGISTRY_SPEC = /^(?!.*\s)(?!.*\.(tgz|tar|tar\.gz)$)(npm:@?[^@/#:]+(\/[^@/#:]+)?@)?(?!\.)[^:/#]*$/
 // An overrides key may name a version, `<package>@<range>`: group 1 is the package.
 const KEY_PACKAGE = /^(@?[^@]+)/
@@ -138,6 +140,9 @@ const isString = (value: unknown): value is string => typeof value === "string"
 // runs to several megabytes.
 const GIT_OUTPUT_LIMIT_BYTES = 256 * 1024 * 1024
 
+// git's two messages for a path that is not in the tree at that commit; any other failure is a git failure.
+const PATH_ABSENT = /does not exist in|exists on disk, but not in/
+
 const git = (repo: string, args: readonly string[]): string => {
   try {
     return execFileSync("git", ["-C", repo, ...args], {
@@ -162,9 +167,6 @@ const changedFiles = (input: GateInput, oldCommit: string, pathspecs: readonly s
   return output.split("\n").filter((line) => line.length > 0)
 }
 
-// git's two messages for a path that is not in the tree at that commit; any other failure is a git failure.
-const PATH_ABSENT = /does not exist in|exists on disk, but not in/
-
 /** The file's content at the commit, or undefined when the path is absent there. */
 const fileAt = ({ repo, commit, path }: { repo: string; commit: string; path: string }): string | undefined => {
   try {
@@ -175,9 +177,7 @@ const fileAt = ({ repo, commit, path }: { repo: string; commit: string; path: st
   }
 }
 
-const oldContent = ({ input, path, oldCommit }: ChangedFile): string | undefined => {
-  return fileAt({ repo: input.repo, commit: oldCommit, path })
-}
+const oldContent = ({ input, path, oldCommit }: ChangedFile): string | undefined => fileAt({ repo: input.repo, commit: oldCommit, path })
 
 const newContent = ({ input, path }: ChangedFile): string | undefined => fileAt({ repo: input.repo, commit: input.to, path })
 
@@ -330,14 +330,11 @@ const classifyLockfile = (file: ChangedFile): Verdict => {
   }
 
   const changedKeys = keysOfEither(before, after).filter((key) => !sameJson(before[key], after[key]))
-  const entryAt = (key: string): JsonObject | undefined => {
-    const entry = after[key] ?? before[key]
-    return isJsonObject(entry) ? entry : undefined
-  }
-  const entryName = (key: string): unknown => entryAt(key)?.name
-  // The root entry mirrors package.json, so a lockfile-only change to it means the two files disagree. An
-  // entry resolved off the registry (a git or file URL, or a link) installs code no version string names.
+
+  // The root entry mirrors package.json, so a lockfile-only change to it means the two files disagree.
   if (changedKeys.includes("")) return { reason: "the lockfile's root entry changed without package.json" }
+
+  // An entry resolved off the registry (a git or file URL, or a link) installs code no version string names.
   const resolvesOffRegistry = (entry: unknown): boolean => {
     if (!isJsonObject(entry)) return false
     const resolved = entry.resolved
@@ -347,6 +344,12 @@ const classifyLockfile = (file: ChangedFile): Verdict => {
   const offRegistry = changedKeys.find((key) => resolvesOffRegistry(before[key]) || resolvesOffRegistry(after[key]))
 
   if (offRegistry) return { reason: `${offRegistry} resolves outside the npm registry` }
+
+  const entryAt = (key: string): JsonObject | undefined => {
+    const entry = after[key] ?? before[key]
+    return isJsonObject(entry) ? entry : undefined
+  }
+  const entryName = (key: string): unknown => entryAt(key)?.name
   // npm keys each installed copy `node_modules/<name>`, nested under its parent's path when it is not
   // hoisted. An entry installed under another path (an alias or a link) carries the real package in its
   // `name` field.
@@ -453,9 +456,9 @@ const TRANSPILE_OPTIONS = {
 const HASHBANG = /^#!.*/
 const USE_STRICT_LINE = /^\s*(["'])use strict\1\s*;?\s*$/gm
 const USE_STRICT = /(["'])use strict\1/g
-// A macro import needs an import attribute, and only such an attribute can carry one, so any file holding
-// the word or an attribute clause is refused before it is parsed; `macro: false` stays the enforced guard,
-// and a file that only mentions the word in a comment costs one extra live test.
+// Bun runs an import as a macro only when its import attribute says `type: "macro"`, so any file holding the
+// word `macro` or an attribute clause (`with {`, `assert {`) is refused before it is parsed; `macro: false`
+// stays the enforced guard, and a file that only mentions the word in a comment costs one extra live test.
 const MACRO_MARKER = /macro|\b(with|assert)\s*\{/i
 
 /**
@@ -463,7 +466,7 @@ const MACRO_MARKER = /macro|\b(with|assert)\s*\{/i
  * macro. The output drops comments, and it also drops TypeScript types and the source's formatting, so a
  * type-only or reformat-only edit prints the same text too.
  */
-const stripComments = (text: string, loader: Loader): string | undefined => {
+const transpiledText = (text: string, loader: Loader): string | undefined => {
   try {
     return new Bun.Transpiler({ loader, ...TRANSPILE_OPTIONS }).transformSync(text)
   } catch {
@@ -485,13 +488,13 @@ const classifyCode = (file: ChangedFile, loader: Loader): Verdict => {
 
   if (!sameHashbang || !sameDirectives || !sameDirectiveCount) return { reason: "code changed beyond comments" }
 
-  const strippedBefore = stripComments(before, loader)
-  const strippedAfter = stripComments(after, loader)
+  const transpiledBefore = transpiledText(before, loader)
+  const transpiledAfter = transpiledText(after, loader)
 
-  if (strippedBefore === undefined || strippedAfter === undefined) {
+  if (transpiledBefore === undefined || transpiledAfter === undefined) {
     return { reason: "the transpiler could not parse the file" }
   }
-  return strippedBefore === strippedAfter ? "comment" : { reason: "code changed beyond comments" }
+  return transpiledBefore === transpiledAfter ? "comment" : { reason: "code changed beyond comments" }
 }
 
 const classifyByFileType = (file: ChangedFile): Verdict => {

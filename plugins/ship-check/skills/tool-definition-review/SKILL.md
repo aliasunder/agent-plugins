@@ -50,7 +50,7 @@ whose input is missing is **skipped and listed as skipped**, never guessed at.
 | Grader results | no | A file of scores and written reasons from an outside service that grades tool definitions, such as Glama's Tool Definition Quality Score | Noise section skipped |
 | `Review only:` list | no | Names that limit which tools you review in this dispatch. It is NOT the intended-tools list | Scope comes from the script |
 | `Pass:` line | no | `cold`, `diff` or `class`. A `Pass: class` dispatch runs only the class tests its `Classes:` line names (see "Every instance of a defect") and carries no intended tools, base surface or repository root | Do both reads, cold first |
-| `Classes:` line | with `Pass: class` | One line per class: its name, its one-sentence test, its quoted accepted instance, and the fix the user accepted (or, for a class seeded from the first review, the fix applied in that review's triage) | — |
+| `Classes:` line | with `Pass: class` | One line per class: its name, its one-sentence test, a quoted instance the user accepted as a defect, and the fix applied or accepted for it. Use the instance and its fix as the model for each instance you report and its `Proposed:` line | — |
 | `Sweep:` line | no | `caller use`. The caller-use check judges every sentence of each in-scope tool, changed or not. A sweep dispatch is `Pass: diff` with no base surface, so its diff read is the caller-use and duplicated-fact checks, plus the error-entry check when it names a repository root | The caller-use check judges only the sentences a change added or reworded |
 
 A surface file is an object with a `tools` array, a bare array of tools, or a
@@ -598,17 +598,20 @@ message has no entry, and it is produced in a helper the change never touched.
 One review found an unexplained returned field, the fix landed, and the next
 round found the next one in the same `Returns:` line.
 
-A **text class** is a fault the tool definitions in this surface file decide: an
-unexplained returned field, a dangling referent, a claim whose condition the
-tool's own text shows but the sentence leaves out. A class names a fault one
-sentence of test can decide, never a quality ("unclear wording" is not a class),
-and every class travels with that sentence.
+A **text class** is a fault that the tool definitions in this surface file alone
+can settle: an unexplained returned field, a dangling referent, a claim whose
+condition the tool's own text shows but the sentence leaves out. A fault the
+Structure and referents check or the caller-use check finds reads only the
+definitions, so it can be a text class; a `MISSING` error entry needs the
+handler, so it never is. A class names a fault that one sentence of test can
+settle, never a quality ("unclear wording" is not a class), and every class
+carries that sentence as its test.
 
 - **Action:** when you write a numbered defect of a text class, name the class
   and its one-sentence test (in the words of the check that found it, when a
-  named check did), then apply that test to every other tool this
-  dispatch reads before you go on. Write each instance as its own numbered
-  defect naming the class. Under the first instance of each class only, add
+  named check did), then apply that test to every other in-scope tool before
+  you go on. Write each instance as its own numbered defect naming the class.
+  Under the first instance of each class only, add
   `Class: <name> — <test> — checked <N> tools in this dispatch`.
 - **Condition:** every numbered text-class defect, in both reads and in a
   `Pass: class` dispatch.
@@ -620,11 +623,14 @@ and every class travels with that sentence.
   - Count an instance only when the text fails the test as written, not when it
     could read more clearly. Put each candidate you drop on a `Cleared:` line
     with its reason, such as the noun a pronoun refers to.
-  - Report defects only in `Review only:` tools. You may read another tool's
-    definition in the same surface file when the test needs it.
+  - Report defects only in in-scope tools: the `Review only:` names, or every
+    tool `--names` lists when the dispatch has no `Review only:` line. You may
+    read another tool's definition in the same surface file when the test needs
+    it.
   - A class whose test needs handler code (a list the code contradicts, a claim
-    only the handler can confirm) is not swept: name it and leave it to
-    bug-check.
+    only the handler can confirm) is not swept: name the class on its defect,
+    write no `Class:` line, and do not test other tools for it. Bug-check covers
+    its other instances.
   - The `Class:` line covers this dispatch only; ship-check's sweep closes
     coverage across dispatches.
 

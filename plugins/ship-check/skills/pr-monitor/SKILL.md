@@ -345,8 +345,8 @@ threads"), so each fix reply names a commit the PR already has.
    100+ comments. Generalize each valid finding to the pattern it represents — the
    same claim on another doc surface, the same code shape in another function, the
    same missing guard on another entry point — then fix every instance in the SAME
-   commit. A document claim swept to sibling documents gets each document's own reader
-   judgment ("Copy and claims").
+   commit. When you sweep a document claim to sibling documents, judge separately what
+   each document's reader needs ("Copy and claims").
 
    **Run the search, don't recall it.** Name a search term that finds the flagged
    pattern, such as the old value or the code shape, then search the whole repo:
@@ -759,15 +759,11 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     catch or option she did not approve: each one it finds goes to her as a new
     proposal.
 - **Verification**, in ship-check's Phase 6 and in a standalone run, checked last.
-  When the project's `CLAUDE.local.md` has a `## Verification profile` (read fresh on
-  every pass, through the vault tools when the file is a vault symlink and the file
-  tools when it is a plain file; a section holding only a `- Profile: <link>` line is
-  read at the link: a `[[wikilink]]` through the vault tools, any other value as a
-  path relative to the repository root, and a `Profile:` line inside the linked note
-  is not followed; unreadable, a link that does not resolve or a linked note without
-  the labels withholds the verdict as `profile unreadable`) and the profile's `Gate:`
-  script reports `artifact change` or `local change` for the PR's range, all of these
-  hold:
+  Read the project's `CLAUDE.local.md` `## Verification profile` fresh on every pass,
+  as the ship-check skill's "Verification (conditional)" step 1 reads it, following a
+  `Profile:` line; a profile that step reads as `profile unreadable` withholds the
+  verdict. When the profile exists and its `Gate:` script reports `artifact change` or
+  `local change` for the PR's range, all of these hold:
   - the PR body carries the profile's `Evidence:` section, its first line
     `Head: <full SHA>`. The PR's author can edit the body, so the SHA must be 40 hex
     characters and the run id below digits only; any other value is missing evidence
