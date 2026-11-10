@@ -134,6 +134,17 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 
 ## Fixing and Committing
 
+**Report-only exception.** When the dispatch says `Mode: report-only`, or the model
+ID you resolve for attribution (below) is not an Anthropic or OpenAI model, skip this
+whole section: edit nothing, write no test, commit nothing, push nothing, post nothing,
+and run any mutation probe in a temporary copy of the checkout, never in the reviewed
+tree. Return each fix and each missing test you would have written as a recommendation with
+the exact change (file, line, replacement or test text) in the report-only summary;
+the orchestrator checks the tree and HEAD afterwards and applies what it accepts. When
+the dispatch says **COMMENT MODE**, follow the Comment mode section, except that a
+reviewer on another vendor's model returns its findings for the orchestrator to post
+instead of posting them. `Mode: fix-and-commit` follows this section as written.
+
 - Fix every test-quality finding directly, and write the missing test for each
   coverage gap. Edit test files only. Report a production bug you find to the
   orchestrator as a flagged finding: its file:line, the input or path that breaks
@@ -181,6 +192,13 @@ or push. Instead, follow the "Comment mode" section in your preloaded test-audit
 tests.
 
 ## Output Format
+
+### Report-only mode
+
+The default summary with its first line ending `(report-only)`, `Tests written: 0`,
+and `Findings: N total (M would-fix, K flagged, each with its flag category)`,
+followed by one line per would-fix finding or missing test giving the file, line and
+exact replacement or test text.
 
 ### Default mode
 

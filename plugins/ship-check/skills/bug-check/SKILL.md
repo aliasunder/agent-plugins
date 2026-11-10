@@ -525,7 +525,11 @@ yours. Convention violations in your fixes ship unchecked.
    - `unevidenced or low-cost` — new handling for a scenario with no evidence that
      it is realistic (step 3's first bullet); note whether its cost when hit is
      small or noticeable. Never an edit, whatever the fix size.
-4. Stage and commit all fixes. Push only in a standalone run. In a ship-check run
+4. In a `Mode: report-only` dispatch, or when the model ID you resolve for
+   attribution is not an Anthropic or OpenAI model, edit nothing, commit nothing and
+   report each fix as a recommendation with the exact change, labelling its
+   one-liner `→ would fix` instead of `→ fixed`. Otherwise stage and commit all
+   fixes. Push only in a standalone run. In a ship-check run
    (the dispatch says "do not push", or you run inline in the orchestrator's
    context), commit only: the orchestrator pushes every phase's commits once after
    Phase 5.

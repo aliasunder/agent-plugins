@@ -220,8 +220,10 @@ Structure the review by dimension. Use sequential thinking to organize findings.
 
 ## How to report and fix
 
-**Default is fix, not report-only.** Always apply fixes unless the dispatch prompt says
-comment mode.
+**Default is fix.** Apply fixes unless the dispatch prompt says comment mode or
+`Mode: report-only`, or the model ID you resolve for attribution is not an Anthropic
+or OpenAI model; in those cases edit nothing and report each fix as a recommendation
+with the exact change, labelling its one-liner `→ would fix` instead of `→ fixed`.
 
 **One line per finding, then fix it.** Keep reports compact — the diff shows the fix:
 
