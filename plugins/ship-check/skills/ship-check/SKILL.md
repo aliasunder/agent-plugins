@@ -765,7 +765,8 @@ verified `Attribution model ID`.
 
 The dispatch templates below also omit the `Ship-Check` commit trailer instruction
 and the "Copy and claims" block. Append the trailer block from the Attribution
-section ("Commit trailer format") once to every phase that commits (phases 1, 3-5),
+section ("Commit trailer format") once to every `Mode: fix-and-commit` dispatch of
+phases 1, 3-5 (a report-only dispatch commits nothing, so it gets no trailer block),
 and the "Copy and claims" block to every dispatch that section names.
 
 For Codex agent mode, also prepend the populated attribution line described above.
