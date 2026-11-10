@@ -104,6 +104,11 @@ tool the prompt needs.
   the prompt asks for. Turn off pushing in that clone first:
   `git remote set-url --push origin no-push`.
 
+Before adding a review phase or a reviewer for a class of miss, edit the existing
+reviewer's instructions with the fix that would make it catch the miss, then run
+that reviewer, loaded from your checkout as above, on the exact miss. Add the phase
+only when that run still misses it.
+
 ## Conventions
 
 - **Kebab-case** for all directory and file names

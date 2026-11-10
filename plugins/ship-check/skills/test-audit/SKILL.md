@@ -338,7 +338,10 @@ is the primary audit. It answers: "should there be tests for what changed?"
    (`rg -n "functionName|describe.*ModuleName" -g "*.test.*" -g "*.spec.*" -g "**/__tests__/**"`).
    A function may already be tested even if its test file wasn't changed.
 
-4. **Report each gap as a one-liner, then write the test.** A `hard gap` is code no
+4. **Report each gap as a one-liner, then write the test** (in a `Mode: report-only`
+   dispatch, or when the model ID you resolve for attribution is not an Anthropic or
+   OpenAI model, write no test: put its text in the report as a recommendation). A
+   `hard gap` is code no
    test exercises at all; a `soft gap` is code whose function has tests that miss
    the changed branch or path:
 
@@ -429,7 +432,9 @@ This proves the test is load-bearing, not decorative.
   (step 4, under Scope's read-only rule), and `[regression]` and `[weakened]`
   (step 5; both count as coverage regressions). A `[mutation]` line records a
   verification, not a finding.
-- **Fix** directly — rewrite the test to meet conventions.
+- **Fix** directly — rewrite the test to meet conventions. In a `Mode: report-only`
+  dispatch, or when the model ID you resolve for attribution is not an Anthropic or
+  OpenAI model, put the rewrite in the report as a recommendation and edit nothing.
 - **Run the test suite** after fixes to confirm all tests still pass.
 - Coverage gap reporting uses the one-liner format in the gap analysis section above
   — don't repeat it here.

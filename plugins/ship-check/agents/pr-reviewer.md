@@ -140,6 +140,16 @@ you're shortcutting the review.
 
 ## Fixing and Committing
 
+**Report-only exception.** When the dispatch says `Mode: report-only`, or the model
+ID you resolve for attribution (below) is not an Anthropic or OpenAI model, skip this
+whole section: edit nothing, commit nothing, push nothing, post nothing. Return each
+fix you would have made as a recommendation with the exact change (file, line,
+replacement text) in the report-only summary; the orchestrator checks the tree and
+HEAD afterwards and applies what it accepts. When the dispatch says **COMMENT MODE**,
+follow the Comment mode section, except that a reviewer on another vendor's model
+returns its findings for the orchestrator to post instead of posting them.
+`Mode: fix-and-commit` follows this section as written.
+
 - Fix or flag with the pr-review skill's matrix ("How to report and fix", step 2):
   - First name what the finding asks for: a defect (code wrong for its own
     contract: its signature, its documented promises and the failure behavior of
@@ -191,6 +201,12 @@ post them as a single GitHub PR review with inline comments via `gh api`. Do not
 any files, commit, or push.
 
 ## Output Format
+
+### Report-only mode
+
+The comment-mode summary with its first line ending `(report-only)` and
+`Review posted: no`, followed by one line per would-fix finding giving the file,
+line and exact replacement.
 
 ### Default mode
 
