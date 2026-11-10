@@ -605,7 +605,8 @@ sentence of test can decide, never a quality ("unclear wording" is not a class),
 and every class travels with that sentence.
 
 - **Action:** when you write a numbered defect of a text class, name the class
-  and its one-sentence test, then apply that test to every other tool this
+  and its one-sentence test (in the words of the check that found it, when a
+  named check did), then apply that test to every other tool this
   dispatch reads before you go on. Write each instance as its own numbered
   defect naming the class. Under the first instance of each class only, add
   `Class: <name> — <test> — checked <N> tools in this dispatch`.

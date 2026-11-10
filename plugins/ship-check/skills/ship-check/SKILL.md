@@ -1303,7 +1303,9 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
    - **Classes to sweep:** each text class this round's accepted defects name,
      plus each text class confirmed on tool text earlier this session that has
      not been swept, read from the `classes:` field of the first review's step 9
-     summary line. Each class carries its one-sentence test.
+     summary line. Each class carries its one-sentence test. When a named check
+     found the accepted instance (a Structure test, a caller-use shape), copy
+     that check's words: a paraphrase can narrow the test and miss instances.
    - **The first file:** plan as step 3 above ("Plan the dispatches") does,
      without `--since`, in a fresh parent folder, and send `Pass: class` over
      the first file's `batches`, all in one
