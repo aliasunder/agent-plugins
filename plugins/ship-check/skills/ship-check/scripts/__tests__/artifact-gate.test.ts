@@ -531,6 +531,11 @@ describe("paths and ranges", () => {
     assert.deepEqual(classify(input(tarball.repo, tarball.base, tarball.head)), artifactChange("package.json", "dependencies.hono is not a registry version"))
   })
 
+  it("keeps a range of alternatives, whose inner whitespace the registry check refuses", () => {
+    const { repo, base, head } = fixture({ "package.json": packageWith((manifest) => { manifest.dependencies.hono = "4.6.0 || 4.6.1" }) })
+    assert.deepEqual(classify(input(repo, base, head)), artifactChange("package.json", "dependencies.hono is not a registry version"))
+  })
+
   it("reports a change under an audit path only as local change", () => {
     const { repo, base, head } = fixture({ "cli/src/docker.ts": "export const image = 'y'\n" })
     assert.deepEqual(classify(input(repo, base, head)), {
