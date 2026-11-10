@@ -1334,7 +1334,8 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
    `Tool Definitions:` summary line, write `re-review <n>` and
    `swept:`, listing every class swept this session as
    `<class> at <HEAD_SHA read> (merge base <MERGE_BASE>)`. The summary line is
-   rewritten on each pass, so carry the earlier `swept:` entries forward.
+   rewritten on each pass, so carry the earlier `swept:` entries forward; a class
+   swept again replaces its entry.
 8. Record the new tool-review commit as in step 9.
 
 - **A reorder-only edit may skip its dispatch, at your judgement.** At step 4,
@@ -1376,7 +1377,9 @@ TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE.
     line does not hold the verdict.
   - When the parent differs, record the round's `HEAD_SHA` instead and tell her
     the waiver did not take, so the next verdict reviews the fix.
-  - A later edit to those tools is reviewed as usual.
+  - A later edit to those tools is reviewed as usual. Carry the
+    `accepted unreviewed:` field forward until then, and drop each tool from it
+    once a re-review dispatch reads it.
   - NEVER offer a card.
 - No recorded tool-review commit, or one git cannot find (the gate's `git diff`
   reports a bad object, or the script exits 2 with "not a commit") → run the step in

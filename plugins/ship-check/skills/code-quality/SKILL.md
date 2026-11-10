@@ -693,8 +693,9 @@ index returns wrong results that nobody sees.
 Right: `[design] sync.ts:22 — deleting the index before every run rebuilds every
 entry on every run to cover an interrupted run, which is rare; the index already
 rebuilds entries whose content hash changed → proposal (needs design decision): −6
-lines, 1 file, tests: drop the delete-first test, risk: an interrupted run leaves
-stale entries until a forced rebuild; per-run cost removed: one full rebuild`.
+lines, 1 file, tests: drop the delete-first test, risk: an entry an interrupted run
+left half-written keeps its new hash, so it stays wrong until a forced rebuild;
+per-run cost removed: one full rebuild`.
 
 Wrong: a client passes `{ cache: "default" }` to every `fetch` call, and the review
 confirms the responses are correct.

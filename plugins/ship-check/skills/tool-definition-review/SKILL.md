@@ -616,6 +616,9 @@ and every class travels with that sentence.
     is its own defect with its own check. In a `Pass: class` dispatch it goes on
     one `Noticed:` line, never under Defects, and nothing on that line is
     triaged.
+  - Count an instance only when the text fails the test as written, not when it
+    could read more clearly. Put each candidate you drop on a `Cleared:` line
+    with its reason, such as the noun a pronoun refers to.
   - Report defects only in `Review only:` tools. You may read another tool's
     definition in the same surface file when the test needs it.
   - A class whose test needs handler code (a list the code contradicts, a claim
