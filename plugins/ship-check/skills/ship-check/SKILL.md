@@ -251,6 +251,14 @@ uncommitted edits rather than the PR head, producing wrong or missing findings.
 Treat an agent report of "no files edited" as a claim to verify, not a fact — and
 treat a dirty tree as a claim about the agents to verify, not a verdict.
 
+The same check guards every dispatch whose reviewer must not commit: a
+`Mode: report-only` dispatch ("Dispatch mode") as well as a comment-mode phase and
+the design pass. Record `git rev-parse HEAD` before the dispatch; when the reviewer
+returns, and before applying any recommendation, check that `git status --porcelain`
+prints nothing and HEAD is unchanged, and stop on either. A tree and HEAD check
+cannot see an edit the reviewer made and reverted; when the run's native events are
+available, search them for edits, pushes or posts as well.
+
 A related hazard: the checkout itself can change out from under the pipeline
 (branch switched, work moved to a worktree). If the PR branch is no longer checked
 out where the pipeline started, pin a dedicated detached review worktree at the PR
@@ -454,7 +462,8 @@ sequential thinking forces you to deliberate instead of relaying.
    decides each review finding's outcome), run it on every finding whose step 3
    row ends with the user (`Defer to user`, `Present to user — they decide scope`,
    or `Always defer to user`). Pass it the run's mode and what the run may do,
-   from this table; `--report` wins over every other row:
+   from this table; `--report` wins over every other row, and the last row wins
+   over the edit rows:
 
    | Run | Mode to pass | What the run may do |
    |---|---|---|
@@ -463,10 +472,14 @@ sequential thinking forces you to deliberate instead of relaying.
    | `--report`, with or without a PR | `--report` | report only |
    | Local, on a branch | local on a branch | edit and commit |
    | Local, on `main` or a detached HEAD | local on `main` or a detached HEAD | report only |
+   | Any run whose orchestrator's own model is outside Anthropic and OpenAI | report only (the orchestrator's model) | report only |
 
-   Act on each result before dispatching the next phase:
-   - `Fix` (the caller applies the fix): apply it as step 4 says, with the
-     regression test for a production bug test-audit reported. Once applied,
+   Before applying a batch of triage fixes, when the project keeps a task board,
+   check it for a card covering the same change; report each overlap and apply the
+   rest. Act on each result before dispatching the next phase:
+   - `Fix` (the caller applies the fix): apply it as step 4 says, sweeping the
+     sibling surfaces and adjacent claims of the same class in the same commit, with
+     the regression test for a production bug test-audit reported. Once applied,
      count it as a triage fix (step 6). The tool-definition re-review holds a
      `Fix` instead of applying it ("The re-review", step 5).
    - `Recommended fix` (the fix described, returned when the run may not edit):
@@ -514,7 +527,7 @@ sequential thinking forces you to deliberate instead of relaying.
      sits on a diff line, and otherwise as a PR-level comment under "Non-inline
      findings still land on the PR". A `Pending` result gets no comment while it
      waits, the way pr-monitor leaves pending findings out of its PR comments.
-   - In a report-only run (`--report`, or local on `main` or a detached HEAD)
+   - In a report-only run (`--report`, local on `main` or a detached HEAD, or an orchestrator whose own model is outside Anthropic and OpenAI)
      `triage-finding` asks nothing either, those five kinds included. List each
      result with its recommendation in the status update before the next dispatch;
      the user decides from that list, and Reporting asks nothing about these.
@@ -757,6 +770,40 @@ and the "Copy and claims" block to every dispatch that section names.
 
 For Codex agent mode, also prepend the populated attribution line described above.
 
+### Dispatch mode
+
+When the run may commit, commit your own pending edits before dispatching a
+reviewer, so it reads a fixed tree. Then derive the dispatch's mode once and put it
+on the line after the `Attribution model ID` line (the first line of the prompt when
+the runtime adds none):
+
+- `Mode: report-only` when the run is `--report`, or local on `main` or a detached
+  HEAD, or when the resolved reviewer model is not an Anthropic or OpenAI model
+  (OpenCode dispatches always, and any session whose reviewer inherits the session's
+  model when that model is another vendor's).
+- `Mode: fix-and-commit` otherwise.
+- In `--comment` runs, no `Mode:` line: the COMMENT MODE block is the mode, and the
+  reviewer bodies key on it.
+
+The reviewer bodies and their preloaded skills carry a report-only exception that
+also fires on the reviewer's own attribution model, so a mode line and the model
+check agree. Nothing a report-only reviewer recommends is applied by it; what
+happens next depends on why the dispatch was report-only:
+
+- A run-mode cause (`--report`, local on `main` or a detached HEAD): the
+  recommendations are listed as Recommended fix or Deferred, and nothing is applied
+  ("Push the fixes", step 3, and the Reporting section).
+- An Anthropic or OpenAI orchestrator with a third-party reviewer: the orchestrator
+  applies the recommendations it accepts as triage fixes ("Inter-phase triage",
+  step 4) and counts them there.
+- An orchestrator whose own model is outside Anthropic and OpenAI (an OpenCode-run
+  ship-check): the recommendations stay in the report for a first-party session or
+  the maintainer; the triage table's last row applies, and the restriction is
+  carried into Phase 6 the way `--report` is.
+
+Record `git rev-parse HEAD` before each report-only dispatch and check the tree and
+HEAD when it returns, as "Verify the tree stays clean" says.
+
 ### Phase 1: PR Review
 
 Dispatch the `pr-reviewer` agent type from the ship-check plugin:
@@ -767,7 +814,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "PR review — <resolved model> / <resolved phase effort>",
-  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic, or that costs little when hit, as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable; a security finding's attacker path counts as evidence. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5."
+  prompt: "Review the PR on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nThis is Phase 1 of the ship-check pipeline — focus on dimensions 1 (correctness), 4 (security/performance), and conditional dimensions 5-7 (the tool-definition handoff, feature surface docs, stale path references). Skip dimensions 2 (conventions) and 3 (test quality) — dedicated agents handle those next. First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic, or that costs little when hit, as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable; a security finding's attacker path counts as evidence. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Make each fix the way this dispatch's `Mode:` line says, or, when the prompt has no `Mode:` line, the way its COMMENT MODE block says: in fix-and-commit mode a commit and no push, since the orchestrator pushes every phase's commits once after Phase 5; in report-only mode the exact change recommended, with nothing edited, committed, pushed or posted."
 })
 ```
 
@@ -833,7 +880,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Code quality — <resolved model> / <resolved phase effort>",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, error handling, comments, simplicity, and module conventions; changed markdown docs get the docs & comment quality dimension. Fix every finding and commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, error handling, comments, simplicity, and module conventions; changed markdown docs get the docs & comment quality dimension. Fix every finding, and make each fix the way this dispatch's `Mode:` line says, or, when the prompt has no `Mode:` line, the way its COMMENT MODE block says: in fix-and-commit mode a commit and no push, since the orchestrator pushes every phase's commits once after Phase 5; in report-only mode the exact change recommended, with nothing edited, committed, pushed or posted. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 
@@ -855,7 +902,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile` (read as 'Verification (conditional)', step 1, says, following a `Profile:` line), append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Make each fix the way this dispatch's `Mode:` line says, or, when the prompt has no `Mode:` line, the way its COMMENT MODE block says: in fix-and-commit mode a commit and no push, since the orchestrator pushes every phase's commits once after Phase 5; in report-only mode the exact change recommended, with nothing edited, committed, pushed or posted. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile` (read as 'Verification (conditional)', step 1, says, following a `Profile:` line), append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
 })
 ```
 
@@ -878,7 +925,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Bug check — <resolved model> / <resolved phase effort>",
-  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic, or that costs little when hit, as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable; a security finding's attacker path counts as evidence. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
+  prompt: "Run a systematic bug check on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nRead every changed file in full (source, CI/CD, IaC, config — all non-test files). Apply all 7 dimensions — especially dimension 1 (description-vs-implementation, quote verbatim). First name what each finding asks for: a defect (code wrong for its own contract) or new handling for a scenario outside it. Fix every defect whose fix is small (< 5 lines, no interface change, no behavioral risk), at any confidence, and every high/medium-confidence defect whose fix is 10 lines or fewer with no interface change. Flag new handling for a scenario with no evidence that it is realistic, or that costs little when hit, as 'unevidenced or low-cost', however small the fix, noting whether its cost when hit is small or noticeable; a security finding's attacker path counts as evidence. Flag the rest, categorized as 'uncertain diagnosis', 'complex fix', 'needs design decision', or 'pre-existing gap'. Make each fix the way this dispatch's `Mode:` line says, or, when the prompt has no `Mode:` line, the way its COMMENT MODE block says: in fix-and-commit mode a commit and no push, since the orchestrator pushes every phase's commits once after Phase 5; in report-only mode the exact change recommended, with nothing edited, committed, pushed or posted. Prior-phase context: <summarize what Phases 1, 3-4 fixed and any deferred findings>."
 })
 ```
 
@@ -1572,8 +1619,9 @@ leave Phase 5 out, run it after the last selected phase and its triage instead
    because the remote branch moved), stop before Phase 6 and show the user the
    error and the unpushed commits. Never force-push or rebase on your own.
 3. Skip the push, and say why in the summary, when:
-   - the run is in comment mode or `--report`, or is local mode on `main` or a
-     detached HEAD: nothing was committed;
+   - the run is in comment mode or `--report`, is local mode on `main` or a
+     detached HEAD, or has an orchestrator whose own model is outside Anthropic and
+     OpenAI: nothing was committed;
    - the count is 0: no phase committed anything;
    - local mode on a branch with no upstream (step 1 fails with `no upstream`):
      the fixes stay committed locally, and the summary says they are not pushed.
@@ -1598,9 +1646,10 @@ follow-up and human comment decisions need the primary agent.
 Carry the orchestrator's verified attribution model ID into pr-monitor. A standalone
 pr-monitor run resolves the current session's exact model under the Attribution rules.
 Also carry the run's mode and permitted operations into pr-monitor and every wake
-prompt. With `--report`, Phase 6 checks and reports only: no edits, commits, pushes,
-replies, thread resolutions, PR comments, or merge-ready inbox posts. This restriction
-overrides the action instructions below and in pr-monitor.
+prompt. With `--report`, or when the orchestrator's own model is outside Anthropic
+and OpenAI ("Dispatch mode"), Phase 6 checks and reports only: no edits, commits,
+pushes, replies, thread resolutions, PR comments, or merge-ready inbox posts. This
+restriction overrides the action instructions below and in pr-monitor.
 
 **Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when

@@ -193,7 +193,9 @@ disposition.
 
 Fix the pause when an edit passes all three questions. When no edit passes question
 3, dismiss the pause and quote the rule the edit would break. NEVER make an edit
-that fails question 3, however cheap it is.
+that fails question 3, however cheap it is. Before dismissing a pause that question 1
+did not dismiss, make the edit that questions 2 and 3 allow when it costs less than
+writing the dismissal.
 
 This judgment holds whatever the dispatch prompt adds. A dispatch that asks for
 small fixes to pauses in code the change did not touch still gets only edits that
@@ -235,6 +237,11 @@ Anti-rationalization rules for fresh-eyes pauses:
   checklist has a gap, not that the pause is invalid. Classify it under the nearest
   dimension and judge it with the three questions. If no dimension fits, report it
   as uncategorized — never drop it.
+- **A term standard among agents is dismissed under question 1 in a skill or agent
+  file,** with the term named, with or without a repository definition; in public
+  documentation it still earns an edit.
+- **Edits to code the change did not touch are judged one at a time against the
+  three questions:** keep or revert each on its own result, never the batch together.
 
 ### 1. Naming
 - Variables describe what the value IS, not shorthand (`availableHeadings` not

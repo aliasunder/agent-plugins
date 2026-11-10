@@ -23,8 +23,9 @@ the prerequisites fail and you must go back.
 
 This skill evaluates, replies to, and resolves bot review threads (qodo,
 CodeRabbit) as part of the authorized workflow. When ship-check carries `--report`,
-evaluate and report only: do not edit, commit, push, reply, resolve, or post PR
-comments. Preserve that restriction in every wake prompt.
+or its orchestrator's own model is outside Anthropic and OpenAI, evaluate and report
+only: do not edit, commit, push, reply, resolve, or post PR comments. Preserve that
+restriction in every wake prompt.
 
 ## Step 1: Determine the PR
 
@@ -42,7 +43,9 @@ commands below. The REST paths and GraphQL query already name the repository.
 ## Step 2: Run a full status pass
 
 Run all five checks. You re-run this exact step during follow-up (Step 4), so be
-consistent.
+consistent. A finding about a cost the maintainer dismissed in an earlier round (a
+tradeoff they chose) is reported once as one line citing the dismissal, and is not
+argued again in a later pass unless the evidence it rested on changes.
 
 In OpenCode, begin each pass by reading the PR's state and head SHA, for example
 with `gh pr view <PR-URL> --json state,headRefOid`. Stop this run's identified loop
@@ -233,6 +236,15 @@ end the turn; do not repeatedly poll inside a busy turn.
 > skill is running — re-read this line before the first reply of every
 > monitoring cycle.
 
+When the run's permitted operations are report only (a `--report` run, or a
+ship-check whose orchestrator's own model is outside Anthropic and OpenAI), this
+step edits, pushes, replies and resolves nothing and lists each fix as a
+recommendation with its exact change.
+
+In a run that may edit, when the project keeps a task board and this round's fixes
+are a batch of proposals, check the board for a card covering the same change before
+applying them; report each overlap and apply the rest.
+
 ### Findings this PR won't fix, when `triage-finding` is available
 
 If a `triage-finding` skill is available, evaluate every finding in this round first
@@ -418,6 +430,12 @@ threads"), so each fix reply names a commit the PR already has.
    ```
    - **Valid finding** -- reply with the pushed commit that carries the fix, then what changed:
      *"Fixed in [short SHA]: [brief description of the change and why].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
+   - **A finding whose reply would have to explain what a sentence the PR added means**
+     -- treat it as a valid finding at item 1 and reword that sentence in the PR, even
+     when the finding's premise is wrong. Reply:
+     *"Fixed in [short SHA]: reworded.\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*.
+     Text already on the base branch follows the ship-check skill's "Copy and claims"
+     instruction.
    - **False positive** -- reply explaining why:
      *"This is intentional -- [reasoning].\n\n---\n🔍 ship-check · pr-monitor · MODEL_ID"*
    - **Result from `triage-finding`** -- post the reply it gives, with the same footer:
@@ -714,6 +732,8 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 - No missing required approvals or merge conflicts; mergeability is known
 - All bot threads resolved (each one replied to before resolving), except findings
   `triage-finding` left pending, which stay unresolved and are listed as blockers
+- A dismissed cost appears only as Step 2 says (once, with the dismissal cited),
+  never as a reopened finding
 - **Every fix in this run reports its sweep receipt.** A fix with no
   `Sweep "<term>": N hits repo-wide` line means the Step 3 item-4 sweep never ran —
   go back to Step 3 and run the repo-wide search.
