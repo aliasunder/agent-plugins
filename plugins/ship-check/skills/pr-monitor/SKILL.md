@@ -758,9 +758,15 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     proposal.
 - **Verification**, in ship-check's Phase 6 and in a standalone run, checked last.
   When the project's `CLAUDE.local.md` has a `## Verification profile` (read fresh on
-  every pass; unreadable withholds the verdict as `profile unreadable`) and
-  the profile's `Gate:` script reports `artifact change` or `local change` for the
-  PR's range, all of these hold:
+  every pass, through the vault tools when the file is a vault symlink and the file
+  tools when it is a plain file; a section holding only a `- Profile: <link>` line is
+  read at the link: a `[[wikilink]]` through the vault tools, any other value as a
+  path relative to the repository root, and a `Profile:` line inside the linked note
+  is not followed; unreadable, a link that does not resolve or a linked note without
+  the labels withholds the verdict as `profile unreadable`) and the profile's `Gate:`
+  script reports `artifact change` or `local change` for the PR's range, all of these
+  hold. A gate that cannot run, or that exits non-zero, withholds the verdict with its
+  error, as ship-check's Verification step does:
   - the PR body carries the profile's `Evidence:` section, its first line
     `Head: <full SHA>`. The PR's author can edit the body, so the SHA must be 40 hex
     characters and the run id below digits only; any other value is missing evidence

@@ -841,9 +841,14 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Test audit — <resolved model> / <resolved phase effort>",
-  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile`, append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
+  prompt: "Audit tests on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nAudit all changed test files against convention dimensions AND run coverage gap analysis on changed non-test files. Write missing tests for coverage gaps. Fix test quality issues. Commit, and do not push: the orchestrator pushes every phase's commits once after Phase 5. Prior-phase context: <summarize what Phases 1 and 3 fixed and any deferred findings>.\n<when the project's CLAUDE.local.md has a `## Verification profile` (read as the Verification step's step 1 says, following a `Profile:` line), append:>\nAudit paths: <the profile's Artifact paths, then its Audit paths, one per line>. Run the test-audit skill's stand-in audit on executable code under them and add its table to your report."
 })
 ```
+
+When that profile read is `profile unreadable`, retry it once. If it still fails, leave
+the `Audit paths:` line out and note `stand-in audit owed (profile unreadable)` in the
+run's state: the Verification step dispatches the stand-in audit once its own profile
+read succeeds, and the merge-ready verdict waits for it.
 
 Wait for the agent to complete. Read its findings. **Run inter-phase triage** on any
 flagged findings. Then compose the Phase 5 dispatch prompt with prior-phase context.
@@ -1346,9 +1351,22 @@ mailbox messages and the scheduled wakeups belong to this session.
 any mode and the step in default mode.
 
 1. **Profile.** Read the project's `CLAUDE.local.md` section `## Verification profile`
-   fresh every time (the vault tools where they exist, since the file can be a vault
-   symlink the shell rules protect; otherwise `rg -n` on the file). Missing → `no profile`, and the run behaves as before this step
-   existed. Unreadable → `profile unreadable`; withhold the verdict.
+   fresh every time. Choose the tool by where the file lives: a vault symlink is read
+   through the vault tools at its vault path (the shell rules protect it); a plain file
+   is read with the file tools (`rg -n` on the file), even when vault tools exist. The
+   section holds the labels, or one `- Profile: <link>` line and nothing else. For that
+   line, read the labels at the link, fresh too: a `[[wikilink]]` names a vault note
+   (its path plus `.md`, alias dropped), read with the vault tools; any other value is
+   a path relative to the repository root, read with the file tools. Follow `Profile:`
+   once: a `Profile:` line inside the linked note is not followed. Other links the
+   labels name, such as `Rules:`, are read as this step and the rules require.
+   Missing section → `no profile`, and the run behaves as before this step existed.
+   Unreadable, a `Profile:` link that does not resolve, a wikilink with no vault tools,
+   or a linked note without the labels → `profile unreadable`; withhold the verdict.
+   When Phase 4 noted `stand-in audit owed (profile unreadable)` and this read
+   succeeds, dispatch `ship-check:test-auditor` now with `Stand-in audit:`, the
+   Phase 4 template's `Audit paths:` lines built from this read and
+   `Base: <REVIEW_BASE>`, and use its table wherever this step says Phase 4's table.
 2. **Gate.** Run the profile's `Gate:` command, this skill's script:
    ```
    bun ${CLAUDE_SKILL_DIR}/scripts/artifact-gate.ts --json --repo <root> --from <fresh merge base> --to <headRefOid> --range pr --exempt <Exempt:> --pathspec <each Artifact paths line> --audit-pathspec <each Audit paths line> [--image-script <each Image scripts entry>] [--live-test-package <each Live-test packages entry>]
@@ -1573,7 +1591,7 @@ Ship check complete (comment mode):
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
-- Verification: <the gate's classification | no profile | skipped | not selected> (comment mode deploys nothing)
+- Verification: <the gate's classification | no profile | profile unreadable | skipped | not selected> (comment mode deploys nothing)
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - PR Monitor:   skipped (comment mode)
 - Deferred:     <list each with flag category, or "none">

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Classifies a PR's change for ship-check's verification step: which files under the artifact paths
 // changed between two commits, and whether every change fits a selected exemption class. The project's
-// verification profile (a section of its CLAUDE.local.md) supplies the path, exemption, script and package
+// verification profile (a section of its CLAUDE.local.md, or the note that section links) supplies the path, exemption, script and package
 // flags, and the caller the repo and the commits; GateInput documents each. A file the script cannot prove
 // exempt is an artifact change. Exit codes: 0 classified, 2 git failure, 1 any other error.
 import { execFileSync } from "node:child_process"

@@ -45,7 +45,9 @@ Dispatch it yourself for a server that commits no tool list (see Usage).
 
 The `ship-check` skill's verification step runs the project's live test last in
 Phase 6, before the first merge-ready verdict. It runs only when the project's
-`CLAUDE.local.md` has a `## Verification profile` and the PR changes one of these:
+`CLAUDE.local.md` has a `## Verification profile` (the labels inline, or one
+`Profile:` line linking the note or file that holds them) and the PR changes one of
+these:
 
 - a file under the profile's artifact paths that no exemption class covers: the step
   deploys the PR and probes it
