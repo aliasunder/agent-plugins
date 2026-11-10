@@ -610,7 +610,7 @@ in the code uses the skip's words.
 | When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
-| Does each guard, check, catch and option earn its place? Weigh how often its case occurs and what failing there costs against what the piece costs on every run, whether or not its case occurs | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, or publishes, releases or deletes something that is hard to undo, and no other layer already enforces the case. This skip does not cover a piece that, on every run, throws away or repeats work an earlier run already did and could reuse (deletes a cache or index the run then rebuilds in full, recomputes every entry to catch a rare change), to cover a rare case: propose it, naming what failing there costs and what the piece costs on every run. Checking the input the run receives (validating each item, one lookup per call) is not such a piece, however large the input |
+| Does each guard, check, catch and option earn its place? Weigh how often its case occurs and what failing there costs against what the piece costs on every run, whether or not its case occurs | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, publishes, releases or deletes something that is hard to undo, or leaves the user without the recovery the guard's own message gives, and no other layer already enforces the case. This skip does not cover a piece that, on every run, throws away or repeats work an earlier run already did and could reuse (deletes a cache or index the run then rebuilds in full, recomputes every entry to catch a rare change), to cover a rare case: propose it, naming what failing there costs and what the piece costs on every run. Checking the input the run receives (validating each item, one lookup per call) is not such a piece, however large the input |
 
 **Four counters.** Each one rebuts a dismissal that has kept redundant code
 through past reviews:
@@ -646,7 +646,8 @@ through past reviews:
     deletes, or otherwise reaches users and is hard to undo.
   - **Another layer already enforces it.** When a branch ruleset, a type, or a
     check at the same boundary already enforces the case, propose the removal
-    and name that layer, even when an admin can bypass it.
+    and name that layer: the skip does not apply, even when an admin can bypass
+    the layer.
 
 **Pragmatic bar.** In a design pass this bar replaces "Report everything":
 
@@ -700,8 +701,8 @@ per-run cost removed: one full rebuild`.
 
 Wrong: a client passes `{ cache: "default" }` to every `fetch` call, and the review
 confirms the responses are correct.
-Right: `[design] client.ts:9 — "default" is fetch's default cache mode, so removing
-the option changes no request, so its case never occurs and removing it costs
+Right: `[design] client.ts:9 — "default" is fetch's default cache mode: removing
+the option changes no request, its case never occurs, and removing it costs
 nothing → proposal (needs design decision): −1 option in 6 calls, 1 file, tests
 unchanged, risk: none`.
 

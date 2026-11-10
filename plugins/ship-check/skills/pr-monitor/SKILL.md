@@ -331,7 +331,7 @@ threads"), so each fix reply names a commit the PR already has.
    ```
 
 3. If valid, a defect or evidenced handling, and not a small no-impact fix past the
-   review cap (item 1): **make the code fix**.
+   review cap (all three as item 1 defines them): **make the code fix**.
    If the lift is unclear, assess it first (how many lines? does it need tests? does it
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through
@@ -382,16 +382,15 @@ threads"), so each fix reply names a commit the PR already has.
    no-impact small fixes are reported, not made. Count a PR's bot review rounds: one
    bot's batch of review comments on one pushed head (its inline and PR-level
    comments posted within a few minutes) is a round, so two bots reviewing the same
-   push are two rounds, as the measurement counted them. The default cap is **4**
-   rounds. That default comes from 11 recent vault-cortex PRs, counted on
-   2026-11-05: the median PR's last round that changed behavior was round 3, and the
+   push are two rounds. The default cap is **4** rounds. That default comes from 11
+   recent vault-cortex PRs, counted this way on 2026-11-05: the median PR's last round that changed behavior was round 3, and the
    cap adds one round to that. A test that changes what is asserted counted as a
    behavior change. Every Step 5 report states the round count and the cap in
    force. Override the default on a PR when you give the reason in that report:
    raise it while a round still finds behavior defects; lower it when the late
    rounds are all wording. Write an override as `cap=<N>: <reason>` in the report,
-   so the next wake keeps it. Past the cap, item 4's sweep fixes only behavior
-   defects; no-impact siblings are reported with the finding.
+   so the next wake keeps it. Past the cap, item 4's sweep fixes only the siblings
+   item 1 still fixes past the cap; no-impact siblings are reported with the finding.
 
 5. **Reply to the comment** -- after the round's fixes are pushed, and BEFORE
    resolving, for EVERY bot comment.
@@ -779,8 +778,9 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
     with either the maintainer's words (`approved by the maintainer <date>: "<her
     words>"`) or a judged basis (`judged <date>: <the delta and why the probes
     don't depend on it>`). A judged reuse applies only after a merge whose delta
-    the live-test note's "Behind main" section clears; when the line's stated delta
-    changes anything the probes exercise or feed, the evidence is stale;
+    clears the "Behind main" section of the rules note (the note the profile's
+    `Rules:` line names); when the line's stated delta changes anything the probes
+    exercise or feed, the evidence is stale;
   - every line of the `Stand-in audit:` in this session's log reads `probed live`,
     `probed locally` or `read from source` (an `unverified` line is a deferred finding).
 

@@ -751,9 +751,10 @@ Do not add hidden cross-runtime dispatches to obtain vendor diversity.
 `--model` and `--effort` controls; a Codex fork prompt still carries the root's
 verified `Attribution model ID`.
 
-The dispatch templates below also omit the `Ship-Check` commit trailer instruction.
-Append the instruction block from the Attribution section ("Commit trailer
-format") once to every phase that commits (phases 1, 3-5).
+The dispatch templates below also omit the `Ship-Check` commit trailer instruction
+and the "Copy and claims" block. Append the trailer block from the Attribution
+section ("Commit trailer format") once to every phase that commits (phases 1, 3-5),
+and the "Copy and claims" block to every dispatch that section names.
 
 For Codex agent mode, also prepend the populated attribution line described above.
 
@@ -1228,10 +1229,10 @@ The review splits by file:
    - An unintended text change ALWAYS goes to the user, never to a fix. Only the
      author knows whether it was meant. Run inter-phase triage on it as a finding
      the user decides (inter-phase triage step 5).
-   - Each finding step 4 sends to the user (a broken or removed file, a removed tool
-     the PR title or body, or in local mode the range's commit messages, does not
-     mention) also goes through inter-phase triage as
-     a finding the user decides.
+   - Each finding step 4 sends to the user also goes through inter-phase triage as
+     a finding the user decides: a broken or removed file, and a removed tool that
+     the PR title or body (in local mode, the range's commit messages) does not
+     mention.
    - Count unintended changes once per tool and change: entries in two reports are
      one change when they name the same tool and the same shared line or changed
      part. A report's Unintended text changes list covers every changed tool in its
@@ -1261,8 +1262,8 @@ every merge-ready verdict (see "Pre-merge delta review"), and on any later
 TOOL_REVIEW_SHA and its merge base as OLD_MERGE_BASE. Below, "main step N" is a
 step of the numbered list above and "re-review step N" a step of this list.
 
-1. Recompute MERGE_BASE and HEAD_SHA as in step 1.
-2. Run step 2's gates over the branch's edits since the last review:
+1. Recompute MERGE_BASE and HEAD_SHA as in main step 1.
+2. Run main step 2's gates over the branch's edits since the last review:
    ```
    git -c core.quotepath=off diff --name-only TOOL_REVIEW_SHA HEAD_SHA -- '*.json'
    git grep -l '"inputSchema"' HEAD_SHA -- <every listed path>
@@ -1281,7 +1282,7 @@ step of the numbered list above and "re-review step N" a step of this list.
    bun <script> --plan --repo <repository root> --from MERGE_BASE --to HEAD_SHA --since TOOL_REVIEW_SHA --since-from OLD_MERGE_BASE --out <new parent>/plan
    ```
 4. Read the plan, collect the intended tools, dispatch the first file, proofread
-   the rest, and send continuations as in steps 4-7. A non-null `base` is a file the script composes from several
+   the rest, and send continuations as in main steps 4-7. A non-null `base` is a file the script composes from several
    commits: for each tool under review, the version its diff starts from, and the
    current version of every other tool. For example, when `vault_search` changed
    since the review, `vault_read_note` did not, and the base branch changed
@@ -1302,9 +1303,10 @@ step of the numbered list above and "re-review step N" a step of this list.
    it as step 4 says". Nothing is edited on disk until re-review step 7, so no
    commit made before then can include the held fix.
 6. **Sweep the classes.** Run this step when she chose to fix at least one
-   text-class defect (main step 9 defines a text class), such as an unexplained
-   returned field or a dangling referent. A class whose test needs the handler
-   code stays with bug-check and you.
+   text-class defect this round (main step 9 defines a text class), such as an
+   unexplained returned field or a dangling referent. Run it also when the
+   `classes:` field names a class not yet swept, even in a round with no such
+   fix. A class whose test needs the handler code stays with bug-check and you.
    - **Classes to sweep:** each text class this round's accepted defects name,
      plus each text class confirmed on tool text earlier this session that has
      not been swept, read from the `classes:` field of the latest `Tool
