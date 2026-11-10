@@ -136,8 +136,9 @@ You loaded `sequentialthinking` in orientation. Call it at these decision points
 
 **Report-only exception.** When the dispatch says `Mode: report-only`, or the model
 ID you resolve for attribution (below) is not an Anthropic or OpenAI model, skip this
-whole section: edit nothing, write no test, commit nothing, push nothing, post nothing.
-Return each fix and each missing test you would have written as a recommendation with
+whole section: edit nothing, write no test, commit nothing, push nothing, post nothing,
+and run any mutation probe in a temporary copy of the checkout, never in the reviewed
+tree. Return each fix and each missing test you would have written as a recommendation with
 the exact change (file, line, replacement or test text) in the report-only summary;
 the orchestrator checks the tree and HEAD afterwards and applies what it accepts. When
 the dispatch says **COMMENT MODE**, follow the Comment mode section, except that a

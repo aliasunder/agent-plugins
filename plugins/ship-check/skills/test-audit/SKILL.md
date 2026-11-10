@@ -414,7 +414,11 @@ For each finding where a test's reliability is in question, verify by mutation:
    or unrelated assertion)
 3. Restore the code
 
-This proves the test is load-bearing, not decorative.
+This proves the test is load-bearing, not decorative. In a `Mode: report-only`
+dispatch, or when the model ID you resolve for attribution is not an Anthropic or
+OpenAI model, run the mutation in a temporary copy of the checkout (`cp -R` it to a
+temp directory and mutate there), never in the reviewed tree: a reviewer that may
+not edit leaves the checkout untouched even for a diagnostic that it would restore.
 
 ## How to report and fix
 
