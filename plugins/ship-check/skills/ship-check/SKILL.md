@@ -12,7 +12,7 @@ description: >
   Use when asked to "ship check", "review pipeline", "full review", "run all
   reviews", or after implementation is complete and ready for review.
   NOT for: single-dimension review (use the individual skill), quick CI check
-  (use pr-monitor), or post-merge testing (use verify).
+  (use pr-monitor), or post-merge cleanup (use land-task).
 ---
 
 # Ship Check
@@ -243,7 +243,11 @@ A related hazard: the checkout itself can change out from under the pipeline
 (branch switched, work moved to a worktree). If the PR branch is no longer checked
 out where the pipeline started, pin a dedicated detached review worktree at the PR
 head (`git worktree add --detach <path> origin/<branch>`) and point subsequent
-phases at it.
+phases at it. Remove that review worktree when the PR is merged or closed, or the
+user stops the pipeline: run `bun ~/.agents/scripts/leftovers.ts own --session
+<your session id> --path <path>`, read its plan, then rerun with `--apply`
+(the `land-task` skill, where installed, carries the full procedure). Never use
+`git worktree remove --force` around a refusal; report it.
 
 ### Non-inline findings still land on the PR
 

@@ -7,7 +7,7 @@ description: >
   Use when asked to "check PR status", "monitor this PR", "check CI", "resolve PR
   comments", "address review comments", "mark conversations resolved", or when waiting
   on a PR to be merge-ready.
-  NOT for: initial code review (use pr-review), post-merge testing (use verify), or
+  NOT for: initial code review (use pr-review), post-merge cleanup (use land-task), or
   reviewing the diff itself.
 skills:
   - fable-mode
@@ -865,6 +865,9 @@ keep monitoring after Step 5 — whether invoked via `/loop` or not:
 - **Stop the loop only when:**
   - The user explicitly says stop (or said "check once" / "one-shot" at invocation)
   - The PR is merged or closed
+- **When the PR is merged, run the `land-task` skill (where installed) before
+  stopping.** It confirms the merge, removes the PR's worktree and the items its work
+  created, and fast-forwards main. A closed, unmerged PR keeps its worktree.
 - **Never auto-terminate** for any other reason — not after clean checks, not after
   silence, not because the user hasn't responded. The user may be away and expects
   monitoring to keep running until they return.

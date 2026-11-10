@@ -8,7 +8,7 @@ description: >
   "review against AGENTS.md", or "review with my preferences in mind". Complements the built-in
   /code-review (which is generic) by loading project-specific conventions and personal
   preferences.
-  NOT for: quick CI failure diagnosis (use pr-monitor), post-merge testing (use verify),
+  NOT for: quick CI failure diagnosis (use pr-monitor), post-merge cleanup (use land-task),
   or code simplification without a PR context (use code-quality).
 skills:
   - fable-mode
