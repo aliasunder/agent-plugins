@@ -333,7 +333,10 @@ threads"), so each fix reply names a commit the PR already has.
      implemented by the author 4 minutes later: 4 import sites, net-neutral diff.)
    - **"Belongs in a separate PR" is not a valid disposition.** Assess the lift. If
      it's a few lines, fix it now. If it's large, present the tradeoff to the user, or
-     follow `triage-finding`'s result when it ran.
+     follow `triage-finding`'s result when it ran. A superseded approach, one a planned
+     follow-up would replace, is a different case from lift: it is reworked in the open
+     PR whatever the size, even when the PR is merge-ready, because "merge now, fix in
+     the next PR" asks the user to review an approach that will not survive.
 
 2. **Report as a one-liner** before acting:
    ```
