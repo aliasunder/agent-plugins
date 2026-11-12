@@ -241,6 +241,16 @@ ship-check whose orchestrator's own model is outside Anthropic and OpenAI), this
 step edits, pushes, replies and resolves nothing and lists each fix as a
 recommendation with its exact change.
 
+A user's hold on PR changes ("no PR updates", "only fix high-priority bot comments")
+stops commits, pushes and other description edits; it NEVER stops this step's replies
+and resolves, or the PR's Live Test Results section. Answer and resolve each bot
+thread as usual, and report a finding the hold keeps from being fixed with its
+recommendation.
+
+- Wrong: under "no PR updates", leave a bot thread unanswered because a reply would
+  update the PR.
+- Right: reply with the finding's disposition, resolve the thread, and push nothing.
+
 In a run that may edit, when the project keeps a task board and this round's fixes
 are a batch of proposals, check the board for a card covering the same change before
 applying them; report each overlap and apply the rest.
