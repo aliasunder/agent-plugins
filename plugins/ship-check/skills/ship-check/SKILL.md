@@ -939,7 +939,9 @@ Phases 1-5 judge lines, and a delta review sees only the commits since the last
 review, so duplicated logic, and mechanisms that later commits made redundant,
 reach merge-ready. The design pass dispatches `ship-check:code-quality-reviewer`
 with `Design pass: dimension 8 only`: the code-quality skill's dimension 8 reads
-the whole PR and asks whether each mechanism the change adds should exist. **It edits nothing**; every finding is a
+the whole PR and asks whether each mechanism the change adds should exist and
+whether each public document section the change touched still serves its reader
+as it stands, whatever round each sentence arrived in. **It edits nothing**; every finding is a
 proposal. On its own it runs at most twice in a ship-check run (see "When it runs"), and only
 `--skip design-pass` or an `--only` list without `design-pass` turns it off.
 
@@ -971,10 +973,10 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
    `git status --porcelain` prints nothing and `git rev-parse HEAD` equals
    DESIGN_HEAD. When either fails, stop and show the user the diff or the new
    commits. Never keep them: an edit here can be a guard cut the user never approved.
-4. **Coverage.** When the report's `Missed:` line names files, send ONE continuation
-   dispatch with the same prompt plus `Files: <the missed files>`, then run step 3's
-   check again. Files still missed after it: say so with the report; the pass cannot
-   count as "nothing found".
+4. **Coverage.** When the report's `Missed:` line names files or document sections,
+   send ONE continuation dispatch with the same prompt plus `Files: <the missed
+   files and sections>`, then run step 3's check again. Anything still missed after
+   it: say so with the report; the pass cannot count as "nothing found".
 5. **Triage the proposals** with inter-phase triage. In the final pass, first drop
    each proposal the user already decided this session, such as a piece she chose
    to keep. Each proposal carries its flag category:

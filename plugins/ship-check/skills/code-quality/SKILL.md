@@ -590,9 +590,14 @@ an earlier pass missed those files: read them whole first, then run every step.
    each deleted file at the base (`git diff --name-only --diff-filter=D
    <base>...HEAD`, then `git show <base>:<path>`). Read each changed test file whole
    too, as evidence of what the code is meant to do; never audit or edit them.
-3. Read other changed docs by diff hunk only.
+3. Read each public document the change touches (a README, an architecture,
+   security or deploy guide, any file a person reads) at HEAD: every section the
+   change touched, whole, together with the sections beside it under the same
+   parent heading, so the section's length and depth can be judged against its
+   siblings. Read every other changed file by diff hunk only.
 4. Write an inventory: every command or entry point, function, guard, check, catch,
-   option and parameter the change adds, with `file:line`.
+   option and parameter the change adds, with `file:line`, and every document
+   section the change touched, with its file and heading.
 5. For each run of two or more calls or commands the change adds that do one job
    together (parse a query, then validate it), search the whole repo for the calls
    any copy of that job would also make (`rg -n 'parsePagination'`), so a copy in
@@ -600,9 +605,10 @@ an earlier pass missed those files: read them whole first, then run every step.
 6. Write a synthesis after all the reads. Before calling two pieces duplicates,
    compare their inputs, errors, side effects and lifecycle.
 
-Report the base and head you read, and list the files you read whole. When you
-could not read a changed code, CI, config or shipped-instruction file, name it; a
-pass that missed a file never reports "nothing found".
+Report the base and head you read, and list the files you read whole and the
+document sections you read with their siblings. When you could not read a changed
+code, CI, config or shipped-instruction file, or a touched document section, name
+it; a pass that missed one never reports "nothing found".
 
 **Ask each question of the inventory.** Each one has a skip. Skip a question only
 when the evidence shows the skip's condition holds, never because a comment or name
@@ -617,6 +623,7 @@ in the code uses the skip's words.
 | When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
+| Does each touched document section still serve its document's reader? Judge the section as it stands at HEAD, whatever commit each sentence arrived in: one subject per section, each fact in the one document that owns its mechanism, a length and depth that match its sibling sections, and no sentence whose only reader is the review that asked for it. Code-level detail (a data structure, a log message name, a limit the reader cannot change, a step order) belongs in a code comment or the architecture section that owns the mechanism, never in a README or security document | The document is a reference the reader looks up entry by entry (a settings table, an option or error list) and the change adds its entry in the reference's own format |
 | Does each guard, check, catch and option earn its place? Weigh how often its case occurs and what failing there costs against what the piece costs on every run, whether or not its case occurs | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, publishes, releases or deletes something that is hard to undo, or leaves the user without the recovery the guard's own message gives, and no other layer already enforces the case. This skip does not cover a piece that, on every run, throws away or repeats work an earlier run already did and could reuse (deletes a cache or index the run then rebuilds in full, recomputes every entry to catch a rare change), to cover a rare case: propose it, naming what failing there costs and what the piece costs on every run. Checking the input the run receives (validating each item, one lookup per call) is not such a piece, however large the input |
 
 **Four counters.** Each one rebuts a dismissal that has kept redundant code
@@ -655,9 +662,11 @@ through past reviews:
 
 - Every finding states the lines removed or moved, the files touched, the tests
   affected and the risk.
-- A proposal must leave the code smaller or clearer now. A new abstraction must
-  remove duplication that exists today. Removing dead code, an unused parameter or
-  an option that changes no output always meets this bar, however small.
+- A proposal must leave the code or the document smaller or clearer now. A new
+  abstraction must remove duplication that exists today. Removing dead code, an
+  unused parameter or an option that changes no output always meets this bar,
+  however small. A document proposal names the sentences it cuts, moves or
+  merges and the document or comment each moved fact goes to.
 - A clean change gets `Dimension 8: nothing found`. Never pad a clean change with
   filler proposals.
 
@@ -667,12 +676,22 @@ through past reviews:
 | --- | --- |
 | A piece that protects against a case: a guard, check, catch, guard clause or option | `needs design decision`, even when it is also duplication, dead code, or code that existed before the change (say so in the proposal) |
 | Duplication or dead code with no protective role | `complex fix` |
+| Document text that outgrew its siblings, repeats another document, or carries detail its reader cannot act on | `complex fix` |
 | Code that existed before the change | `pre-existing gap` |
 
 Every `needs design decision` proposal states the case, how often it occurs, what
 failing there costs, what the piece costs on every run, and any layer that already
 enforces it: a branch ruleset and who can bypass it, a type, or a check at the same
 boundary.
+
+Wrong: an architecture section gained one bullet per review finding over five
+commits, each bullet is accurate, and the pass reports nothing about the document
+because it read each commit's hunk on its own.
+Right: `[design] ARCHITECTURE.md § Files, "Extraction ownership" — five bullets,
+21 lines, twice the length of its sibling sections; three carry a process limit
+and a log setting the reader cannot act on, and two restate the Indexing section
+→ proposal (complex fix): −14 lines, 1 file, no tests, risk: none; the process
+limit moves to the comment above the constant that sets it`.
 
 Wrong: two HTTP handlers each parse and validate the same `page`, `limit` and
 `cursor` query, and the review reports a naming nit inside one of them.
