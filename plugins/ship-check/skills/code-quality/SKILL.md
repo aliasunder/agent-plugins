@@ -242,6 +242,16 @@ Anti-rationalization rules for fresh-eyes pauses:
   documentation it still earns an edit.
 - **Edits to code the change did not touch are judged one at a time against the
   three questions:** keep or revert each on its own result, never the batch together.
+- **A pause on time order, or on a mechanism held across functions or files, is a
+  structure finding, never a comment.** "I could not tell which callback runs first",
+  "the other half of this lives in another file", "a flag exists so two handlers do
+  not race": the code can almost always say these, so question 2 settles them with
+  a restructure. Classify them under dimension 5's settlement trigger or dimension
+  8's shared-condition row and propose it; a comment that says where the other half
+  lives is a dismissal in disguise. (Observed: a child-process
+  extractor passed a pass with its lifecycle settled across five listeners and
+  three flags, each pause answered with a comment; the user could not follow one
+  request through it.)
 
 ### 1. Naming
 - Variables describe what the value IS, not shorthand (`availableHeadings` not
@@ -250,6 +260,12 @@ Anti-rationalization rules for fresh-eyes pauses:
 - Callback params are explicit (`orphan` not `o`, `entry` not `e`)
 - SQL aliases are descriptive (`element` not `je`)
 - Booleans named for the affirmative state (`hardLinksSupported` not `hardLinksUnsupported`)
+- **A metaphor where the thing has a plain name.** `reader` for a child process,
+  `placeholder` for a row written with its text empty, `job` for a queued request,
+  `gate` for a wait: the metaphor passes the placeholder triggers above and still
+  makes a newcomer ask what it stands for. Name the thing (`child`, `nameOnlyRow`,
+  `queuedRequest`, `indexingStarted`). Boundary: a term the codebase or its domain
+  defines and uses consistently (`token`, `chunk`, `lane`)
 - **No side-effect prefixes on value-returning functions.** When callers consume the
   return value (`const engine = await ensurePdfEngine()`), a prefix like `ensure*`,
   `check*`, `init*`, or `setup*` misstates the point — name the return
@@ -374,7 +390,13 @@ Anti-rationalization rules for fresh-eyes pauses:
 ### 4. Comments
 - Comments earn their place by clarifying non-obvious domain context
 - Never restate self-documenting names
-- If a long comment is needed, consider simplifying the code instead
+- **Long-comment trigger.** A comment longer than the code under it, or a docstring
+  that narrates steps the function spreads across callbacks, listeners or flags, is a
+  dimension 5 finding, not a wording one: propose the restructure that makes the
+  comment unnecessary (one function per step, one await over named outcomes), and
+  keep the comment only when the project's rules leave no restructure. Boundary: a
+  why-comment on a constant or a limit, and a contract the code cannot show (a
+  kernel limit, a vendor quirk, a wire format)
 - **Unexplained control structure trigger — this dimension adds comments, not only
   trims them.** A loop, bounded retry, fallback chain, or special-case branch whose
   reason for existing is not stated where it sits is a finding. The comment must let a
@@ -434,6 +456,16 @@ Anti-rationalization rules for fresh-eyes pauses:
 - Each line should say what it does on its own
 - Working is the floor, not the bar — ask whether a simpler structure exists
 - A reader should not need to pause to understand what the code does
+- **Settlement spread across callbacks.** One job's outcome is decided in more than
+  one listener, callback or timer, and a flag (`settled`, `initializing`,
+  `cancelActive`) exists only to stop them racing or to remember which ran first.
+  The reader then has to replay event order to know what happens. Propose one
+  await over named outcomes: each source (the reply, the process exit, the
+  deadline, close()) becomes a promise resolving to a member of one discriminated
+  outcome type, `Promise.race` picks the first, and one `switch` settles the job,
+  so the lifecycle reads in time order and no flag is needed. Boundary: a stream
+  that must act on every event rather than reach one outcome, and a handler the
+  platform requires to be synchronous
 - **No imperative collection-building where a declarative expression works.**
   A for-loop that pushes into an array, sets on a Map, or adds to a Set is the
   mutable version of `.map()`, `new Map(arr.map(...))`, or `new Set(arr.map(...))`.
@@ -620,6 +652,7 @@ in the code uses the skip's words.
 | When sibling paths (commands, handlers, steps) should apply the same check, does every sibling apply it? | The siblings' contracts differ, and the code or docs say how |
 | Did a later mechanism make an earlier one redundant? | The earlier one protects a named case the later one does not |
 | Do several pieces exist to handle one ordering or timing case? Would changing the order make the case impossible, and remove the pieces with it? Propose the reorder and list every piece it removes | An external contract the code or docs name fixes the order |
+| Is one condition set in one place (the server listening, shutdown, a mode) awaited in several modules, each through its own resolver released by its own call? Propose moving the wait into the module that already serializes the work it gates, and list the resolvers, release functions and tracking it removes (observed: three "wait for listen" gates across three files, each a `Promise.withResolvers` released by its own `startPdfPass`, replaced by one hold inside the queue that served the work) | The modules await different conditions, and the code says which |
 | When the project states layering rules or a module structure (AGENTS.md or similar), does each new function sit where they put it? A module that imports a sibling of its own kind, such as one command importing another, breaks a structure that puts shared code in shared modules | The project states neither |
 | Could two mechanisms for one concern be one? | Merging would add an abstraction that removes no existing duplication |
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |

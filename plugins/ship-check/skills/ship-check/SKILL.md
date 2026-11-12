@@ -860,7 +860,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Fresh eyes — <resolved model> / <resolved phase effort>",
-  prompt: "Read the following files at HEAD on branch <branch> (PR #<number>) as a reader who has never seen this codebase. Report every place you pause — a name you had to trace, a loop with no stated reason, a comparison you had to reason about, a term never introduced. Report only; do not edit anything.\n<if a persona was chosen, append:>\nPersona: <the chosen reader>\n\nFiles:\n<file list, one per line>"
+  prompt: "Read the following files at HEAD on branch <branch> (PR #<number>) as a reader who has never seen this codebase. Report every place you pause — a name you had to trace, a loop with no stated reason, a comparison you had to reason about, a term never introduced, a job settled across callbacks, a mechanism whose other half is in another file. Then narrate one journey: pick the change's main input (a request, an event, a file) and say what happens to it from entry to result, from the code alone, naming the file each step is in. Report only; do not edit anything.\n<if a persona was chosen, append:>\nPersona: <the chosen reader>\n\nFiles:\n<file list, one per line>"
 })
 ```
 

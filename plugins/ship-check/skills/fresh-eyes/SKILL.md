@@ -133,9 +133,19 @@ any point where you stopped to work something out. The kinds that recur:
 | A manual computation where you wondered whether a built-in already does it | splitting a file path with `lastIndexOf(".")` and two `slice` calls |
 | A comment or name that promised something the code did not do | a doc comment saying a fallback is not cached when the code caches it |
 | A value built two different ways for the same purpose | one branch interpolates a prefix, another joins it |
+| A job whose outcome is settled in more than one callback, so you had to replay event order to know what happens | a `settled` flag checked in five listeners |
+| A mechanism whose other half lives in a function or file you had to open | a promise resolved by a function three files away |
 
 Boundary: a pause is something that stopped **you**, reading cold. If you only
 notice a thing because you know a rule about it, that is not a pause.
+
+**Then narrate one journey.** After the per-function read, pick one input the
+dispatch names, or the most obvious one in the files (a request, an event, a file
+being indexed), and narrate what happens to it from entry to result, in time order,
+from the code alone. Every hop where you had to open another file, or hold a value
+or a promise in your head between functions, is a pause of the last two kinds in
+the table. A file whose functions each read clean can still fail this; the
+narration is what catches it.
 
 ## What to record
 
@@ -146,6 +156,14 @@ Per function, in order:
    A pointer, not a rewrite.
 2. **A verdict:** could you change this function safely from what you read? Yes or
    no, one sentence why.
+
+After the functions, two lists and the narration:
+
+- **Terms used as if known:** every word a comment or name leaned on that nothing
+  in scope defined ("sink", "rendition", "the tool boundary").
+- **Mechanisms held across files:** each one, with the files it spans.
+- **One journey:** the narration from "Then narrate one journey", naming the file
+  each step is in, and what you could not narrate without a second file.
 
 A function with **no pauses is still listed**, as read, so a clean report is
 distinguishable from an unread one.
