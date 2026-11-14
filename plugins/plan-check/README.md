@@ -63,7 +63,7 @@ Before spawning the dedicated reviewer, read the
 An already-running reviewer does not relaunch itself. The inline skill invocation
 above retains the current session's model and effort.
 
-In Tanisha's OpenCode V2 setup, follow the setup and `--write` procedure in
+For an OpenCode V2 setup, follow the setup and `--write` procedure in
 `~/.agents/skills/sync-opencode-plugins/SKILL.md`, then verify the dedicated
 reviewer in a fresh session. Use `/plan-review <plan path>` to dispatch it.
 The plugin marketplace does not install this adapter or command.

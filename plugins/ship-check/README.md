@@ -5,7 +5,8 @@ codebase without prior context and returns structured findings. Five agents run
 Phases 1-5: four of them load conventions independently, and `fresh-eyes` (Phase 2)
 deliberately loads none. A sixth agent, `tool-definition-reviewer`, runs as a
 conditional step after Phase 5 when a change touches a committed MCP tool list, and
-can also be dispatched on demand.
+can also be dispatched on demand. A seventh agent, `security-auditor`, runs
+conditionally for security-sensitive changes and serves standalone repository audits.
 
 ## Agents
 
@@ -17,6 +18,7 @@ can also be dispatched on demand.
 | `test-auditor` | 4 | yellow | Test quality audit + coverage gap analysis (writes missing tests); a stand-in audit of stubbed dependencies when the project has a verification profile |
 | `bug-checker` | 5 | red | 7-dimension systematic bug hunt (description-vs-code, SQL, type safety, etc.) |
 | `tool-definition-reviewer` | after 5, when a tool list changed; or on demand | orange | MCP tool definitions read as the client receives them: rubric marks from Glama's Tool Definition Quality Score (TDQS), a bullet filed under the wrong lead-in or a phrase with no named referent, text changed in tools nobody meant to touch, dropped facts, added sentences that give the calling agent nothing to act on, description text that repeats the schema, and failures the description never lists. Report only. |
+| `security-auditor` | after design/tool-definition triage when security boundaries change; or standalone | red | Complete-surface security audit, local-only reproduction and private findings. Report only. |
 
 Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
 and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
@@ -60,11 +62,16 @@ these:
 
 `--skip verification` turns it off.
 
+The security auditor runs when a change affects sign-in, permissions or other
+security boundaries. It reviews the affected paths before the initial push; see
+the [security checkpoint](skills/ship-check/SKILL.md#security-audit-conditional) for details.
+
 ## External Dependencies
 
 Each agent preloads skills via `skills:` frontmatter. The `pr-review`,
-`code-quality`, `test-audit`, `bug-check`, `fresh-eyes`, and
-`tool-definition-review` skills are bundled in this plugin;
+`code-quality`, `test-audit`, `bug-check`, `fresh-eyes`,
+`tool-definition-review`, `security-audit` and `repo-security-review` skills are
+bundled in this plugin;
 [fable-mode](https://github.com/mrtooher/fable-mode) is external and must be
 installed separately (e.g. in `~/.claude/skills/`). `fresh-eyes` preloads only its
 own skill and uses no MCP tools. `tool-definition-reviewer` preloads its own skill
@@ -78,6 +85,11 @@ and holds the merge-ready verdict until you accept the missing review.
 The `ship-check` skill bundles `scripts/artifact-gate.ts`, which decides whether a
 PR's changes need the verification step. It also runs with Bun. Without Bun the
 step cannot classify the change and holds the merge-ready verdict.
+
+The auditor preloads the bundled `repo-security-review` method. For standalone
+repository audits, use the bundled `security-audit` skill. Codex/OpenCode require
+external native translators; the auditor role is `ship-check:security-auditor` in
+Claude/Codex and `ship-check--security-auditor` in OpenCode.
 
 The four convention-loading phase agents also use MCP tools
 loaded at runtime via `ToolSearch`:
@@ -93,7 +105,7 @@ The dispatcher reads guidance named by the project. Without a pointer, it uses
 vault tools to find a unique living reference tagged `model-selection`. If
 guidance cannot be read or found, it reports the fallback and uses these defaults:
 
-| Runtime | Model | Ordinary review | Bug-check or explicitly adversarial/security PR review |
+| Runtime | Model | Ordinary review | Bug-check, security-auditor or explicitly adversarial/security PR review |
 |---|---|---|---|
 | Codex | `gpt-6.1-sol` | `high` | `xhigh` |
 | Claude | `opus` | `high` | `xhigh` |
@@ -110,7 +122,9 @@ guidance lists beside Sol and Opus) without an explicit model choice.
 | `--model inherit` alone | Preserves verified parent model and effort. |
 | `--effort inherit` | Preserves verified parent effort, independently of model selection. |
 | `--model inherit --effort high` | Preserves parent model and explicitly uses high effort. |
-| `--inline`, `--fork` | Retain session controls; ignored model/effort flags are disclosed. |
+| `--inline`, `--fork` | Ordinary phases retain session controls; the security auditor stays a fresh dedicated role with resolved controls. |
+| `--only security-audit` | Runs the conditional audit only; makes no full-pipeline readiness claim. |
+| `--skip security-audit` | Waives initial/delta audits; reports skipped by request. |
 
 Codex cold dispatches use dedicated `agent_type`, `fork_turns: "none"`, `model`
 and `reasoning_effort`. Claude uses dedicated `subagent_type`, `model` and supported

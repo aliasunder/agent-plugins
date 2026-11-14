@@ -58,7 +58,7 @@
 - **opencode:** Use native reviewer dispatch controls
 - **triage:** Design-pass final pass under --report with a PR, --only lists, a trigger that ignores its own fixes and base merges
 - Design pass re-checks edits after its continuation, keeps cut and kept pieces decided
-- **triage:** A protective piece is the user's decision even when it predates the change; restores go to her only with new evidence
+- **triage:** A protective piece is the user's decision even when it predates the change; restores go to the user only with new evidence
 - **review:** Design pass runs once in pr-monitor, cut list format and scope
 - **ship-check:** Dimension 8 never calls a publish, release or delete that is hard to undo a cheap failure
 - **ship-check:** Dimension 8 runs option experiments in /tmp by absolute path, never cd

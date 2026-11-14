@@ -674,7 +674,7 @@ through past reviews:
   next commands running in the change under review.
 - "It is cheap to keep" and "it is only a few lines" are not reasons to skip a
   guard, check, catch or option. The user decides every removal of one, so do not
-  decide it for her: when its case is rare and failing there is cheap and visible (a red
+  decide it for the user: when its case is rare and failing there is cheap and visible (a red
   run, a clear error, a re-run that works), propose removing it, with the case, how
   often it occurs, what failing there costs and what the piece costs on every run.
   Skip it only on the guard row's skip in the table above, which also states when
@@ -762,7 +762,7 @@ unchanged, risk: none; per-run cost: none`.
 
 **Cut list.** A cut is a piece the user decided to remove this session. The
 orchestrator lists them under `Cuts:` in the dispatch, one line per piece: the
-file, what was removed and her reason. When the dispatch carries that list, never
+file, what was removed and the user's reason. When the dispatch carries that list, never
 propose restoring a listed piece, and do not report it again.
 
 ## How to report and fix

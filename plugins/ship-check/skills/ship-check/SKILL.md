@@ -1,14 +1,15 @@
 ---
 name: ship-check
 description: >
-  Run the full post-implementation review pipeline: pr-review -> fresh-eyes ->
-  code-quality -> test-audit -> bug-check -> pr-monitor. Phases 1-5 run as
+  Run the full post-implementation review pipeline: PR review, fresh-eyes,
+  code-quality, test-audit, bug-check and pr-monitor. Phases 1-5 run as
   dedicated agent types (ship-check plugin) with their source-declared skills — genuine fresh
   eyes with no inherited context. Phase 6 (pr-monitor) runs inline for user
   interaction. A report-only design pass reads the whole PR after Phase 5, and
   again in Phase 6 when code changed since. When a change touches a committed MCP
   tool list, the tool-definition reviewer runs after Phase 5 and again before
-  each merge-ready verdict.
+  each merge-ready verdict. A dedicated security auditor checks complete affected
+  security surfaces after design/tool-definition triage and before pushing.
   Use when asked to "ship check", "review pipeline", "full review", "run all
   reviews", or after implementation is complete and ready for review.
   NOT for: single-dimension review (use the individual skill), quick CI check
@@ -39,11 +40,23 @@ Phase 5: ship-check:bug-checker           -> description-vs-code, SQL, type coer
 Design pass: ship-check:code-quality-reviewer -> whole-PR design (report only); again in Phase 6 when its trigger fires
 Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (the reviewer reports; triage fixes)
+Security audit (conditional): ship-check:security-auditor
+                                          -> complete affected access/data paths, private findings, before the one push
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
 Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until stopped, merged or closed
 Verification (conditional, orchestrator) -> the project's live test, run inside Phase 6 before its first merge-ready verdict,
                                           only when CLAUDE.local.md has a verification profile and the PR changes paths it lists
 ```
+
+## Private security findings
+
+Keep unfixed security findings and attack details in private session/Vault records
+in EVERY mode, including comment mode and beyond-diff findings. This overrides all
+public-finding, review-body and PR-comment instructions in this skill and pr-monitor.
+Public output carries only the Security audit coverage result, without attack
+details. Fix commits and PR prose describe the change and tests; disclosure follows
+security-audit's "Keep findings private until fixed" boundary. Include this rule in
+every phase, delta, triage and fix-handoff prompt that could post or commit.
 
 ## Attribution
 
@@ -58,6 +71,7 @@ orchestrator triage, pr-monitor replies).
   `bug-check`, `pr-monitor`, `triage` (for orchestrator inter-phase triage posts),
   `tool-definitions` (for the orchestrator's post of tool-definition review findings),
   `design-pass` (for the orchestrator's post of design-pass proposals in comment mode),
+  `security-audit` (for coverage-only audit posts, never private findings),
   or `ship-check` (for the orchestrator's other PR-level comments).
 - `<model-id>` identifies the poster's exact runtime model. Resolve it by runtime:
   - **Claude agent mode:** the phase agent uses the model ID from its system context
@@ -210,6 +224,7 @@ reviewing a PR it isn't responsible for.
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
 | Design pass | First pass after Phase 5, final pass before the first merge-ready verdict; triage may apply small design fixes | First pass only; one PR-level comment with every proposal (see "Design pass"); nothing applied |
 | Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reviewer reports' Defects and Unintended text changes lists (see "Tool-definition review (conditional)"); no re-review |
+| Security audit | Conditional checkpoint after design/tool-definition triage; private triage and fixes before the one push | Same checkpoint, report only; public coverage result without attack details |
 | Verification | Last in Phase 6 before the first merge-ready verdict; deploys and probes (see "Verification (conditional)") | Gate classification only, in the summary; nothing deployed, asked or written |
 | Inter-phase triage | Evaluates flagged findings, may fix; runs `triage-finding` on what it defers and asks the user before the next phase | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
 
@@ -227,6 +242,8 @@ and post them as a single GitHub PR review with inline comments. Follow the "Com
 mode" section in your preloaded skill for the gh api template. Skip the API call
 only when you have 0 findings and 0 dismissals; with dismissals alone, post the
 body-only review your skill describes.
+Keep security findings private, including beyond-diff findings. Post only their
+coverage result without attack details; this overrides the posting rules above.
 Repo: OWNER_REPO
 Append a footer to the review body AND every inline comment body using the
 runtime-specific model label from the Attribution section:
@@ -271,12 +288,12 @@ its `own` command, which carries the exact command line; otherwise run
 ### Non-inline findings still land on the PR
 
 Not every finding anchors to a diff line — beyond-diff findings, file-level or
-repo-level issues, and orchestrator triage deferrals. These must still be visible on
-the PR itself, not only in the chat transcript. Sub-agents include what they can in
-their review body (e.g. a "Findings beyond the diff" section), but **ensuring
+repo-level issues, and orchestrator triage deferrals. Except for private security
+findings, these must still be visible on the PR itself, not only in the chat
+transcript. Sub-agents include what they can in their review body (e.g. a "Findings beyond the diff" section), but **ensuring
 coverage is the primary agent's responsibility, not the sub-agents'**: in default
 mode, verify and post as part of Phase 6 (pr-monitoring); in comment mode (Phase 6
-skipped), verify after Phase 5 triage and the tool-definition review, and post
+skipped), verify after design/tool-definition triage and the security checkpoint, and post
 anything missing before the final summary. Post via `gh pr comment` /
 `POST /repos/{owner}/{repo}/issues/{n}/comments` — include the attribution footer
 (see Attribution section above). A finding that exists only in agent output is
@@ -337,6 +354,7 @@ from the startup offer ("Before starting", step 1).
 | Delta review | Tracks PR head | Not applicable |
 | Design pass | First pass after Phase 5, final pass before the first merge-ready verdict | First pass only (no Phase 6); report only on `main` or a detached HEAD |
 | Tool-definition re-review | Before each merge-ready verdict | On a branch, once before the summary when triage fixed tool text; none on `main` or a detached HEAD |
+| Security audit | Conditional checkpoint and readiness rechecks | Same checkpoint; recheck affected coverage before a local ship verdict, including in report-only mode |
 | Verification | Last in Phase 6 | Gate classification only, with `git rev-parse HEAD` as the head and REVIEW_BASE as the base; no deploy |
 
 ### Dispatch prompt changes
@@ -372,6 +390,9 @@ HEAD belong to no branch).
    **The design pass runs like a phase.** Its first pass runs every time; its final
    pass runs on its own trigger (see "Design pass"). Only `--skip design-pass` or an
    `--only` list without `design-pass` turns it off.
+   **The security checkpoint is conditional.** Inspect behavior and call paths as
+   "Security audit (conditional)" says. A matching boundary requires a dedicated
+   audit unless `--skip security-audit` or an excluding `--only` was requested.
    **The verification step is conditional too.** It runs only when the project's
    `CLAUDE.local.md` has a `## Verification profile` and the profile's gate script
    finds an artifact change or a local change (see "Verification (conditional)"). NEVER skip it on your
@@ -392,7 +413,8 @@ HEAD belong to no branch).
 
 4. **Phases commit; only the orchestrator pushes.** Every phase agent, delta
    review agent and triage fix commits without pushing. The orchestrator pushes
-   the phases' commits once, in "Push the fixes" after the tool-definition review.
+   the phases' commits once, in "Push the fixes" after the tool-definition and
+   security-audit triage.
    In Phase 6, pr-monitor pushes the fixes it makes, and the orchestrator pushes
    each delta review's fixes ("Pre-merge delta review", step 5). Each push to a PR
    branch starts CI and every review bot (the `synchronize` event), so a push from
@@ -452,7 +474,8 @@ sequential thinking forces you to deliberate instead of relaying.
    that bug, in the same commit. Do not push: "Push the fixes" pushes after Phase 5,
    and in Phase 6 the delta review's push ("Pre-merge delta review", step 5) or
    pr-monitor's next push carries the commit.
-   **In comment mode**: instead of editing, post a separate inline comment on the PR
+   **In comment mode**: keep security findings private; for other findings,
+   instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
 5. **Triage what the matrix defers now, before the next dispatch.** Findings are
@@ -494,9 +517,9 @@ sequential thinking forces you to deliberate instead of relaying.
    - A question to the user, which triage-finding asks itself: wait for the user's
      answer before dispatching the next phase. Never ask that question again
      yourself, in the final summary included. The answer comes back as a result.
-     Count `Deferred by her` under Deferred and `Dismissed by her` under Dismissed
-     (triage-finding's labels call the user "her"); any other result follows its
-     bullet in this list.
+     Count a user-approved deferral under Deferred and a user-approved dismissal
+     under Dismissed, regardless of the label returned by triage-finding. Any other
+     result follows its bullet in this list.
    - `Pending` (another session that is running now holds a card for the same
      problem, marked `[/]` on the project's task board; triage-finding has sent
      that session the finding): list it under Deferred, naming that session, and do
@@ -522,9 +545,9 @@ sequential thinking forces you to deliberate instead of relaying.
      or logged away. For these, `Already done` and `Pending` stand, and
      a `Mentioned` result goes to the user as a question instead. Then run
      `triage-finding` on it again with the user's answer as its Instructions input.
-   - In comment mode `triage-finding` asks nothing, those five kinds included. Post
-     each result on the PR yourself: as an inline comment, as step 4 says, when it
-     sits on a diff line, and otherwise as a PR-level comment under "Non-inline
+   - In comment mode `triage-finding` asks nothing, those five kinds included. Keep
+     security findings private. Post each other result on the PR yourself: as an
+     inline comment, as step 4 says, when it sits on a diff line, and otherwise as a PR-level comment under "Non-inline
      findings still land on the PR". A `Pending` result gets no comment while it
      waits, the way pr-monitor leaves pending findings out of its PR comments.
    - In a report-only run (`--report`, local on `main` or a detached HEAD, or an orchestrator whose own model is outside Anthropic and OpenAI)
@@ -647,7 +670,10 @@ the pipeline pushes nothing).
    Run the re-review even when step 2 of this section found the delta trivial — its own
    gates decide whether tool text changed. It tracks its own tool-review commit,
    which that section's step 9 records, separate from the reviewed SHA.
-7. **Run the verification step last**, after steps 3-6, as "Verification
+7. **Run the security readiness check** in "Security audit (conditional)" after
+   steps 3-6 and their fixes, even when no profile previously triggered. Its
+   profile evidence is separate from the general reviewed SHA.
+8. **Run the verification step last**, after steps 3-7, as "Verification
    (conditional)" says; a bot round after it would stale its evidence.
 
 ## Execution
@@ -669,7 +695,7 @@ the pipeline pushes nothing).
    | Review | Task class | Portable Codex model | Portable Claude model | Portable effort |
    |---|---|---|---|---|
    | PR review, fresh-eyes, code-quality, test-audit, tool-definition review | Ordinary review | `gpt-6.1-sol` | `opus` | `high` |
-   | Bug-check, including delta bug-check | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
+   | Bug-check, including delta bug-check, and security-auditor | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
    | PR review explicitly scoped to security/adversarial analysis | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
 
 3. Resolve one model for the run and effort for each task class. Keep that model
@@ -759,9 +785,10 @@ re-reviews. Keep each role's allowlist of tools and operations, and its limits o
 dispatching agents of its own.
 Do not add hidden cross-runtime dispatches to obtain vendor diversity.
 
-`--inline` and `--fork` cannot change the session model or effort. Disclose ignored
-`--model` and `--effort` controls; a Codex fork prompt still carries the root's
-verified `Attribution model ID`.
+`--inline` and `--fork` retain the session controls for ordinary phases; disclose
+ignored model/effort flags there. The security auditor remains a fresh dedicated
+role and uses the resolved cold-dispatch controls, an explicit exception to those
+options. A Codex fork prompt still carries the verified attribution model ID.
 
 The dispatch templates below also omit the `Ship-Check` commit trailer instruction
 and the "Copy and claims" block. Append the trailer block from the Attribution
@@ -962,7 +989,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      model: "<resolved model>",
      effort: "<resolved phase effort>",
      description: "Design pass — <resolved model> / <resolved phase effort>",
-     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, her reason>"
+     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
    })
    ```
 
@@ -978,7 +1005,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
    files and sections>`, then run step 3's check again. Anything still missed after
    it: say so with the report; the pass cannot count as "nothing found".
 5. **Triage the proposals** with inter-phase triage. In the final pass, first drop
-   each proposal the user already decided this session, such as a piece she chose
+   each proposal the user already decided this session, such as a piece the user chose
    to keep. Each proposal carries its flag category:
    - `needs design decision` (removing a guard, check, catch, guard clause or
      option): always the user's. Triage never applies it.
@@ -1011,7 +1038,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
 
    Both "trivial fix" rules ("No environment-specific dismissals" here, and
    bug-check's) carry this exception. New evidence that a cut's case is common
-   after all goes to the user, and the piece stays cut until she decides. The list
+   after all goes to the user, and the piece stays cut until the user decides. The list
    lasts for this session; a later session starts without it.
 
 #### When it runs
@@ -1344,15 +1371,15 @@ step of the numbered list above and "re-review step N" a step of this list.
 5. **Triage and hold.** Triage as in main step 8 ("Triage the findings"),
    except that every re-review finding goes to the user, with `triage-finding`'s
    Instructions input "the user decides this finding; fix now or dismiss; no card:
-   a tool-text fix found while the PR is open lands in that PR" (her rule since
+   a tool-text fix found while the PR is open lands in that PR" (the user's rule since
    2026-11-07). NEVER fix a re-review finding through triage: each round
    rereads whole tools and can raise new small defects, and fixing them would
    start the loop again. The user's earlier decisions stand for text that did not
-   change. Collect her answers. A `Fix` result here is held as an instruction,
+   change. Collect the user's answers. A `Fix` result here is held as an instruction,
    not applied: this is the one exception to inter-phase triage step 5's "apply
    it as step 4 says". Nothing is edited on disk until re-review step 7, so no
    commit made before then can include the held fix.
-6. **Sweep the classes.** Run this step when she chose to fix at least one
+6. **Sweep the classes.** Run this step when the user chose to fix at least one
    text-class defect this round (main step 9 defines a text class), such as an
    unexplained returned field or a dangling referent. Run it also when the
    `classes:` field holds an entry with no sweep mark, even in a round with no
@@ -1369,7 +1396,7 @@ step of the numbered list above and "re-review step N" a step of this list.
      the first file's `batches` (every tool the PR changes in that file, eight
      to a batch), all in one message. Each dispatch carries `Current surface:`,
      `Review only:` (one batch), `Pass: class`, `Classes:` (one line per class:
-     its name, its test, its quoted accepted instance, and the fix she accepted,
+     its name, its test, its quoted accepted instance, and the fix the user accepted,
      or for a class read from the `classes:` field, the fix applied in that
      earlier triage) and `Report file:`. It carries no `Intended tools:`,
      `Base surface:` or `Repository root:` line.
@@ -1384,11 +1411,11 @@ step of the numbered list above and "re-review step N" a step of this list.
      scopes go in separate dispatch sets.
    - **A `partial` report:** re-dispatch its unfinished tools once, four per
      dispatch, half the eight a batch holds, since that batch did not finish.
-     List tools still unfinished to her with the class questions; the verdict
-     waits until they are swept or she accepts the gap.
-   - **Ask:** drop sweep instances she already decided this session (same tool,
+     List tools still unfinished to the user with the class questions; the verdict
+     waits until they are swept or the user accepts the gap.
+   - **Ask:** drop sweep instances the user already decided this session (same tool,
      same sentence). Pass the rest to `triage-finding` as findings the user
-     decides, one call per class listing its instances, so she gets one question
+     decides, one call per class listing its instances, so the user gets one question
      per class. Sweep findings NEVER start another sweep in this round.
 7. **Commit and record.** From the second re-review (in local mode, from the
    first), ask the round question (the "From the second re-review, the user
@@ -1433,17 +1460,17 @@ step of the numbered list above and "re-review step N" a step of this list.
   another review** (in local mode, from the first; see By mode). Count, in this
   session, the re-reviews that dispatched a reviewer (a `not dispatched` or
   reorder-only round is not one; sweep dispatches belong to their round); the
-  first such re-review in a session is round 1. From round 2, after her answers
-  to the round's findings and its sweep, when she accepted at least one fix, ask
+  first such re-review in a session is round 1. From round 2, after the user's answers
+  to the round's findings and its sweep, when the user accepted at least one fix, ask
   once: fix and run one more re-review, or fix with no further re-review. When
-  she accepted no fix, ask nothing and record the round.
+  the user accepted no fix, ask nothing and record the round.
   - With no further re-review, record the fix commit as the tool-review commit
     when its parent is the round's `HEAD_SHA` (with the round's merge base), so
     the commit holds only this round's fixes, and add
     `accepted unreviewed: <tools> at <SHA>` to the summary line. The next
     verdict check then finds no tool text changed since that commit, and the
     `Tool Definitions:` line does not hold the verdict.
-  - When the parent differs, record the round's `HEAD_SHA` instead and tell her
+  - When the parent differs, record the round's `HEAD_SHA` instead and tell the user
     the fixes could not skip their review, so the next verdict reviews them.
   - A later edit to those tools is reviewed as usual. Carry the
     `accepted unreviewed:` field forward until then, and drop each tool from it
@@ -1489,13 +1516,97 @@ Deferred findings already hold the verdict, a `Pending` one included until it se
 blockers. Reporting says which of them to put to the user for a decision before any
 verdict.
 
+### Security audit (conditional)
+
+Run this checkpoint after Phase 5 triage, the first design pass and tool-definition
+triage, before "Push the fixes". In standalone pr-monitor, resolve REVIEW_BASE
+with "Before starting" step 2 and controls with Execution before this procedure.
+Comment and local/report runs use the same position without pushing. Ordinary pr-review retains its security dimension.
+
+#### Select profiles from changed behavior
+
+Inspect the full review range and relevant call paths, including configuration
+and dependencies. Filenames alone never select or exempt a profile.
+
+| Changed behavior | Profiles |
+|---|---|
+| Authentication, token/session flows, unauthenticated handlers, network exposure, proxy/origin trust | `access` |
+| Authorization, scopes/isolation, file/command handling, hostile structured input | `data`; also `access` when callers without credentials reach it |
+| Credentials, cryptography, security-relevant configuration | Select from actual reachability and the protected grant. |
+| Docs, comments, cosmetic or test-only changes with no runtime security change | None solely because a security filename appears. |
+
+For each selected profile, name the complete security paths and dependencies to
+audit. The diff selects those paths; the auditor follows them through unchanged
+code too. Record inspected scope and reason when no profile applies. Apply the
+mode rules below before launching any auditor; skipped or unselected audits do
+not dispatch.
+
+#### Pin, dispatch and triage
+
+1. Record full `REVIEW_BASE` and `HEAD` SHAs and inspect `git status --porcelain`.
+   Relevant uncommitted source cannot be covered by committed HEAD. Mark the audit
+   `blocked` with the paths and next action (pin those changes in a commit); NEVER
+   commit automatically in comment/report mode or imply HEAD covers dirty files.
+2. Read the bundled security-audit skill's Dispatcher guidance and steps 2-3.
+   Use this review's pinned HEAD instead of its standalone default branch.
+   Create one clean detached checkout and one scratch directory PER selected
+   profile, verifying each SHA and clean status before dispatch. Separate
+   checkouts isolate dependency installs as well as probes. Collect known
+   advisories/cards once per run and record lookup failures with their error text.
+3. Dispatch one fresh `ship-check:security-auditor` per selected profile
+   (`ship-check--security-auditor` in OpenCode), with every field from the bundled
+   dispatch template. Set `Review base:` to REVIEW_BASE and `Selected surface:` to
+   the complete paths/dependencies. With one profile, `Other auditor's scope:` says
+   `no parallel auditor; unaudited: <other profile and surfaces>`.
+4. Merge and spot-check reports as security-audit step 5 says. Triage privately
+   before fixing, following Inter-phase triage within this run's permitted
+   operations. The auditor always reports only. Before Push the fixes, the
+   orchestrator applies permitted fixes and commits without pushing; monitoring
+   routes fixes through pr-monitor's commit/push and follow-up steps. Comment/report runs keep recommendations
+   private and apply nothing. Missing roles, unfinished results or material
+   "Could not check" scope block coverage; name the missing check and next action.
+5. Keep each profile's audit SHA, review base, examined paths/dependencies and
+   report separately from the general reviewed SHA. Security fixes invalidate
+   affected evidence: run the readiness check below before an unqualified verdict.
+   Stop owned processes and use security-audit step 8 for EACH checkout. Retain
+   only needed probe evidence, naming its paths in the private record.
+
+#### Modes and readiness
+
+| Mode | Action and coverage |
+|---|---|
+| Default, `--comment`, local, `--report` | Run when triggered; findings stay private. Require complete relevant coverage for an unqualified ready/ship verdict. |
+| `--inline`, `--fork` | Still dispatch a fresh dedicated auditor with resolved model/effort. Inline or inherited review never counts as independent coverage. |
+| `--only security-audit` | Audit only; report audit outcome without a full-pipeline readiness claim. |
+| `--only` including `security-audit` | Run after the other selected checks; label the run's partial pipeline scope. |
+| `--only` excluding `security-audit` | Do not launch; record `not selected` and make no full-pipeline coverage claim. |
+| `--skip security-audit` | Honor the explicit waiver for initial/delta audits; record `skipped by request`, never `audited`. Other readiness gates still apply. |
+| A narrower instruction forbids agents | Do not substitute inline review; record `blocked` and request permission to use the dedicated role. |
+
+Before EVERY ready/ship verdict, including comment/local summaries, reselect
+profiles from the current review range and call paths using a fresh head and
+review base. Include base-branch updates. Reselect even after `not triggered`,
+and consider profiles never audited. Start newly applicable profiles first.
+Then inspect changes since EACH existing profile's audit SHA and any base change
+against its examined paths and dependencies. Rerun only affected profiles at the
+new pinned head; reuse unaffected evidence with the inspected delta and reason.
+Security fixes invalidate affected coverage; unrelated polish does not. Repeat
+after any resulting fixes until coverage matches the current content.
+
+Report exactly one coverage state: `audited: <profiles, each SHA and base>`,
+`not triggered: <inspected scope and reason>`, `skipped by request`, `not selected`,
+or `blocked: <reason and next action>`. Record reuse deltas privately. A required
+blocked audit withholds an unqualified merge-ready/ship verdict; an explicit skip
+is a disclosed waiver, and an `--only` run never claims full-pipeline readiness.
+Public summaries carry coverage only; private findings override every posting rule.
+
 ### Verification (conditional)
 
 A PR in a project with a verification profile is not merge-ready until the project's
 live test has run on the current head. The step runs in Phase 6, last: after every
 other merge-ready prerequisite holds and pr-monitor's Step 4 follow-up check is quiet,
-after the final design pass and the tool-definition re-review ("Pre-merge delta
-review", step 7). The note the profile's `Rules:` line names holds the rules: the gate,
+after the final design pass, tool-definition re-review and security readiness
+check ("Pre-merge delta review", step 8). The note the profile's `Rules:` line names holds the rules: the gate,
 the exemption classes, the evidence, reserving the shared test instance and returning
 it; this section holds the order. It runs inline, because the reservation, the peer and
 mailbox messages and the scheduled wakeups belong to this session.
@@ -1608,7 +1719,8 @@ any mode and the step in default mode.
 ### Push the fixes
 
 Run this once, after Phase 5, its triage, the design pass's first pass and the
-tool-definition review's triage fixes, and before Phase 6. It is the pipeline's one push of the phases' commits
+tool-definition review's triage fixes and the security checkpoint, and before
+Phase 6. It is the pipeline's one push of the phases' commits
 (Phase discipline item 4). `--skip` and `--only` never skip this step: when they
 leave Phase 5 out, run it after the last selected phase and its triage instead
 (with `--only pr-review`, it pushes Phase 1's commits).
@@ -1640,8 +1752,8 @@ pr-monitor's run.
 
 **Skip this phase entirely in comment mode.** The pipeline is reviewing a PR it isn't
 responsible for — there are no pushed fixes to monitor, no bot comments to resolve, and
-no CI to watch. After Phase 5 and the tool-definition review complete, output the
-summary report and stop.
+no CI to watch. After Phase 5, design/tool-definition triage and the security
+checkpoint complete, output the summary report and stop.
 
 Run /pr-monitor inline (not as an agent). This phase stays inline because timed
 follow-up and human comment decisions need the primary agent.
@@ -1656,7 +1768,7 @@ restriction overrides the action instructions below and in pr-monitor.
 
 **Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
 continuous monitoring loop that outlives the pipeline. The pipeline "completes" when
-Phases 1-5 and the tool-definition review are done, but Phase 6 runs until the user
+Phases 1-5 and the conditional reviews are done, but Phase 6 runs until the user
 says stop or the PR merges or closes.
 
 **Invoke the pr-monitor skill** (call the Skill tool with `skill: "pr-monitor"`) and
@@ -1677,7 +1789,8 @@ follow ALL steps through Step 5, including:
 - **Step 5**: Continue monitoring — never auto-terminate
 
 As part of this phase, the primary agent also ensures PR visibility for non-inline
-findings: any deferred finding or beyond-diff issue not already visible on the PR
+findings: except private security findings, any deferred finding or beyond-diff
+issue not already visible on the PR
 (inline comment or review body) gets a PR-level comment (`gh pr comment`) so the
 decision trail lives on the PR, not only in the chat transcript. Post it under the
 plain-command rule in "Non-inline findings still land on the PR": no `$(…)` in the
@@ -1690,7 +1803,7 @@ Phase 6 also owns the **pre-merge delta review** (see the section above): before
 merge-ready verdict, diff the current head against the reviewed SHA and
 dispatch a delta review if the difference is substantive, then run the design
 pass's final pass when its trigger fires and the tool-definition re-review (delta
-review step 6).
+review step 6), then the security readiness check (step 7).
 
 ## Reporting
 
@@ -1711,6 +1824,7 @@ Ship check complete:
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Docs:         <path>[ (generated)] <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test>[ — swept at <HEAD_SHA read> (merge base <MERGE_BASE>)] | …; re-review round <n>; accepted unreviewed: <tools> at <SHA>
+- Security audit: <audited: profiles, per-profile SHA/base | not triggered: inspected scope and reason | skipped by request | not selected | blocked: reason and next action>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
@@ -1742,7 +1856,7 @@ and the user's judgment ("Copy and claims").
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
 finding it deferred, from a phase, a delta review, a design pass or the
-tool-definition review, as the finding occurred. Before declaring the verdict,
+tool-definition or security review, as the finding occurred. Before declaring the verdict,
 re-list each finding still deferred with its flag category. Ask for a decision on each one the user has not yet
 decided, except:
 
@@ -1759,8 +1873,8 @@ status update, not a termination signal.
 
 ### Comment mode
 
-Output the final summary after Phase 5 and the tool-definition review complete — this
-is the pipeline conclusion.
+Output the final summary after Phase 5, design/tool-definition triage and the
+security checkpoint complete — this is the pipeline conclusion.
 
 ```
 Ship check complete (comment mode):
@@ -1773,6 +1887,7 @@ Ship check complete (comment mode):
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Docs:         <the default-mode Docs line, at the PR head>
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
+- Security audit: <coverage state from the default template; public coverage only, private findings withheld>
 - Verification: <the gate's classification | no profile | profile unreadable | skipped | not selected> (comment mode deploys nothing)
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - PR Monitor:   skipped (comment mode)
@@ -1783,8 +1898,9 @@ Ship check complete (comment mode):
 ```
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it in comment
-mode on each finding it deferred and posted every result but a `Pending` one on the
-PR. List the findings still deferred in this report with their flag category, and
+mode on each finding it deferred and posted every non-security result but a
+`Pending` one on the PR. Security findings remain private. List the findings still
+deferred in this report with their flag category, and
 ask no question about them: in comment mode, findings reach the user through the PR
 and this report. The pipeline ends here — no Phase 6 monitoring loop.
 
@@ -1804,6 +1920,8 @@ The user can customize the pipeline:
   re-review (see "Tool-definition review (conditional)" → By mode)
 - `/ship-check --only tool-definitions` — run only the tool-definition review; it
   still dispatches nothing when no tool-list file changed
+- `/ship-check --skip security-audit` — waive initial/delta audits explicitly; record skipped by request, never audited
+- `/ship-check --only security-audit` — run only the conditional audit; no full-pipeline readiness claim
 - `/ship-check --skip verification` — skip the verification step; pr-monitor then
   records that the user declined the live test (see "Verification (conditional)")
 - `/ship-check --only verification` — run the gate in any mode, and the whole
@@ -1816,7 +1934,8 @@ The user can customize the pipeline:
   step 2). Implies `--report` on main or a detached HEAD.
 - `/ship-check --diff <base>` — set the review range explicitly (e.g. `--diff HEAD~3`,
   `--diff abc1234`). Implies `--local`.
-- `/ship-check --comment` — post findings as inline PR review comments instead of fixing.
+- `/ship-check --comment` — post non-security findings as inline PR review comments
+  instead of fixing; security findings remain private.
   Phase 6 (pr-monitor) is skipped — the pipeline is reviewing a PR it isn't
   responsible for. Composable with --skip, --only, --inline, --fork.
 - `/ship-check --persona "<reader>"` — set who fresh-eyes reads as, overriding the
@@ -1833,13 +1952,15 @@ The user can customize the pipeline:
   including delta and tool-definition reviews. Validate the level for the model
   and runtime. `inherit` uses verified parent effort independently of model.
   Without this flag, use task-class effort except with `--model inherit` alone.
-  Both controls are ignored with `--inline` and `--fork`; disclose this and retain
-  the session controls. Codex forks still receive the verified attribution ID.
-- `/ship-check --inline` — run all phases in the current context (no agents, no fresh
-  eyes — useful when context from prior work is actually helpful). Fresh-eyes is skipped
+  With `--inline` and `--fork`, ordinary phases retain session controls; disclose
+  ignored controls there. The dedicated security auditor uses both resolved
+  controls. Codex forks still receive the verified attribution ID.
+- `/ship-check --inline` — run ordinary phases in the current context. The
+  conditional security auditor remains a fresh dedicated role. Fresh-eyes is skipped
   because inherited context defeats the no-prior-knowledge persona.
 - `/ship-check --fork` — use forks instead of agents (legacy behavior — spawns forks
-  that call Skill to load each review skill). Fresh-eyes is skipped because forks
+  that call Skill to load each review skill); the security auditor remains a fresh
+  dedicated role. Fresh-eyes is skipped because forks
   inherit context.
 
 Fresh-eyes option interactions:
@@ -1855,5 +1976,5 @@ Fresh-eyes option interactions:
 | `--inline`, `--fork` | Skipped (inherited context defeats the persona); noted in the summary |
 
 If the user doesn't specify options, run Phases 1-5 with agents and Phase 6 inline,
-plus the design pass, the tool-definition review when its gates pass, and the
-verification step when its gate passes (the default).
+plus the design pass, the tool-definition review when its gates pass, the security
+checkpoint when behavior selects a profile, and verification when its gate passes.

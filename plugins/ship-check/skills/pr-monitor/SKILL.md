@@ -25,7 +25,10 @@ This skill evaluates, replies to, and resolves bot review threads (qodo,
 CodeRabbit) as part of the authorized workflow. When ship-check carries `--report`,
 or its orchestrator's own model is outside Anthropic and OpenAI, evaluate and report
 only: do not edit, commit, push, reply, resolve, or post PR comments. Preserve that
-restriction in every wake prompt.
+restriction in every wake prompt. Keep unfixed security findings and attack
+details in private session/Vault records in every mode. This overrides this
+skill's public replies and non-thread finding instructions; public output carries
+only coverage and safe change/test descriptions.
 
 ## Step 1: Determine the PR
 
@@ -281,7 +284,7 @@ put a listed piece back: not from a bot thread, not from the item-4 sweep under
   the footer, and resolve a bot thread after the reply.
 
 New evidence that the cut's case is common after all goes to the user, and the
-piece stays cut until she decides.
+piece stays cut until the user decides.
 
 ### Bot threads (qodo, CodeRabbit, etc.)
 
@@ -785,10 +788,20 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   - Run its steps 2 to 4 (dispatch, edit check, coverage) and step 6 (cut list),
     with the model and effort controls from that skill's Execution section.
   - Treat the pass as a final pass: every proposal goes to the user, and none is
-    fixed through triage. Fixes she approves go through Step 3's sweep and Step 4's
+    fixed through triage. Fixes the user approves go through Step 3's sweep and Step 4's
     follow-up check, like this skill's own fixes. The sweep removes no guard, check,
-    catch or option she did not approve: each one it finds goes to her as a new
+    catch or option the user did not approve: each one it finds goes to the user as a new
     proposal.
+- **Security audit**, in ship-check's Phase 6 and in standalone monitoring: before
+  every readiness verdict, run the bundled ship-check skill's "Security audit
+  (conditional)" selection and readiness procedure after design/tool-definition
+  triage. Reselect profiles even after a negative trigger or a one-profile audit;
+  new relevant behavior starts the newly applicable profile before reusing any
+  unaffected evidence. Use that section's pinned per-profile checkouts, modes,
+  private triage and coverage states. Missing/incomplete required coverage blocks
+  readiness; an explicit skip is recorded as a waiver. Route resulting fixes
+  through Step 3's sweep, commit and push, then Step 4's follow-up. Withhold
+  readiness until the PR head matches the audited content. Never copy the method here.
 - **Verification**, in ship-check's Phase 6 and in a standalone run, checked last.
   Read the project's `CLAUDE.local.md` `## Verification profile` fresh on every pass,
   as the ship-check skill's "Verification (conditional)" step 1 reads it, following a
@@ -807,7 +820,7 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   - the gate script with `--range tested --from <Head> --to <headRefOid>` reports
     `no artifact change` or `exempt`, or a `Reuse:` line in this session's log (the
     session log the checkpoint skill keeps, NEVER the PR body) names `<headRefOid>`
-    with either the maintainer's words (`approved by the maintainer <date>: "<her
+    with either the maintainer's words (`approved by the maintainer <date>: "<the maintainer's
     words>"`) or a judged basis (`judged <date>: <the delta and why the probes
     don't depend on it>`). A judged reuse applies only after a merge whose delta
     clears the "Behind main" section of the rules note (the note the profile's
@@ -828,8 +841,8 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   Refresh `headRefOid` and the body right before the verdict; fetch a missing
   `<Head>` with `git fetch origin <Head>`, and fail closed if it is still missing.
   `--skip verification` records "the user declined it" and satisfies this entry. So
-  does a `Verification skipped at <headRefOid>, <date>: "<her words>"` line in this
-  session's log: she declined the retest at that head. A skipped line naming any
+  does a `Verification skipped at <headRefOid>, <date>: "<the maintainer's words>"` line in this
+  session's log: the maintainer declined the retest at that head. A skipped line naming any
   other SHA satisfies nothing.
   Otherwise the snapshot names what is missing, and a standalone run runs ship-check's
   "Verification (conditional)" section in default mode; a `--report` run reports the
@@ -852,6 +865,7 @@ PR #<number> status:
 - Issue comment coverage: N/M evaluated (pipeline replies excluded)
 - Docs: <the ship-check skill's "Docs:" line, at this head>
 - Tool Definitions: <the ship-check skill's "Tool Definitions:" line, when the Tool text entry ran a review>
+- Security audit: <the ship-check skill's coverage state; public coverage only>
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
 

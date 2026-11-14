@@ -29,6 +29,7 @@ plugins/
       test-auditor.md
       bug-checker.md
       fresh-eyes.md           # Phase 2 — stranger read, report only
+      security-auditor.md      # Conditional complete-surface audit; standalone per-profile audits
       tool-definition-reviewer.md  # After Phase 5 when a tool list changed, or on demand — report only
     skills/                   # Skills (SKILL.md in subdirectories)
       ship-check/             # Pipeline orchestrator
@@ -39,6 +40,8 @@ plugins/
       test-audit/             # Phase 4 — test quality + coverage gaps
       bug-check/              # Phase 5 — systematic bug hunt
       pr-monitor/             # Phase 6 — CI, bot comments, merge readiness
+      security-audit/         # Standalone two-profile dispatch and shared audit preparation
+      repo-security-review/   # Auditor method, local-only reproduction and report format
       tool-definition-review/ # MCP tool-definition review, in the pipeline or on demand (report only)
         scripts/              # surface-diff.ts (also plans the pipeline's dispatches) and its __tests__/
     README.md

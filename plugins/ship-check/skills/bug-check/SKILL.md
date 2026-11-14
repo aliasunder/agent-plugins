@@ -443,7 +443,7 @@ The one exception to fixing a trivial defect: when the dispatch carries a `Cuts:
 list (one line per piece: the file, what was removed and the user's reason), the
 user has already decided to remove each listed piece. Never put one back, however
 trivial the fix; report the finding instead. The orchestrator turns it down under
-the cut list, and takes it to her only when it shows new evidence that the cut's
+the cut list, and takes it to the user only when it shows new evidence that the cut's
 case is common.
 
 ### Verify effort before claiming it
