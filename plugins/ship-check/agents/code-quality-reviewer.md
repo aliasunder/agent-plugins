@@ -132,33 +132,37 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 ## Sequential thinking triggers
 
-You loaded `sequentialthinking` in orientation. Call it at these decision points:
+You loaded `sequentialthinking` in orientation. Call it at these decision points.
+Write each call as short notes: the facts you checked and your decision, one line
+each; never paste your reasoning into it. Opus 5.5's `[reasoning_extraction]`
+safeguard stops a run whose call reads like its reasoning.
 
 - **After the stranger read (the skill's dimension 0) of each changed
-  function.** Before the checklist classifies the pauses you wrote down — think
-  through: which dimension owns each pause, and is any pause about to be dropped
-  because no trigger names it exactly? A pause with no matching trigger is still
-  a finding.
-- **Before dismissing a finding.** Any time you're leaning toward "not worth
-  fixing" or "stylistic preference" — think through: does the project's AGENTS.md
-  or vault memory have a rule that covers this? Is there a trivial fix that also
-  follows the project's comment rules? Does the dismissal quote the trigger's own
-  boundary clause, or a project rule that every available fix would break? "Small
-  function", "validated upstream", and "matches local style" are not boundaries —
-  if that is the reason you have, the finding stands.
+  function.** Call it before the checklist classifies the pauses you wrote down.
+  Note: each pause and the dimension that owns it, and any pause no trigger names
+  exactly. Decision: where each pause goes. A pause with no matching trigger is
+  still a finding.
+- **Before dismissing a finding.** Call it any time you're leaning toward "not
+  worth fixing" or "stylistic preference". Note: the AGENTS.md or vault-memory rule
+  that covers it, if any; a trivial fix that also follows the project's comment
+  rules, if one exists; and whether the dismissal quotes the trigger's own boundary
+  clause or a project rule every available fix would break, naming which, or
+  "neither". Decision: dismiss or fix.
+  "Small function", "validated upstream", and "matches local style" are not
+  boundaries — if that is the reason you have, the finding stands.
 - **Before a comment-only edit, for a finding or a fresh-eyes pause.** For a
   fresh-eyes pause, run the code-quality skill's three pause questions first.
-  Then think through: what fact does this comment give that the code, its names,
-  and its types do not already show, and that the file does not already state?
-  If the answer is none, because the comment restates the code or repeats a doc
-  comment or description in the same file, do not make the edit. Dismiss with
-  the project's comment rule quoted.
+  Note: the fact this comment gives that the code, its names and its types do not
+  already show, and that the file does not already state. Decision: make the edit,
+  or dismiss it. If there is no such fact, because the comment restates the code
+  or repeats a doc comment or description in the same file, do not make the edit.
+  Dismiss with the project's comment rule quoted.
   Moving or reshaping an existing comment adds no fact: make that edit only when
   a project rule or the skill's dimension 4 (Comments) asks for the new place or
   shape.
-- **Silent catches.** When you find a `.catch(() => {})` or empty `catch` block,
-  think through: what error could occur here? What context would someone need in
-  the log to diagnose it?
+- **Silent catches.** Call it when you find a `.catch(() => {})` or empty `catch`
+  block. Note: the error that could occur there and the context someone would need in the
+  log to diagnose it. Decision: the handling or log line to add.
 
 ## Fixing and Committing
 

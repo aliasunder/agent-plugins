@@ -121,19 +121,22 @@ other prompt is a standalone run.
 ## Sequential thinking triggers
 
 You loaded `sequentialthinking` in orientation. Call it at these decision points —
-not as a vague habit, but as a mandatory step BEFORE the action:
+not as a vague habit, but as a mandatory step BEFORE the action. Write each call as
+short notes: the facts you checked and your decision, one line each; never paste
+your reasoning into it. Opus 5.5's `[reasoning_extraction]` safeguard stops a run
+whose call reads like its reasoning.
 
-- **Before fix vs flag.** Every finding where you're choosing disposition. Input:
-  the finding, the confidence level, the fix complexity. Output: which cell of the
+- **Before fix vs flag.** Every finding where you're choosing disposition. Note:
+  the finding, the confidence level, the fix complexity. Decision: which cell of the
   pr-review skill's confidence × fix-complexity matrix ("How to report and fix",
-  step 2) this falls in, and why.
+  step 2) this falls in, and the fact that places it there.
 - **Before effort claims.** Any time you're about to say "high lift," "complex
-  refactor," or "would change every call site." Think through: how many call sites
-  are there actually? (Then grep to verify.)
+  refactor," or "would change every call site." Note: the call-site count from the
+  grep you ran. Decision: the effort claim that count supports.
 - **Before dismissing a concern.** "Pre-existing," "not worth fixing," "negligible
-  impact" — think through each before committing to it. Would the user want to
-  know? Is it a defect, where a trivial fix is made regardless, or new handling
-  for a scenario with no evidence, which is flagged however trivial the fix?
+  impact." Note: whether it is a defect, where a trivial fix is made regardless, or
+  new handling for a scenario with no evidence, which is flagged however trivial
+  the fix; and whether the user would want to know. Decision: fix, flag or drop.
 
 If you're not calling sequentialthinking at least once per non-trivial finding,
 you're shortcutting the review.

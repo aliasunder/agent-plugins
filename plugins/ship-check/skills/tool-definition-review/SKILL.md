@@ -189,7 +189,10 @@ Three fable-mode rules apply here in a particular way:
 Call `sequentialthinking` at the three points the diff read marks: before you call
 a fact dropped or cut with no caller use, before you pass or fail a sentence on
 caller use, and before you write `MISSING` or list an entry with no reachable
-failure. If the tool is not available, write the same notes as text and
+failure. Write each call as short notes: the facts you checked and your decision,
+one line each; never paste your reasoning, or a whole description or schema, into
+it. Opus 5.5's `[reasoning_extraction]` safeguard stops a run whose call reads like
+its reasoning. If the tool is not available, write the same notes as text and
 continue.
 
 ## Read 1: cold read
@@ -345,8 +348,9 @@ changed definitions afresh re-scores all of them.
     old text: with the fact, did the caller send, do, or assume something
     different from what it does without it?
 - **Before you call a fact dropped or cut with no caller use,** call
-  `sequentialthinking` with the old sentence and the new description and
-  schemas. Decide which of five it is: moved, restated in other words, an entry
+  `sequentialthinking` with short notes (never paste your reasoning into it): the
+  old sentence's fact, and where the new description or schemas state it, if
+  anywhere. Decide which of five it is: moved, restated in other words, an entry
   for a failure the schema makes unreachable (see Error entries below), cut with
   no caller use (see Caller use below), or dropped. Only the last is a finding.
 
@@ -466,9 +470,9 @@ works inside belongs in the repository's own docs.
     With it, every sentence in scope is judged once, and a sentence that
     passes is listed in the count, not in the report's defects.
 - **Before you report a sentence or claim as having no caller use, and before
-  you pass one,** call `sequentialthinking` with the sentence or claim, the
-  definition without it, and the three questions. For each question, name the
-  caller action that differs with and without it. A sentence or claim with no
+  you pass one,** call `sequentialthinking` with short notes (never paste your
+  reasoning into it): the sentence or claim, and for each of the three questions
+  the caller action that differs with and without it. A sentence or claim with no
   such action fails.
 
 Write the count in the tool's entry (`Caller use: 6 sentences added or reworded —
@@ -523,9 +527,10 @@ invoice PDF attached":
   schema sets `minItems: 1` on that parameter.
   Right: `"dependsOn cannot be empty" — unreachable (schema rejects first: minItems 1)`.
 - **Before you write `MISSING`, or list an entry with no reachable failure,** call
-  `sequentialthinking` with the path from the handler to the line that produces
-  the failure, the schema rules on the inputs that reach that line, and the
-  description's error list. Decide whether the client can receive the failure,
+  `sequentialthinking` with short notes (never paste your reasoning into it): the
+  handler-to-failure path as `file:line` steps, the schema rules on the inputs that
+  reach that line, and the error-list entry that names it, if any. Decide whether
+  the client can receive the failure,
   and whether an entry already names it in other words.
 - **How to trace one tool:** read with Read, and search with Grep and Glob. Some
   runtimes give an agent that has a shell no Grep or Glob. When they are not in

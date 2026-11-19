@@ -88,8 +88,11 @@ Follow your preloaded repo-security-review skill:
 
 1. Load sequential thinking:
    `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`.
-   If it does not load, write the same reasoning as text at each trigger the
-   skill names and continue.
+   Write each call as short notes: the facts you checked and your decision, one
+   line each; never paste your reasoning into it. Opus 5.5's
+   `[reasoning_extraction]` safeguard stops a run whose call reads like its
+   reasoning. If the tool does not load, write the same notes as text at each
+   trigger the skill names and continue.
 2. Verify `git -C <audit checkout> rev-parse HEAD` equals `SHA:` and
    `git -C <audit checkout> status --porcelain` is empty before installing
    dependencies. Stop and report a mismatch or dirty source; never claim coverage

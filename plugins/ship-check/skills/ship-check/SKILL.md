@@ -435,8 +435,11 @@ triage needed.
 
 ### Procedure
 
-Use **sequential thinking** to evaluate each flagged finding. This is not optional —
-sequential thinking forces you to deliberate instead of relaying.
+Call **sequential thinking** for each flagged finding. This is not optional: the call
+is the checkpoint that stops you relaying a phase's verdict unchecked. Write each call
+as short notes: the facts you checked and your decision, one line each; never paste
+your reasoning into it. Note the finding, the evidence you checked and its
+disposition.
 
 1. **Read the flag category** from the phase output. Sub-agents categorize each flagged
    finding as: `uncertain diagnosis`, `complex fix`, `needs design decision`,
@@ -739,6 +742,20 @@ verified.
 The phase templates below show Claude's Agent form. Populate the model, effort and
 label placeholders before invoking a tool; never dispatch literal placeholders.
 
+**Start every reviewer dispatch prompt with this line, word for word, whatever the
+model.** It comes after the Codex `Attribution model ID:` line and the `Dispatch:`
+label, and before the `Mode:` line, the COMMENT MODE block and the phase prompt.
+Two dispatches skip it, because their roles never call the tool: fresh-eyes (Read,
+Grep and Glob only) and the tool-definition cold pass (its read has no trigger):
+
+```
+How to use the sequential-thinking tool in this run: use it only for short notes. In each call, list the facts you checked and your decision, one line each. Never paste your reasoning or your thinking into it.
+```
+
+Opus 5.5's `[reasoning_extraction]` safeguard stops a reviewer whose
+sequential-thinking call reads like its reasoning. With this line, 0 of 81 Opus
+review runs were stopped; without a notes-only instruction, 10 of 11 were.
+
 | Runtime | Cold dispatch |
 |---|---|
 | Codex | Keep the dedicated `agent_type`; use `fork_turns: "none"`, explicit `model` and `reasoning_effort`. Prepend `Attribution model ID: <resolved exact model>` to the prompt. |
@@ -790,8 +807,9 @@ ignored model/effort flags there. The security auditor remains a fresh dedicated
 role and uses the resolved cold-dispatch controls, an explicit exception to those
 options. A Codex fork prompt still carries the verified attribution model ID.
 
-The dispatch templates below also omit the `Ship-Check` commit trailer instruction
-and the "Copy and claims" block. Append the trailer block from the Attribution
+The dispatch templates below also omit the notes-only line above, the `Ship-Check`
+commit trailer instruction and the "Copy and claims" block. Put the notes-only line
+first, as the rule above says. Append the trailer block from the Attribution
 section ("Commit trailer format") once to every `Mode: fix-and-commit` dispatch of
 phases 1, 3-5 (a report-only dispatch commits nothing, so it gets no trailer block),
 and the "Copy and claims" block to every dispatch that section names.
@@ -908,7 +926,7 @@ Agent({
   model: "<resolved model>",
   effort: "<resolved phase effort>",
   description: "Code quality — <resolved model> / <resolved phase effort>",
-  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, error handling, comments, simplicity, and module conventions; changed markdown docs get the docs & comment quality dimension. Fix every finding, and make each fix the way this dispatch's `Mode:` line says, or, when the prompt has no `Mode:` line, the way its COMMENT MODE block says: in fix-and-commit mode a commit and no push, since the orchestrator pushes every phase's commits once after Phase 5; in report-only mode the exact change recommended, with nothing edited, committed, pushed or posted. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
+  prompt: "Run a code quality pass on branch <branch> (PR #<number>) against the base commit below.\nBase: <REVIEW_BASE>\n\nReview all changed files (source, CI/CD, IaC, config — everything except test files) for naming, structure, error handling, comments, simplicity, and module conventions; changed markdown docs get the docs & comment quality dimension. Fix every finding, and make each fix the way this dispatch's `Mode:` line says, or, when the prompt has no `Mode:` line, the way its COMMENT MODE block says: in fix-and-commit mode a commit and no push, since the orchestrator pushes every phase's commits once after Phase 5; in report-only mode the exact change recommended, with nothing edited, committed, pushed or posted. Prior-phase context: <summarize what Phase 1 fixed and any deferred findings>.\n\n<if Phase 2 produced pauses, append:>\nStranger pauses from the fresh-eyes pass (Phase 2<if a persona was set:>, read as <persona>). Each pause is a lead: that reader lost time there. Judge each with the code-quality skill's three pause questions, then apply these rules:\n- Fix it with an edit that saves the next reader that time and follows the project's comment rules. Prefer a name or a structure change, and add a comment only for a fact the code cannot show.\n- Otherwise dismiss it, quoting the trigger's boundary or the project rule every available edit would break, or, for ordinary code under the first question, naming the standard call or idiom the reader paused on. 'Pre-existing' is not a dismissal, and 'matches local style' is not a boundary.\n- A pause with no matching trigger still gets a disposition.\n- If your dismissals outnumber your fixes, re-examine each with sequential thinking before reporting, writing each call as short notes (the dismissal, the boundary it quotes, keep or fix); never paste your reasoning into it.\n- Before committing, run step 3 of the code-quality skill's 'How to report and fix' on every comment-only edit.\nList every disposition in your report:\n<paste the per-function pause list>"
 })
 ```
 

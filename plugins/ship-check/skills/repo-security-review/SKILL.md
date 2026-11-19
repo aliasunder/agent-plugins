@@ -172,8 +172,8 @@ what needs a credential or a crafted input file.
 
 Load sequential thinking first:
 `ToolSearch({ query: "select:mcp__sequential-thinking__sequentialthinking" })`.
-If it does not load, write the same reasoning as text at each trigger below and
-continue.
+If it does not load, write the same short notes (the facts you checked and your
+decision) as text at each trigger below and continue.
 
 Read the audit checkout's `AGENTS.md`, `README.md`, `SECURITY.md` and
 architecture docs, if present, before step 1. They say what the project means to
@@ -288,23 +288,26 @@ Compare every finding with the known advisories and cards before you write it.
 
 ## Sequential thinking triggers
 
-Call `sequentialthinking` BEFORE each of these actions:
+Call `sequentialthinking` BEFORE each of these actions. Write each call as short
+notes: the facts you checked and your decision, one line each; never paste your
+reasoning into it. Opus 5.5's `[reasoning_extraction]` safeguard stops a run whose
+call reads like its reasoning.
 
-- **Before you drop a finding under the drop rule.** Input: the precondition
-  list and what the credential grants. Output: whether the attack stays inside
-  the grant.
-- **Before you drop a finding under the setup rule.** Input: the precondition
+- **Before you drop a finding under the drop rule.** Note: the precondition list
+  and what the credential grants. Decision: whether the attack stays inside the
+  grant.
+- **Before you drop a finding under the setup rule.** Note: the precondition
   list, and for each one whether the user or the project created it (the code
-  line, default or doc step). Output: whether the project creates, recommends
+  line, default or doc step). Decision: whether the project creates, recommends
   or widens the setup.
-- **Before you rate High or Critical.** Input: each vector metric and the
-  evidence for it. Output: the metric values the evidence supports, and the
-  cheapest path stated so a reader could disprove it.
-- **Before you write a "Checked and found sound" line.** Input: the code you
-  read and the attacks you tried. Output: why the attack fails, with the
-  `file:line` that stops it.
-- **Before you skip a reproduction.** Input: the hard rule or missing resource
-  that stops you. Output: the rule, so the Evidence line can name it.
+- **Before you rate High or Critical.** Note: each vector metric and the evidence
+  for it. Decision: the metric values the evidence supports, and the cheapest path
+  stated so a reader could disprove it.
+- **Before you write a "Checked and found sound" line.** Note: the code you read,
+  the attacks you tried, and the `file:line` that stops each. Decision: sound, or
+  a finding.
+- **Before you skip a reproduction.** Note: the hard rule or missing resource that
+  stops you. Decision: skip and name that rule on the Evidence line, or reproduce.
 
 ## Report format
 

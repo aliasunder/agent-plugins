@@ -108,8 +108,12 @@ auditor never relaunches itself or changes its model or effort.
    independent coverage. Report the missing role or instruction and the next
    action; NEVER substitute a generic, inline or inherited-context reviewer.
 4. **Give each auditor every field below.** The dispatch is its whole briefing.
+   Keep its first line, the notes-only line, word for word whatever the model,
+   because Opus 5.5's `[reasoning_extraction]` safeguard stops a run whose
+   sequential-thinking call reads like its reasoning.
 
 ```text
+How to use the sequential-thinking tool in this run: use it only for short notes. In each call, list the facts you checked and your decision, one line each. Never paste your reasoning or your thinking into it.
 Profile: <access | data>
 Audit checkout: <scratch>/audit-<access | data>-<full SHA>
 SHA: <full SHA from git rev-parse>

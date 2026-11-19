@@ -139,30 +139,34 @@ Follow your preloaded tool-definition-review skill:
 ## Sequential thinking triggers
 
 Step 1 gave you `sequentialthinking`. Every trigger is in the diff read. Call
-the tool BEFORE you write the line it governs. The first three triggers are the
-three points the skill marks; the last two are this agent's own:
+the tool BEFORE you write the line it governs. Write each call as short notes: the
+facts you checked and your decision, one line each; never paste your reasoning, or
+a whole description or schema, into it. Opus 5.5's `[reasoning_extraction]`
+safeguard stops a run whose call reads like its reasoning. The first three
+triggers are the three points the skill marks; the last two are this agent's own:
 
-- **Before you call a fact dropped or cut with no caller use.** Input: the old
-  sentence, and the new description and schemas. Output: which of five it is. The fact moved, the new
-  text states it in other words, it names a failure the schema makes unreachable,
-  it passes none of the skill's three caller-use questions, or it has no home in
-  the new text. Only the last is a finding.
+- **Before you call a fact dropped or cut with no caller use.** Note: the old
+  sentence's fact, and where the new description or schemas state it, if anywhere.
+  Decision: which of five it is. The fact moved, the new text states it in other
+  words, it names a failure the schema makes unreachable, it passes none of the
+  skill's three caller-use questions, or it has no home in the new text. Only the
+  last is a finding.
 - **Before you report a sentence or clause as having no caller use, and before
-  you pass one.** Input: the sentence the change added or reworded, the
-  definition without it, and the skill's three caller-use questions. Output: for
-  each question, the caller action that differs with and without the sentence.
-  A sentence with no such action fails.
+  you pass one.** Note: the sentence the change added or reworded, and for each
+  of the skill's three caller-use questions, the caller action that differs with
+  and without the sentence. Decision: pass or fail. A sentence with no such action
+  fails.
 - **Before you write `MISSING`, or list an entry with no reachable failure.**
-  Input: the path from the handler to the line that produces the failure, the
-  schema rules on the inputs that reach it, and the description's error list.
-  Output: whether the client can receive the failure, and whether an entry names
-  it in other words.
-- **Before you close a tool's `Errors:` block.** Input: every function the
-  handler calls. Output: which of them parse file content, call a library, or
-  read a configured path, and whether each has a line in the block. Failures
-  produced there are the ones a trace stops short of.
-- **Before you write `not traced`, `not followed`, or a `Cleared:` line.** Input:
-  what you opened and where you stopped. Output: whether the reason is one the
+  Note: the handler-to-failure path as `file:line` steps, the schema rules on the
+  inputs that reach it, and the error-list entry that names it, if any. Decision:
+  whether the client can receive the failure, and whether an entry names it in
+  other words.
+- **Before you close a tool's `Errors:` block.** Note: each function the handler
+  calls that parses file content, calls a library, or reads a configured path, and
+  whether it has a line in the block. Decision: the block is complete, or the
+  missing lines. Failures produced there are the ones a trace stops short of.
+- **Before you write `not traced`, `not followed`, or a `Cleared:` line.** Note:
+  what you opened and where you stopped. Decision: whether the reason is one the
   skill accepts. "Tracing is long" and "the change did not mean to touch this
   tool" are not accepted.
 

@@ -123,14 +123,18 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 
 ## Sequential thinking triggers
 
-You loaded `sequentialthinking` in orientation. Call it at these decision points:
+You loaded `sequentialthinking` in orientation. Call it at these decision points.
+Write each call as short notes: the facts you checked and your decision, one line
+each; never paste your reasoning into it. Opus 5.5's `[reasoning_extraction]`
+safeguard stops a run whose call reads like its reasoning.
 
-- **Before concluding a test passes.** For each `it()` block, think through: does
-  this test actually prove what its description claims? Could it pass with a broken
-  implementation?
-- **Before deciding no coverage gap exists.** When production code changed but you
-  see no missing tests — think through: are all new branches, error paths, and edge
-  cases covered by existing tests?
+- **Before concluding a test passes.** Call it for each `it()` block. Note: what
+  its description claims, what its assertions actually check, and a broken
+  implementation that would still pass, if one exists. Decision: the test proves
+  its claim, or it is a finding.
+- **Before deciding no coverage gap exists.** Call it when production code changed
+  but you see no missing tests. Note: each new branch, error path and edge case, and the
+  existing test that covers it. Decision: no gap, or the cases that need a test.
 
 ## Fixing and Committing
 

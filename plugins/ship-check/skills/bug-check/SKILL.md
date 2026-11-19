@@ -486,8 +486,11 @@ yours. Convention violations in your fixes ship unchecked.
    Don't describe the planned fix — the diff speaks for itself. A D1 line always
    says which side changed, description or code, and why that side was wrong.
    **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
-   **Call `sequentialthinking` before each disposition decision** — input the finding,
-   confidence level, and fix complexity; output which matrix cell it falls in and why:
+   **Call `sequentialthinking` before each disposition decision.** Write each call as
+   short notes: the facts you checked and your decision, one line each; never paste
+   your reasoning into it, because Opus 5.5's `[reasoning_extraction]` safeguard
+   stops a run whose call reads like its reasoning. Note the finding, its confidence
+   level and its fix complexity; decide which matrix cell it falls in:
    - **First, name what the finding asks for.** A **defect** is code wrong for what
      its own contract covers (the signature and accepted inputs, every documented
      promise, and the failure behavior of the operations it performs: I/O errors,
@@ -575,7 +578,9 @@ comments.
 ### Procedure
 
 1. **Hunt normally** — read every changed file in full, apply all 7 dimensions, use
-   sequential thinking for disposition decisions. The only difference is the output path.
+   sequential thinking for disposition decisions (short notes: the facts you checked
+   and your decision, one line each; never paste your reasoning into it). The only
+   difference is the output path.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, dimension tag, confidence level, and description.
 3. **Still categorize on two axes** — confidence × complexity. In comment mode, a

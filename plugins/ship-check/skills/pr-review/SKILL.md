@@ -68,7 +68,10 @@ Load these sources fresh every time — do not rely on what is already in contex
 
 ## Review dimensions
 
-Structure the review by dimension. Use sequential thinking to organize findings.
+Structure the review by dimension. Use sequential thinking to organize findings,
+writing each call as short notes: the facts you checked and your decision, one line
+each; never paste your reasoning into it. Opus 5.5's `[reasoning_extraction]`
+safeguard stops a run whose call reads like its reasoning.
 
 ### 1. Correctness
 - Logic errors, edge cases, off-by-one, null handling
@@ -237,8 +240,10 @@ with the exact change, labelling its one-liner `→ would fix` instead of `→ f
    Group by dimension when multiple findings exist. Don't describe the planned fix —
    the diff speaks for itself.
 2. **Decide fix vs. flag on two axes** — diagnosis confidence and fix complexity.
-   **Call `sequentialthinking` before each disposition decision** — input the finding,
-   confidence level, and fix complexity; output which matrix cell it falls in and why:
+   **Call `sequentialthinking` before each disposition decision**, as short notes
+   (the facts you checked and your decision, one line each; never paste your
+   reasoning into it). Note the finding, its confidence level and its fix
+   complexity; decide which matrix cell it falls in:
    - **First, name what the finding asks for.** A **defect** is code wrong for what
      its own contract covers (the signature and accepted inputs, every documented
      promise, and the failure behavior of the operations it performs), whatever
@@ -303,8 +308,9 @@ comments.
 ### Procedure
 
 1. **Review normally** — run all dimensions, use sequential thinking for disposition
-   decisions, apply the same dual-axis (confidence × complexity) framework. The only
-   difference is the output path.
+   decisions (short notes: the facts you checked and your decision, one line each;
+   never paste your reasoning into it), and apply the same dual-axis
+   (confidence × complexity) framework. The only difference is the output path.
 2. **Collect findings** as you go. Each finding needs: file path (relative to repo root),
    line number, dimension tag, and description.
 3. **Categorize each finding** the same way as default mode: a finding default mode

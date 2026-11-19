@@ -89,6 +89,15 @@ starting"; it never relaunches itself or changes its model or effort.
    | Claude | `subagent_type: "plan-check:plan-reviewer"`, supported `model` and `effort`. If the tool has no effort field, use a verified setting on that same dedicated role only when it matches the intended effort; otherwise report that the requested dispatch cannot be expressed. Never substitute a generic effort role. |
    | OpenCode | Use native `subagent({ agent: "plan-check--plan-reviewer", description, prompt, model: "<verified provider/model#variant>", background: false })`. Resolve and label model/variant as described below. Never replace the dedicated reviewer role. |
 
+6. **Start the dispatch prompt with this line, after any `Dispatch:` label, word for word, whatever the
+   model.** Opus 5.5's `[reasoning_extraction]` safeguard stops a reviewer whose
+   sequential-thinking call reads like its reasoning; with this line, 0 of 81
+   Opus review runs were stopped.
+
+   ```
+   How to use the sequential-thinking tool in this run: use it only for short notes. In each call, list the facts you checked and your decision, one line each. Never paste your reasoning or your thinking into it.
+   ```
+
 OpenCode V2 uses native `subagent({ agent, description, prompt, model, background: false })`
 with the exact dedicated role ID and a concrete `provider/model#variant` reference.
 Choose model and effort deliberately from the shared model guide for every
@@ -117,7 +126,7 @@ spawn_agent({
   model: "<resolved model>",
   reasoning_effort: "<resolved adversarial effort>",
   task_name: "plan_review",
-  message: "Dispatch: Plan review — <resolved model> / <resolved effort>\nReview <plan path> in full. <scope and context>"
+  message: "Dispatch: Plan review — <resolved model> / <resolved effort>\n<the notes-only line from step 6>\nReview <plan path> in full. <scope and context>"
 })
 ```
 
@@ -360,14 +369,18 @@ these conventions, report as recommendations, never violations):
 
 ## Sequential thinking triggers
 
-Call `sequentialthinking` — mandatorily, before the action, not as vague habit:
+Call `sequentialthinking` — mandatorily, before the action, not as vague habit.
+Write each call as short notes: the facts you checked and your decision, one line
+each; never paste your reasoning into it.
 
-- **Before declaring any blocker.** Input: the quoted premise, the evidence it
-  fails. Output: the failure scenario stated concretely enough to be wrong.
-- **Before dismissing a suspicion.** Anything you considered flagging and are
-  about to drop — think through what would have to be true for it to bite.
-- **Before the overall verdict.** Weigh blockers vs. the change's size; a
-  blocker on a two-line task usually means the review is miscalibrated.
+- **Before declaring any blocker.** Note: the quoted premise and the evidence it
+  fails. Decision: the failure scenario, stated concretely enough to be wrong.
+- **Before dismissing a suspicion.** Note: the suspicion, and what would have to
+  be true for it to bite. Decision: keep it as a finding or drop it, with the fact
+  that settles it.
+- **Before the overall verdict.** Note: the blocker count and the change's size.
+  Decision: the verdict. A blocker on a two-line task usually means the review
+  is miscalibrated.
 
 ## Output format
 

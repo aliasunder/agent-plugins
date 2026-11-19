@@ -117,30 +117,33 @@ CLAUDE.md and AGENTS.md auto-load from the working directory. After those load:
 ## Sequential thinking triggers
 
 You loaded `sequentialthinking` in orientation. Call it at these decision points —
-not as a vague habit, but as a mandatory step BEFORE the action:
+not as a vague habit, but as a mandatory step BEFORE the action. Write each call as
+short notes: the facts you checked and your decision, one line each; never paste
+your reasoning into it. Opus 5.5's `[reasoning_extraction]` safeguard stops a run
+whose call reads like its reasoning.
 
-- **Before fixing a description-vs-implementation mismatch.** Input: the quoted
-  description sentence and the code path it disagrees with. Output: which side is
-  wrong and why. Editing the description is the cheaper fix and the one you will
-  drift toward; if the description states what the project wants, the code is the
-  bug. See dimension 1 step 5 in the bug-check skill.
-- **Before fix vs flag.** Every finding where you're choosing disposition. Input:
-  the finding, the confidence level, the fix complexity. Output: which cell of the
+- **Before fixing a description-vs-implementation mismatch.** Note: the quoted
+  description sentence and the code path it disagrees with. Decision: which side is
+  wrong, and the fact that shows it. Editing the description is the cheaper fix and
+  the one you will drift toward; if the description states what the project wants,
+  the code is the bug. See dimension 1 step 5 in the bug-check skill.
+- **Before fix vs flag.** Every finding where you're choosing disposition. Note:
+  the finding, the confidence level, the fix complexity. Decision: which cell of the
   bug-check skill's confidence × fix-complexity matrix (its Procedure, step 3)
-  this falls in, and why.
+  this falls in, and the fact that places it there.
 - **Before skipping or dismissing.** Any finding you're considering omitting from
-  your output — "pre-existing," "negligible," "out of scope." Think through: is it
-  a defect with a trivial fix, or new handling for a scenario with no evidence
-  (flagged, never omitted)? Does the user need to know? Would you want to see this
-  in a report?
+  your output — "pre-existing," "negligible," "out of scope." Note: whether it is a
+  defect with a trivial fix or new handling for a scenario with no evidence
+  (flagged, never omitted), whether the user needs to know, and whether you would
+  want to see it in a report. Decision: report it or drop it.
 - **Before effort claims.** Any time you're about to say "high lift," "complex
-  refactor," or "would change every call site." Think through: how many call sites
-  are there actually? (Then grep to verify.)
+  refactor," or "would change every call site." Note: the call-site count from the
+  grep you ran. Decision: the effort claim that count supports.
 - **Before environment-specific reasoning.** Any time you're about to dismiss a
   concern based on one deployment's specs, today's deployment shape ("each server
   process opens only one notes folder"), or upstream validation ("the input is
-  always `.md` here"). Think through: is the code wrong on its own terms? What's
-  the worst reasonable use case?
+  always `.md` here"). Note: whether the code is wrong on its own terms, and the
+  worst reasonable use case. Decision: keep or dismiss the concern.
 
 If you're not calling sequentialthinking at least once during the bug check, you're
 skipping decision points.

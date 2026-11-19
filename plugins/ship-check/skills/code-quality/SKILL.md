@@ -216,7 +216,10 @@ dimension 4).
 
 Self-check before you commit, in both directions:
 - **Dismissals:** if dismissals outnumber fixes, call sequential thinking and
-  re-examine every dismissal. For each, ask "would a newcomer still pause here
+  re-examine every dismissal. Write each call as short notes: the facts you checked
+  and your decision, one line each; never paste your reasoning into it, because
+  Opus 5.5's `[reasoning_extraction]` safeguard stops a run whose call reads like
+  its reasoning. For each dismissal, ask "would a newcomer still pause here
   after reading my dismissal reasoning?" If yes, look again for an edit that passes
   all three questions, and make it when one exists.
 - **Fixes:** re-read every comment-only edit against question 3 (step 3 of "How
