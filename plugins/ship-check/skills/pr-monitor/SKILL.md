@@ -872,9 +872,11 @@ PR #<number> status:
 The `Docs:` line is the one ship-check's Reporting section defines, computed the same
 way; when ship-check runs, both reports print the same value for the same head.
 
-**Pipeline context only: post a merge-ready verdict to the user's inbox.** When the
-verdict is merge-ready and the pre-merge delta review covers the current head, run
-the user's local helper if it exists, and put its output line in the report:
+**Post EVERY merge-ready verdict to the user's inbox,** in a standalone run and in
+ship-check's Phase 6 alike: the user tracks which PRs are ready to merge from that
+inbox. When the verdict is merge-ready (in Phase 6, once the pre-merge delta review
+covers the current head), run the user's local helper if it exists, and put its
+output line in the report:
 
 ```sh
 bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> --pr <number> --sha <head SHA>
@@ -887,7 +889,8 @@ bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> -
 - Run it on every merge-ready pass: it posts once per commit and prints
   `already posted` afterwards, and a pass after an uncertain send settles it.
 - Codex runs it outside its sandbox, as it does `cmux`.
-- pr-monitor run on its own, outside ship-check, posts nothing.
+- Wrong: a standalone pr-monitor run reports merge-ready in chat only, so the PR
+  never reaches the user's inbox. Right: the same run also runs the helper.
 
 After reporting, **continue monitoring** unless the user requested a one-shot check,
 said stop, or the PR is merged or closed. "Merge-ready" is a status report, not a
