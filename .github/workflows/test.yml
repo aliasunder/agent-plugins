@@ -24,5 +24,5 @@ jobs:
           # The Bun the tests are run with locally, so CI and a local run see the same runtime.
           bun-version: 1.4.2
 
-      # The scripts have no dependencies, so there is nothing to install.
-      - run: bun test plugins scripts
+      # The skill scripts have no dependencies, so there is nothing to install.
+      - run: bun test plugins

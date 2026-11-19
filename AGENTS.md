@@ -54,9 +54,6 @@ plugins/
       plan-review/            # Premise audit, alternatives, guard arithmetic,
                               # concurrent-writer analysis, verification safety
     README.md
-scripts/                      # Repository tooling that ships in no plugin
-  run-plugin-headless.ts      # Runs Claude Code headless with a plugin loaded from a checkout
-  __tests__/
 README.md                    # Marketplace README
 CHANGELOG.md                 # Release history (updated by CI on release)
 package.json                 # Repo-level version + metadata (kept in lockstep by CI)
@@ -77,35 +74,45 @@ SECURITY.md                  # Vulnerability reporting policy
 
 A running Claude Code session uses the installed copy of each plugin, read when
 the session started, so an edit in your checkout does not reach it. To try a
-change on a real project before it ships, run a headless session that loads the
-plugin from your checkout:
+change on a real project before it ships, run a headless session from that
+project's directory that loads the plugin from your checkout:
 
 ```bash
-bun scripts/run-plugin-headless.ts --plugin ship-check --cwd <project> --prompt <prompt.md> \
-  --out <run.jsonl> --allow Agent --allow Read --allow Grep --allow Glob
+claude -p --plugin-dir <checkout>/plugins/ship-check --setting-sources user,local \
+  --settings '{"enabledPlugins":{"ship-check@agent-plugins":false}}' \
+  --allowedTools Agent,Read,Grep,Glob \
+  --output-format stream-json --verbose < prompt.md > run.jsonl
 ```
 
 The example allows `Agent`, so the session can dispatch the plugin's agents, and
-the read-only tools `Read`, `Grep`, and `Glob`. Add an `--allow` for each other
-tool the prompt needs.
+the read-only tools `Read`, `Grep`, and `Glob`. Add each other tool the prompt
+needs to the comma-separated list, such as `Bash(git *)`.
 
-- `--checkout <dir>` loads the plugin from another checkout, such as a
-  worktree. Without it, the script loads from its own checkout.
-- The run turns off the installed copy of the same plugin and every hook, and
-  leaves out the project's shared settings file (`.claude/settings.json`).
+- `--plugin-dir` loads the plugin from your checkout or a worktree; give its
+  absolute path, since the command runs from the project's directory.
+- `--settings` turns off the installed copy of the same plugin, keyed
+  `<plugin>@<marketplace>`. Left on, the installed copy would load beside the
+  checkout's copy, with agents of the same names. `--setting-sources user,local`
+  leaves out the project's shared settings file (`.claude/settings.json`), whose
+  hooks and permission rules are not part of the test.
 - A headless run cannot answer a permission prompt, so it denies every tool
-  that neither `--allow` nor your own settings allow. Each `--allow` value takes
-  the form of the claude CLI's `--allowedTools` flag, such as `Bash(git *)`.
-- `--out` names the file that receives the event stream, and `<out>.stderr`
-  receives the CLI's standard error. Neither file may exist yet. The script then
-  prints a summary, including the plugins the session loaded, the final result,
-  any permission denials, and any agent or background task that did not finish.
-- The session is told to wait for every agent or background task it starts:
-  a headless session stops them when it ends, and their results are lost.
-- Point `--cwd` at a scratch clone of the project. A run allowed `Edit`, `Write`,
-  or `Bash`, by `--allow` or by your own settings, can edit and commit whatever
-  the prompt asks for. Turn off pushing in that clone first:
+  that neither `--allowedTools` nor your own settings allow.
+- Put three instructions in the prompt: do only what the prompt asks and start
+  no routine your instructions run at session start; message no other session;
+  wait for every agent or background task you start before answering, because a
+  headless session stops them when it ends and their results are lost.
+- `run.jsonl` receives the event stream. Its first `system` record (`subtype`
+  `init`) lists each loaded plugin's `name`, `path` and `source`: the checkout
+  copy's source is `ship-check@inline`, and no `ship-check@agent-plugins` entry
+  should appear. The last `result` record holds the final answer and any
+  permission denials.
+- Run from a scratch clone of the project. A run allowed `Edit`, `Write`, or
+  `Bash`, by `--allowedTools` or by your own settings, can edit and commit
+  whatever the prompt asks for. Turn off pushing in that clone first:
   `git remote set-url --push origin no-push`.
+
+The maintainer runs this command through a launcher described in her local
+instructions, which saves the report and reports an outcome status.
 
 Before adding a review phase or a reviewer for a class of miss, edit the existing
 reviewer's instructions with the fix that would make it catch the miss, then run
@@ -124,12 +131,8 @@ only when that run still misses it.
   with no npm dependencies, run with Bun. Their tests (`*.test.ts` files) live in
   `scripts/__tests__/`. The release archives leave `__tests__` out, through the
   `-x` patterns on the `zip` commands in both release workflows.
-- **Repository tooling** that ships in no plugin lives in the root `scripts/`
-  directory, also as TypeScript with no npm dependencies, run with Bun. Its
-  tests live in `scripts/__tests__/`.
-- **Run every script test** with `bun test plugins scripts`. Each argument is a
-  path filter: Bun runs every test file whose path contains `plugins` or
-  `scripts`.
+- **Run every script test** with `bun test plugins`. The argument is a path
+  filter: Bun runs every test file whose path contains `plugins`.
 
 ## Skill authoring
 
