@@ -3,7 +3,7 @@ name: repo-security-review
 description: >
   The security auditor's method for one profile of a repository or selected
   complete security surface:
-  the threat model and drop rule, the two profiles (access: the network-facing
+  the threat model and its drop and setup rules, the two profiles (access: the network-facing
   sign-in and HTTP surface; data: what an authenticated caller or a crafted
   input file can do beyond its grant), entry-point mapping, local-only
   reproduction against throwaway processes, CVSS 3.1 rating, duplicate marking
@@ -95,6 +95,28 @@ grants delete. Drop it.)
 Right: "An authenticated client can read `/etc/passwd` through `../` in a
 document path." (The credential grants the served folder, not the host. Report
 it.)
+
+**Setup rule.** Drop a finding whose attacker gets in only because of how the
+user set up their own machine or account. A researcher would treat it as setup,
+not a vulnerability.
+
+- **Condition:** the cheapest path's first precondition is access the
+  operating system already gives the attacker over the user's files: another
+  local account that owns or can write the user's folder, a group the user
+  shares with that account, an ACL entry or file share the user added, or a
+  permission the user loosened.
+- **Boundary:** keep the finding when the project itself creates that setup or
+  tells users to create it: the tool creates a folder other accounts can write,
+  sets a mode wider than the user's default, or its docs say to install in a
+  shared place. Also keep it when the project's code widens what the setup
+  gives, such as writing a secret that an account which could only list the
+  folder can then read.
+
+Wrong: "Another local account that can write the install folder can replace
+`.env`." (The user gave that account write access. Drop it.)
+Right: "The CLI creates the install folder writable by every account, so
+another local account can replace `.env`." (The project created the setup.
+Report it.)
 
 ## Profiles
 
@@ -228,7 +250,9 @@ that score: Low 0.1–3.9, Medium 4.0–6.9, High 7.0–8.9, Critical 9.0–10.0
 the attacker's cheapest path with every precondition in plain words.
 
 Rate the default install. A finding that needs a non-default setting is rated
-for that setting, and the precondition names the setting.
+for that setting, and the precondition names the setting. A setting is one the
+project offers (a config option, a flag); a change the user made to their own
+machine outside the project falls under the setup rule instead.
 
 No rating inflation:
 
@@ -269,6 +293,10 @@ Call `sequentialthinking` BEFORE each of these actions:
 - **Before you drop a finding under the drop rule.** Input: the precondition
   list and what the credential grants. Output: whether the attack stays inside
   the grant.
+- **Before you drop a finding under the setup rule.** Input: the precondition
+  list, and for each one whether the user or the project created it (the code
+  line, default or doc step). Output: whether the project creates, recommends
+  or widens the setup.
 - **Before you rate High or Critical.** Input: each vector metric and the
   evidence for it. Output: the metric values the evidence supports, and the
   cheapest path stated so a reader could disprove it.
