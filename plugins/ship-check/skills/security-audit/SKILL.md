@@ -202,11 +202,23 @@ After the user has the audit results:
    when every listed path is a dependency install or build output the auditors
    made; otherwise show the user the list and ask.
 2. Run `git worktree prune`.
-3. Tell the user where the probe files are: `<scratch>/security-audit-<full SHA>/`.
-   Retain only evidence still needed for findings or hand-off, naming its paths.
-   Probe files hold working exploit scripts; never put them in a repository.
-   Use `land-task` when installed at landed closeout for this session's finished
-   items; do not clean unrelated work.
+3. Delete the data the probe scripts generated: fixture vaults, nested directory
+   trees and other files a script wrote under
+   `<scratch>/security-audit-<full SHA>/<profile>/` (an auditor's `probe-data-*`
+   folders, for example). Keep the probe scripts themselves. Remove each data
+   folder with its own command, its path written literally:
+   `rm -rf <scratch>/security-audit-<full SHA>/<profile>/<data folder>`.
+   - Use `rm -rf`, not land-task's `own`: `own` keeps a tree whose paths pass
+     macOS's 1,024-character limit (`ENAMETOOLONG`), and path-length probes
+     build such trees.
+   - NEVER leave the data for a reboot to clear. A macOS update can move
+     `/private/tmp` into `/Previous System`, which Time Machine backs up, and a
+     path past the limit fails every backup until an administrator deletes it.
+4. Tell the user where the remaining probe files are:
+   `<scratch>/security-audit-<full SHA>/`. Retain only evidence still needed for
+   findings or hand-off, naming its paths. Probe files hold working exploit
+   scripts; never put them in a repository. Use `land-task` when installed at
+   landed closeout for this session's finished items; do not clean unrelated work.
 
 ## Boundaries
 
