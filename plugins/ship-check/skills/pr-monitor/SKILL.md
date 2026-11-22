@@ -865,7 +865,7 @@ PR #<number> status:
 - Issue comment coverage: N/M evaluated (pipeline replies excluded)
 - Docs: <the ship-check skill's "Docs:" line, at this head>
 - Tool Definitions: <the ship-check skill's "Tool Definitions:" line, when the Tool text entry ran a review>
-- Security audit: <the ship-check skill's coverage state; public coverage only>
+- Security audit: <the ship-check skill's coverage state; this chat report only, never posted>
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
 
