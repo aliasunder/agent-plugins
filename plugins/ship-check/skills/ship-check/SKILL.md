@@ -154,6 +154,13 @@ settings table, an option or error-code list) takes the missing entry in its for
 a list inside a design or security document is not such a reference. When a fix carries the same
 claim to sibling documents, judge each document's reader separately.
 
+Never append to a passage that already runs longer than its siblings: restructure it
+(split by subject; a short lead plus sub-bullets for parallel cases) and cut what its
+reader would not miss. Add no note for setups older than the change unless following
+the current doc would break a deployment or overwrite its settings. When text promises
+more than the code keeps for malformed input, narrow the promise instead of adding a
+refusal and an Errors entry, unless the input would damage data or a file's format.
+
 Make each fix the way this dispatch makes fixes: a commit, or a recommendation when
 the dispatch is report-only.
 ```
