@@ -53,8 +53,10 @@ Verification (conditional, orchestrator) -> the project's live test, run inside 
 Keep unfixed security findings and attack details in private session/Vault records
 in EVERY mode, including comment mode and beyond-diff findings. This overrides all
 public-finding, review-body and PR-comment instructions in this skill and pr-monitor.
-Public output carries only the Security audit coverage result, without attack
-details. Fix commits and PR prose describe the change and tests; disclosure follows
+Public output (PR bodies, reviews, comments, commit messages) says nothing about
+the security audit: not that it ran, nor its profiles, auditors or coverage state.
+The coverage state goes only in the private record and the chat report to the
+user. Fix commits and PR prose describe the change and tests; disclosure follows
 security-audit's "Keep findings private until fixed" boundary. Include this rule in
 every phase, delta, triage and fix-handoff prompt that could post or commit.
 
@@ -71,7 +73,6 @@ orchestrator triage, pr-monitor replies).
   `bug-check`, `pr-monitor`, `triage` (for orchestrator inter-phase triage posts),
   `tool-definitions` (for the orchestrator's post of tool-definition review findings),
   `design-pass` (for the orchestrator's post of design-pass proposals in comment mode),
-  `security-audit` (for coverage-only audit posts, never private findings),
   or `ship-check` (for the orchestrator's other PR-level comments).
 - `<model-id>` identifies the poster's exact runtime model. Resolve it by runtime:
   - **Claude agent mode:** the phase agent uses the model ID from its system context
@@ -231,7 +232,7 @@ reviewing a PR it isn't responsible for.
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
 | Design pass | First pass after Phase 5, final pass before the first merge-ready verdict; triage may apply small design fixes | First pass only; one PR-level comment with every proposal (see "Design pass"); nothing applied |
 | Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reviewer reports' Defects and Unintended text changes lists (see "Tool-definition review (conditional)"); no re-review |
-| Security audit | Conditional checkpoint after design/tool-definition triage; private triage and fixes before the one push | Same checkpoint, report only; public coverage result without attack details |
+| Security audit | Conditional checkpoint after design/tool-definition triage; private triage and fixes before the one push | Same checkpoint, report only; nothing about the audit is posted |
 | Verification | Last in Phase 6 before the first merge-ready verdict; deploys and probes (see "Verification (conditional)") | Gate classification only, in the summary; nothing deployed, asked or written |
 | Inter-phase triage | Evaluates flagged findings, may fix; runs `triage-finding` on what it defers and asks the user before the next phase | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
 
@@ -249,8 +250,8 @@ and post them as a single GitHub PR review with inline comments. Follow the "Com
 mode" section in your preloaded skill for the gh api template. Skip the API call
 only when you have 0 findings and 0 dismissals; with dismissals alone, post the
 body-only review your skill describes.
-Keep security findings private, including beyond-diff findings. Post only their
-coverage result without attack details; this overrides the posting rules above.
+Keep security findings private, including beyond-diff findings, and post nothing
+about the security audit; this overrides the posting rules above.
 Repo: OWNER_REPO
 Append a footer to the review body AND every inline comment body using the
 runtime-specific model label from the Attribution section:
@@ -708,12 +709,17 @@ the pipeline pushes nothing).
    | Bug-check, including delta bug-check, and security-auditor | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
    | PR review explicitly scoped to security/adversarial analysis | Adversarial review | `gpt-6.1-sol` | `opus` | `xhigh` |
 
+   When the guidance names a route for the security auditor, the auditor takes
+   that route instead of its row above (bundled security-audit skill, Dispatcher
+   guidance, item 1).
+
 3. Resolve one model for the run and effort for each task class. Keep that model
    for phases, fresh-eyes persona reads, delta reviews, tool-definition cold/diff
    passes, continuations and re-reviews. The Astra and Fable models (other model
    tiers the guidance lists alongside Sol and Opus; Fable is unrelated to the
-   fable-mode skill) run only when the user passes them as `--model`; escalation
-   advice in guidance never switches this run's model.
+   fable-mode skill) run only when the user passes them as `--model`, or when the
+   guidance's security-auditor route names one for that role; escalation advice
+   in guidance never switches this run's model.
 
    | Controls | Model | Effort |
    |---|---|---|
@@ -1574,12 +1580,14 @@ not dispatch.
    commit automatically in comment/report mode or imply HEAD covers dirty files.
 2. Read the bundled security-audit skill's Dispatcher guidance and steps 2-3.
    Use this review's pinned HEAD instead of its standalone default branch.
-   Create one clean detached checkout and one scratch directory PER selected
-   profile, verifying each SHA and clean status before dispatch. Separate
+   Create one clean detached checkout and one scratch directory PER auditor (one
+   per selected profile, plus each second auditor the guidance names), verifying
+   each SHA and clean status before dispatch. Separate
    checkouts isolate dependency installs as well as probes. Collect known
    advisories/cards once per run and record lookup failures with their error text.
 3. Dispatch one fresh `ship-check:security-auditor` per selected profile
-   (`ship-check--security-auditor` in OpenCode), with every field from the bundled
+   (`ship-check--security-auditor` in OpenCode), plus any second auditor, through
+   the route the Dispatcher guidance resolves, with every field from the bundled
    dispatch template. Set `Review base:` to REVIEW_BASE and `Selected surface:` to
    the complete paths/dependencies. With one profile, `Other auditor's scope:` says
    `no parallel auditor; unaudited: <other profile and surfaces>`.
@@ -1607,6 +1615,7 @@ not dispatch.
 | `--only` excluding `security-audit` | Do not launch; record `not selected` and make no full-pipeline coverage claim. |
 | `--skip security-audit` | Honor the explicit waiver for initial/delta audits; record `skipped by request`, never `audited`. Other readiness gates still apply. |
 | A narrower instruction forbids agents | Do not substitute inline review; record `blocked` and request permission to use the dedicated role. |
+| A provider safeguard stops an auditor | Run the Dispatcher guidance's fallback routes before recording `blocked`; record each route tried and its result privately. |
 
 Before EVERY ready/ship verdict, including comment/local summaries, reselect
 profiles from the current review range and call paths using a fresh head and
@@ -1623,7 +1632,8 @@ Report exactly one coverage state: `audited: <profiles, each SHA and base>`,
 or `blocked: <reason and next action>`. Record reuse deltas privately. A required
 blocked audit withholds an unqualified merge-ready/ship verdict; an explicit skip
 is a disclosed waiver, and an `--only` run never claims full-pipeline readiness.
-Public summaries carry coverage only; private findings override every posting rule.
+The coverage state goes in the chat report and the private record, never in PR
+text; private findings override every posting rule.
 
 ### Verification (conditional)
 
@@ -1912,7 +1922,7 @@ Ship check complete (comment mode):
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Docs:         <the default-mode Docs line, at the PR head>
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
-- Security audit: <coverage state from the default template; public coverage only, private findings withheld>
+- Security audit: <coverage state from the default template; this chat summary only, never posted; private findings withheld>
 - Verification: <the gate's classification | no profile | profile unreadable | skipped | not selected> (comment mode deploys nothing)
 - Triage:       N flagged findings triaged across all phases — M commented, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - PR Monitor:   skipped (comment mode)
