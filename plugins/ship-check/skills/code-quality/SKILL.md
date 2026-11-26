@@ -633,15 +633,21 @@ an earlier pass missed those files: read them whole first, then run every step.
 4. Write an inventory: every command or entry point, function, guard, check, catch,
    option and parameter the change adds, with `file:line`, and every document
    section the change touched, with its file and heading.
-5. Read the dispatch's `Growth:` block. Each function it lists either rose past the
-   project's budget in ESLint `complexity` between the base and head, or is new and
-   past it, with both numbers (`new` in place of an added function's base). Add
-   each to the inventory, then read it whole at head and at the base
-   (`git show <base>:<path>`, with the block's base path when the file was
-   renamed). When the dispatch carries no `Growth:`
-   block, or the block reads `error:` or `not measured`, or names files it could
-   not measure, read instead each function in those files that the change added a
-   branch, a stage or a mode parameter to.
+5. Read the dispatch's `Growth:` block and add each function it lists to the
+   inventory:
+   - Each listed function's ESLint `complexity` is past the project's budget at the
+     head, and it either rose since the base or is new, with both numbers (`new` in
+     place of an added function's base).
+   - The script names an anonymous function after the function around it:
+     `updateTask › callback (withExclusiveFileLock)` is a function `updateTask`
+     passes to `withExclusiveFileLock`, and a ` #2` suffix marks the second
+     function of one name in a file.
+   - Read each one whole at head and at the base (`git show <base>:<path>`, with
+     the block's base path when the file was renamed).
+   - When the dispatch carries no `Growth:` block, or the block reads `error:`,
+     `not measured` or `no measurable files`, read instead each function the
+     change added a branch, a stage or a mode parameter to. When the block lists
+     files it could not measure, do the same in those files.
 6. For each run of two or more calls or commands the change adds that do one job
    together (parse a query, then validate it), search the whole repo for the calls
    any copy of that job would also make (`rg -n 'parsePagination'`), so a copy in
@@ -670,15 +676,15 @@ in the code uses the skip's words.
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
 | Does each touched document section still serve its document's reader? Judge the section as it stands at HEAD, whatever commit each sentence arrived in: one subject per section, each fact in the one document that owns its mechanism, a length and depth that match its sibling sections, and no sentence whose only reader is the review that asked for it. Code-level detail (a data structure, a log message name, a limit the reader cannot change, a step order) belongs in a code comment or the architecture section that owns the mechanism, never in a README or security document | The document is a reference the reader looks up entry by entry (a settings table, an option or error list) and the change adds its entry in the reference's own format |
 | Does each guard, check, catch and option earn its place? Weigh how often its case occurs and what failing there costs against what the piece costs on every run, whether or not its case occurs | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, publishes, releases or deletes something that is hard to undo, or leaves the user without the recovery the guard's own message gives, and no other layer already enforces the case. This skip does not cover a piece that, on every run, throws away or repeats work an earlier run already did and could reuse (deletes a cache or index the run then rebuilds in full, recomputes every entry to catch a rare change), to cover a rare case: propose it, naming what failing there costs and what the piece costs on every run. Checking the input the run receives (validating each item, one lookup per call) is not such a piece, however large the input |
-| Did the change leave a function harder to change next time? Read each function the `Growth:` block lists (its complexity rose and is past the project's budget) and, where the block is missing or incomplete, each function the change added a branch, a stage or a mode parameter to (a parameter whose value selects a branch in two or more places). Judge the function as code: did the change give it a second job, or leave it a sequence a reader cannot hold? When it did, propose moving the behaviour this change added into its own stage or helper, named for what it does | Every listed or read function still does one job a reader can hold, the added behaviour included: a rise in the number alone is never a finding. A lint the function passes through a disable directive is not a skip: the block is measured with directives ignored |
+| Did the change leave a function harder to change next time? Read each function the `Growth:` block lists (read procedure step 5) and, where the block is missing or incomplete, each function the change added a branch, a stage or a mode parameter to (a parameter whose value selects a branch in two or more places). Judge the function as code: did the change give it a second job, or leave it a sequence a reader cannot hold? When it did, propose moving the behaviour this change added into its own stage or helper, named for what it does | Every listed or read function still does one job a reader can hold, the added behaviour included: a rise in the number alone is never a finding. A lint the function passes through a disable directive is not a skip: the block is measured with directives ignored |
 
-**The remainder of a function already past the budget before the change** is not the
-growth proposal's business. When the function carries an
-`eslint-disable-next-line complexity` directive, the repository's own marker that its
-split is owned elsewhere, say so in one line and propose nothing for the remainder.
-Otherwise the remainder is one `pre-existing gap` proposal; the orchestrator's triage
-checks the project's board for a card that covers it. Committed files carry no card
-names, so never look for one.
+**The rest of a function already past the budget before the change**, everything
+but the behaviour the change added, is not the growth proposal's business. When the
+function carries an `eslint-disable-next-line complexity` directive, the
+repository's own marker that its split is owned elsewhere, say so in one line and
+propose nothing for the rest. Otherwise the rest is one `pre-existing gap` proposal;
+the orchestrator's triage checks the project's task board for a card that covers it.
+Committed files carry no card names, so never look for one.
 
 **Four counters.** Each one rebuts a dismissal that has kept redundant code
 through past reviews:

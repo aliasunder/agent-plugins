@@ -878,7 +878,8 @@ way; when ship-check runs, both reports print the same value for the same head. 
 the `Growth:` line: run the ship-check skill's script from this skill's folder,
 `bun ${CLAUDE_SKILL_DIR}/../ship-check/scripts/function-growth.ts --json --repo <root> --from <merge base> --to <head>`
 (when the runtime left `${CLAUDE_SKILL_DIR}` unreplaced, put the folder this
-`SKILL.md` was read from in its place), and print its text line after the label.
+`SKILL.md` was read from in its place), and print the JSON's `line` field after the
+label.
 
 **Post EVERY merge-ready verdict to the user's inbox,** in a standalone run and in
 ship-check's Phase 6 alike: the user tracks which PRs are ready to merge from that
@@ -903,8 +904,8 @@ bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> -
 **A merge-ready verdict ends monitoring once its inbox delivery has settled.** The
 user does not want repeated passes while a PR waits for her merge. Merge-ready means
 the prerequisites above hold: every bot run on the head has finished (a check queued
-or in progress on the head is a blocked snapshot, not merge-ready; the known-flaky,
-unrelated and vendor-side exceptions in the prerequisites stand) and every comment
+or in progress on the head is a blocked snapshot, not merge-ready; the known-flaky
+and unrelated CI exceptions in the prerequisites stand) and every comment
 is answered. Delivery has settled when the helper printed `posted` or `already
 posted`, when no helper exists, when a live lane lead posts READY itself, or when the
 run is report-only and posts nothing. `post failed`, `inbox unreadable` or `cmux

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Measures how the cyclomatic complexity of each function changed between two trees, with the reviewed
+// Measures how the cyclomatic complexity of each function changed between two commits, with the reviewed
 // repo's own ESLint `complexity` rule, for the ship-check design pass's `Growth:` line. The text it prints
 // is what the reports print after that label; `--json` prints the full result. ESLint and the TypeScript
 // parser load from `--tooling` (default: the repo); without ESLint there the answer is `not measured`.
@@ -59,13 +59,14 @@ export type FunctionPair = { base: MeasuredFunction; head: MeasuredFunction; pai
 export type PairedFunctions = { pairs: FunctionPair[]; added: MeasuredFunction[] }
 
 /**
- * The complexity a function may reach under the file's configuration:
- * - `default`: the rule is off or absent, so ESLint's default maximum applies
+ * The complexity a function may reach under the file's configuration, and the rule's own `variant` option:
+ * - `default`: the rule is off or absent, so the script lists growth against ESLint's default maximum
  * - `warned`: the rule is on at severity 1
  * - `enforced`: the rule is on at severity 2
  */
 export type Budget = { max: number; source: "default" | "warned" | "enforced"; variant: "classic" | "modified" }
 
+/** A changed file the head still has; `basePath` is null for a file added since the base. */
 export type ChangedFile = { path: string; basePath: string | null }
 
 /**
@@ -86,6 +87,7 @@ export type GrowthEntry = {
 
 export type NotMeasured = { path: string; reason: string }
 
+/** What `formatLine` prints from; the counts and lists mean what they mean in `GrowthReport`. */
 export type LineInput =
   | { status: "no eslint"; tooling: string }
   | {
@@ -99,6 +101,14 @@ export type LineInput =
       notMeasured: readonly NotMeasured[]
     }
 
+/**
+ * The script's result; `--json` prints it whole:
+ * - `measured`: how many functions were measured at the head, new ones included
+ * - `rose`: how many functions paired with a base function have a higher complexity at the head
+ * - `functions`: every function paired with a base function; a new function is left out of it
+ * - `listed`: the functions past their file's budget at the head that rose or are new, sorted by path and line
+ * - `notMeasured`: each file the script could not measure, with the reason
+ */
 export type GrowthReport = {
   line: string
   measured: number
@@ -117,9 +127,9 @@ export class GitError extends Error {
   }
 }
 
-const MEASURED_EXTENSIONS: readonly string[] = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]
 const TYPESCRIPT_EXTENSIONS: readonly string[] = [".ts", ".tsx", ".mts", ".cts"]
-const MEASURED_GLOB = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
+const MEASURED_EXTENSIONS: readonly string[] = [...TYPESCRIPT_EXTENSIONS, ".js", ".jsx", ".mjs", ".cjs"]
+const MEASURED_GLOB = `**/*.{${MEASURED_EXTENSIONS.map((extension) => extension.slice(1)).join(",")}}`
 const JSX_GLOB = "**/*.{tsx,jsx}"
 // Test files are left out, as the design pass leaves them out of its read: the test-audit phase owns them.
 const TEST_FOLDER = /(^|\/)__tests__\//
@@ -133,6 +143,9 @@ const MAX_LINE_NAMES = 8
 const COMPLEXITY_MESSAGE = /^(.*) has a complexity of (\d+)\./
 const FUNCTION_TYPES: readonly string[] = ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]
 const CLASS_TYPES: readonly string[] = ["ClassDeclaration", "ClassExpression"]
+const KEYED_MEMBER_TYPES: readonly string[] = ["Property", "MethodDefinition", "PropertyDefinition"]
+// Joins an anonymous function's name to the name of the function around it; `namedAfterEnclosing` reads it back.
+const ENCLOSING_SEPARATOR = " › "
 // Keys that point back up or across the tree, or hold position data, never at a child node.
 const NON_CHILD_KEYS: readonly string[] = ["parent", "loc", "range", "tokens", "comments"]
 const WHITESPACE = /\s+/g
@@ -151,7 +164,7 @@ type EslintConstructor = new (options: JsonObject) => EslintInstance
 export type Tooling = { ESLint: EslintConstructor; parser: unknown }
 type RunOptions = { repo: string; from: string; to: string; tooling: string }
 export type FileMeasurement = { path: string; basePath: string | null; budget: Budget; head: MeasuredFunction[]; paired: PairedFunctions }
-type MeasureContext = Omit<RunOptions, "tooling"> & { tooling: Tooling; linters: Map<Budget["variant"], Linter>; budgets: EslintInstance }
+type MeasureContext = Omit<RunOptions, "tooling"> & { tooling: Tooling; linters: Map<Budget["variant"], Linter>; repoConfigEslint: EslintInstance }
 
 const isJsonObject = (value: unknown): value is JsonObject => {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -227,6 +240,7 @@ export const selectFiles = (nameStatus: string): ChangedFile[] => {
   return files
 }
 
+// Base and head functions pair by name, so a name read from source drops its whitespace and survives a reformat.
 const sourceOf = (text: string, node: AstNode): string => text.slice(node.range[0], node.range[1]).replace(WHITESPACE, "")
 
 /** A binding's name; a TypeScript identifier's range takes in its type annotation, so it is read from `name`. */
@@ -236,7 +250,11 @@ const bindingName = (text: string, node: AstNode): string => {
 
 const isFunctionNode = (node: AstNode): boolean => FUNCTION_TYPES.includes(node.type)
 
-/** Whether the parent passes the child's value through to its own, so the parent's name is the child's. */
+/**
+ * Whether the variable the parent initializes also names the child:
+ * - `await`, `as`, a conditional branch or a logical operand hands the child's value on as the parent's
+ * - a call or `new` that takes the child as an argument names the callback after the variable its result lands in
+ */
 const wrapsValue = (parent: AstNode, child: AstNode): boolean => {
   switch (parent.type) {
     case "CallExpression":
@@ -270,11 +288,11 @@ const initializedVariable = (text: string, node: AstNode, ancestors: readonly As
   return initializedVariable(text, parent, ancestors.slice(0, -1))
 }
 
+const isNamedClass = (node: AstNode): boolean => CLASS_TYPES.includes(node.type) && Boolean(childNode(node, "id"))
+
 /** The class or variable a member belongs to: the nearest named class, or the variable a class or object sits in. */
 const ownerName = (text: string, ancestors: readonly AstNode[]): string | null => {
-  const owner = ancestors.findLast((ancestor) => {
-    return (CLASS_TYPES.includes(ancestor.type) && Boolean(childNode(ancestor, "id"))) || ancestor.type === "VariableDeclarator"
-  })
+  const owner = ancestors.findLast((ancestor) => isNamedClass(ancestor) || ancestor.type === "VariableDeclarator")
   const ownerId = owner ? childNode(owner, "id") : undefined
   return ownerId ? bindingName(text, ownerId) : null
 }
@@ -290,6 +308,10 @@ const calleeName = (text: string, call: AstNode): string | null => {
 
 const isCallLike = (node: AstNode): boolean => node.type === "CallExpression" || node.type === "NewExpression"
 
+/**
+ * The first source that fits, checked in order. A function that fits none (an argument, an array element, a
+ * returned function) is a callback, which carries a callee only when the function is a call's argument.
+ */
 const functionNameSource = (text: string, node: AstNode, ancestors: readonly AstNode[]): NameSource => {
   const id = childNode(node, "id")
   if (id) return { kind: "name", name: bindingName(text, id) }
@@ -299,7 +321,7 @@ const functionNameSource = (text: string, node: AstNode, ancestors: readonly Ast
 
   const parent = ancestors.at(-1)
   const key = parent ? childNode(parent, "key") : undefined
-  if (parent && key && ["Property", "MethodDefinition", "PropertyDefinition"].includes(parent.type)) {
+  if (parent && key && KEYED_MEMBER_TYPES.includes(parent.type)) {
     return { kind: "key", key: sourceOf(text, key), owner: ownerName(text, ancestors.slice(0, -1)) }
   }
 
@@ -341,19 +363,20 @@ const collectNodes = (ast: AstNode): Visited[] => {
 export const extractFunctionSpans = (ast: unknown, text: string): FunctionSpan[] => {
   if (!isAstNode(ast)) throw new Error("the parser returned no syntax tree")
 
+  // The walk follows each node's key order, which need not be source order, so the spans are sorted by start.
   // A parent starts no later than its child, and the depth breaks a tie, so an enclosing span always comes first.
   const visited = collectNodes(ast)
-    .filter(({ node }) => spanKind(node) !== undefined)
+    .flatMap((entry) => {
+      const kind = spanKind(entry.node)
+      return kind ? [{ ...entry, kind }] : []
+    })
     .toSorted((first, second) => first.node.range[0] - second.node.range[0] || first.ancestors.length - second.ancestors.length)
   const indexOfNode = new Map(visited.map(({ node }, index) => [node, index]))
 
-  return visited.flatMap((entry) => {
-    const kind = spanKind(entry.node)
-    if (!kind) return []
-
+  return visited.map((entry) => {
     const enclosingNode = entry.ancestors.findLast(isFunctionNode)
     const enclosing = enclosingNode ? (indexOfNode.get(enclosingNode) ?? null) : null
-    return [{ kind, start: entry.node.loc.start, end: entry.node.loc.end, source: spanSource(text, entry, kind), enclosing }]
+    return { kind: entry.kind, start: entry.node.loc.start, end: entry.node.loc.end, source: spanSource(text, entry, entry.kind), enclosing }
   })
 }
 
@@ -374,10 +397,11 @@ export const nameFunction = (span: FunctionSpan, enclosingName: string | null): 
     case "static-block":
       return source.owner ? `${source.owner} static block` : "static block"
     case "iife":
-      return enclosingName ? `${enclosingName} › IIFE` : "IIFE"
+      return enclosingName ? `${enclosingName}${ENCLOSING_SEPARATOR}IIFE` : "IIFE"
     case "callback": {
       if (!enclosingName) return "<anonymous>"
-      return source.callee ? `${enclosingName} › callback (${source.callee})` : `${enclosingName} › callback`
+      const callback = `${enclosingName}${ENCLOSING_SEPARATOR}callback`
+      return source.callee ? `${callback} (${source.callee})` : callback
     }
   }
 }
@@ -397,6 +421,7 @@ export const nameFunctions = (spans: readonly FunctionSpan[]): NamedSpan[] => {
   return named
 }
 
+/** ESLint's complexity message calls a field `Class field initializer`, a static block `Class static block`. */
 const reportedKind = (subject: string | undefined): FunctionSpan["kind"] => {
   if (subject === "Class field initializer") return "field"
   if (subject === "Class static block") return "static-block"
@@ -423,6 +448,7 @@ export const measureFunctions = (messages: readonly LintMessage[], spans: readon
     const kind = reportedKind(subject)
     // ESLint columns count from 1 and ESTree columns from 0.
     const end = { line: message.endLine ?? message.line, column: (message.endColumn ?? message.column) - 1 }
+    // In the order `extractFunctionSpans` gives, the last span that contains the position is the innermost.
     const owner = named.findLast(({ span }) => span.kind === kind && atOrBefore(span.start, end) && atOrBefore(end, span.end))
     const name = owner ? owner.name : `<unresolved at line ${message.line}>`
     return [{ name, enclosing: owner ? owner.enclosingName : null, line: message.line, complexity: Number(complexity) }]
@@ -431,7 +457,7 @@ export const measureFunctions = (messages: readonly LintMessage[], spans: readon
 
 /** A callback or IIFE is named after its enclosing function (`nameFunction`), so only those may pair by enclosing. */
 const namedAfterEnclosing = (measured: MeasuredFunction): boolean => {
-  return measured.enclosing !== null && measured.name.startsWith(`${measured.enclosing} › `)
+  return measured.enclosing !== null && measured.name.startsWith(`${measured.enclosing}${ENCLOSING_SEPARATOR}`)
 }
 
 // The ` #2`, ` #3` suffix `nameFunctions` adds counts from the file's start, so same-named functions are paired as a group.
@@ -439,11 +465,7 @@ const DUPLICATE_SUFFIX = /\s#\d+$/
 
 const groupName = (measured: MeasuredFunction): string => measured.name.replace(DUPLICATE_SUFFIX, "")
 
-const groupByName = (functions: readonly MeasuredFunction[]): Map<string, MeasuredFunction[]> => {
-  const groups = new Map<string, MeasuredFunction[]>()
-  for (const measured of functions) groups.set(groupName(measured), [...(groups.get(groupName(measured)) ?? []), measured])
-  return groups
-}
+const groupByName = (functions: readonly MeasuredFunction[]): Map<string, MeasuredFunction[]> => Map.groupBy(functions, groupName)
 
 /**
  * Pairs the base and head functions that share one name. With equal counts the order pairs them. With
@@ -453,23 +475,23 @@ const groupByName = (functions: readonly MeasuredFunction[]): Map<string, Measur
 const pairSameNamed = (baseGroup: readonly MeasuredFunction[], headGroup: readonly MeasuredFunction[]): Map<MeasuredFunction, MeasuredFunction> => {
   // A working pool the pairs claim from, so each base function pairs once.
   const remainingBase = [...baseGroup]
-  const partners = new Map<MeasuredFunction, MeasuredFunction>()
-  const claim = (headFunction: MeasuredFunction, index: number): void => {
-    const [baseFunction] = remainingBase.splice(index, 1)
-
-    if (baseFunction) partners.set(headFunction, baseFunction)
+  const baseForHead = new Map<MeasuredFunction, MeasuredFunction>()
+  const claim = (headFunction: MeasuredFunction, baseFunction: MeasuredFunction): void => {
+    remainingBase.splice(remainingBase.indexOf(baseFunction), 1)
+    baseForHead.set(headFunction, baseFunction)
   }
 
   if (baseGroup.length !== headGroup.length) {
     for (const headFunction of headGroup) {
-      const index = remainingBase.findIndex((baseFunction) => baseFunction.complexity === headFunction.complexity)
-      if (index !== -1) claim(headFunction, index)
+      const sameComplexity = remainingBase.find((baseFunction) => baseFunction.complexity === headFunction.complexity)
+      if (sameComplexity) claim(headFunction, sameComplexity)
     }
   }
   for (const headFunction of headGroup) {
-    if (!partners.has(headFunction) && remainingBase.length > 0) claim(headFunction, 0)
+    const [nextBase] = remainingBase
+    if (!baseForHead.has(headFunction) && nextBase) claim(headFunction, nextBase)
   }
-  return partners
+  return baseForHead
 }
 
 /**
@@ -479,18 +501,18 @@ const pairSameNamed = (baseGroup: readonly MeasuredFunction[], headGroup: readon
  */
 export const pairFunctions = (base: readonly MeasuredFunction[], head: readonly MeasuredFunction[]): PairedFunctions => {
   const baseGroups = groupByName(base)
-  const partners = new Map<MeasuredFunction, MeasuredFunction>()
+  const baseForHead = new Map<MeasuredFunction, MeasuredFunction>()
   for (const [name, headGroup] of groupByName(head)) {
-    for (const [headFunction, baseFunction] of pairSameNamed(baseGroups.get(name) ?? [], headGroup)) partners.set(headFunction, baseFunction)
+    for (const [headFunction, baseFunction] of pairSameNamed(baseGroups.get(name) ?? [], headGroup)) baseForHead.set(headFunction, baseFunction)
   }
-  const paired = new Set(partners.values())
-  const disappeared = base.filter((measured) => !paired.has(measured))
+  const pairedBase = new Set(baseForHead.values())
+  const disappeared = base.filter((measured) => !pairedBase.has(measured))
   const claimed = new Set<MeasuredFunction>()
   const pairs: FunctionPair[] = []
   const added: MeasuredFunction[] = []
 
   for (const headFunction of head) {
-    const byName = partners.get(headFunction)
+    const byName = baseForHead.get(headFunction)
     if (byName) {
       pairs.push({ base: byName, head: headFunction, pairedBy: "name" })
       continue
@@ -521,6 +543,7 @@ const maxOf = (options: unknown): number => {
   if (typeof options === "number") return options
   if (!isJsonObject(options)) return ESLINT_DEFAULT_MAX
   if (typeof options.max === "number") return options.max
+  // `maximum` is the rule's second name for `max`; its schema accepts both.
   return typeof options.maximum === "number" ? options.maximum : ESLINT_DEFAULT_MAX
 }
 
@@ -544,6 +567,7 @@ const listedText = (listed: readonly GrowthEntry[]): string => {
   return hidden > 0 ? `${names.join(", ")}, +${hidden} more` : names.join(", ")
 }
 
+/** The line gives the first file's reason only; the JSON's `notMeasured` carries each file's path and reason. */
 const notMeasuredText = (notMeasured: readonly NotMeasured[]): string => {
   const [first] = notMeasured
   if (!first) return ""
@@ -570,6 +594,12 @@ const readMessages = (results: unknown): LintMessage[] => {
   return messages.filter(isLintMessage)
 }
 
+/**
+ * A linter that measures every function, separate from the repo's own config, which `run` reads only for budgets:
+ * - `overrideConfigFile: true` loads none of the repo's config, so only `complexity` and the capture rule run
+ * - `allowInlineConfig: false` ignores disable directives, so a directive cannot hide a function
+ * - `max: 0` puts every function over the limit, so the rule reports each one with its complexity
+ */
 export const createLinter = (tooling: Tooling, repo: string, variant: Budget["variant"]): Linter => {
   // The capture rule hands back the tree ESLint parsed, so the names come from the same parse as the numbers.
   const capturedTrees: { ast: AstNode; text: string }[] = []
@@ -606,6 +636,7 @@ export const createLinter = (tooling: Tooling, repo: string, variant: Budget["va
   }
 }
 
+/** The linter for a variant, built once per run: each linter's rule options fix its variant. */
 const linterFor = (context: MeasureContext, variant: Budget["variant"]): Linter => {
   const existing = context.linters.get(variant)
   if (existing) return existing
@@ -618,6 +649,7 @@ const linterFor = (context: MeasureContext, variant: Budget["variant"]): Linter 
 /** The file's functions, or the reason it cannot be measured: a fatal message or an ignored file. */
 const measureCopy = async (linter: Linter, code: string, filePath: string): Promise<MeasuredFunction[] | string> => {
   const { messages, tree } = await linter(code, filePath)
+  // ESLint reports an ignored file, such as one under `node_modules`, with a warning that starts `File ignored`.
   const failure = messages.find((message) => message.fatal || message.message.startsWith("File ignored"))
   if (failure) return failure.message
   if (!tree) return "ESLint returned no syntax tree"
@@ -626,8 +658,8 @@ const measureCopy = async (linter: Linter, code: string, filePath: string): Prom
 }
 
 /** The `complexity` entry the repo's own config resolves for the path; the file need not exist on disk. */
-const budgetRule = async (budgets: EslintInstance, filePath: string): Promise<unknown> => {
-  const config = await budgets.calculateConfigForFile(filePath)
+const budgetRule = async (repoConfigEslint: EslintInstance, filePath: string): Promise<unknown> => {
+  const config = await repoConfigEslint.calculateConfigForFile(filePath)
   const rules = isJsonObject(config) ? config.rules : undefined
   return isJsonObject(rules) ? rules.complexity : undefined
 }
@@ -637,7 +669,7 @@ const measureFile = async (context: MeasureContext, file: ChangedFile): Promise<
   if (!context.tooling.parser && TYPESCRIPT_EXTENSIONS.includes(extname(path))) return { path, reason: "no TypeScript parser" }
 
   const filePath = join(context.repo, path)
-  const budget = parseBudget(await budgetRule(context.budgets, filePath))
+  const budget = parseBudget(await budgetRule(context.repoConfigEslint, filePath))
   const linter = linterFor(context, budget.variant)
   // Both copies lint under the head path, so a rename that changes the extension still reads both with one config.
   const head = await measureCopy(linter, git(context.repo, ["show", `${context.to}:${path}`]), filePath)
@@ -648,16 +680,17 @@ const measureFile = async (context: MeasureContext, file: ChangedFile): Promise<
   return { path, basePath, budget, head, paired: pairFunctions(base, head) }
 }
 
-const toEntry = (file: FileMeasurement, head: MeasuredFunction, base: FunctionPair | undefined): GrowthEntry => ({
+/** A head function's entry; `pair` is undefined for a function new at the head. */
+const toEntry = (file: FileMeasurement, head: MeasuredFunction, pair: FunctionPair | undefined): GrowthEntry => ({
   path: file.path,
   basePath: file.basePath,
   name: head.name,
   headLine: head.line,
-  base: base ? base.base.complexity : null,
+  base: pair?.base.complexity ?? null,
   head: head.complexity,
   budget: file.budget.max,
   budgetSource: file.budget.source,
-  pairedBy: base ? base.pairedBy : null,
+  pairedBy: pair?.pairedBy ?? null,
 })
 
 const isNotMeasured = (result: FileMeasurement | NotMeasured): result is NotMeasured => "reason" in result
@@ -669,7 +702,9 @@ export const buildReport = (results: readonly (FileMeasurement | NotMeasured)[])
   const notMeasured = results.filter(isNotMeasured)
   const functions = measuredFiles.flatMap((file) => file.paired.pairs.map((pair) => toEntry(file, pair.head, pair)))
   const added = measuredFiles.flatMap((file) => file.paired.added.map((head) => toEntry(file, head, undefined)))
-  const rose = functions.filter((entry) => entry.base !== null && entry.head > entry.base)
+  const rose = measuredFiles.flatMap((file) => {
+    return file.paired.pairs.filter((pair) => pair.head.complexity > pair.base.complexity).map((pair) => toEntry(file, pair.head, pair))
+  })
   const listed = [...rose, ...added]
     .filter((entry) => entry.head > entry.budget)
     .toSorted((first, second) => first.path.localeCompare(second.path) || first.headLine - second.headLine)
@@ -694,6 +729,7 @@ export const loadTooling = async (folder: string): Promise<Tooling | undefined> 
   const ESLint = isJsonObject(eslintModule) ? eslintModule.ESLint : undefined
   if (!isEslintConstructor(ESLint)) throw new Error(`${folder}/node_modules/eslint exports no ESLint class`)
 
+  // The parser is optional, and `resolve` throws for a missing package, so the parser's file is tested for instead.
   const parserPath = join(folder, "node_modules", "@typescript-eslint", "parser", "dist", "index.js")
   const parser = existsSync(parserPath) ? await importFile(parserPath) : undefined
   return { ESLint, parser }
@@ -703,8 +739,11 @@ export const run = async (options: RunOptions): Promise<GrowthReport> => {
   const tooling = await loadTooling(options.tooling)
   if (!tooling) return noEslintReport(options.tooling)
 
+  // The lowercase `d` excludes deleted files; an uppercase `D` would select only them.
   const nameStatus = git(options.repo, ["diff", "--name-status", "-M", "-z", "--diff-filter=d", options.from, options.to, "--"])
-  const context: MeasureContext = { ...options, tooling, linters: new Map(), budgets: new tooling.ESLint({ cwd: options.repo }) }
+  // This instance loads the repo's own config only to read each file's budget; `createLinter`'s instances measure.
+  const repoConfigEslint = new tooling.ESLint({ cwd: options.repo })
+  const context: MeasureContext = { ...options, tooling, linters: new Map(), repoConfigEslint }
   const results: (FileMeasurement | NotMeasured)[] = []
 
   // Files are measured one at a time because each linter hands its syntax tree back through shared state.
