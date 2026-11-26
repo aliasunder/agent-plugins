@@ -633,10 +633,11 @@ an earlier pass missed those files: read them whole first, then run every step.
 4. Write an inventory: every command or entry point, function, guard, check, catch,
    option and parameter the change adds, with `file:line`, and every document
    section the change touched, with its file and heading.
-5. Read the dispatch's `Growth:` block. Each function it lists has an ESLint
-   `complexity` that rose past the project's budget between the base and head,
-   with both numbers. Add each to the inventory, then read it whole at head and at
-   the base (`git show <base>:<path>`). When the dispatch carries no `Growth:`
+5. Read the dispatch's `Growth:` block. Each function it lists either rose past the
+   project's budget in ESLint `complexity` between the base and head, or is new and
+   past it, with both numbers (`new` in place of an added function's base). Add
+   each to the inventory, then read it whole at head and at the base
+   (`git show <base>:<path>`). When the dispatch carries no `Growth:`
    block, or the block reads `error:` or `not measured`, or names files it could
    not measure, read instead each function in those files that the change added a
    branch, a stage or a mode parameter to.

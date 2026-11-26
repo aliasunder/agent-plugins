@@ -1896,10 +1896,11 @@ moves:
 The line reports numbers only; whether an addition serves its reader is the fixer's
 and the user's judgment ("Copy and claims").
 
-The `Growth:` line names each function in the PR's changed files whose ESLint
-`complexity` rose past the project's budget, with both numbers, so the design pass
-knows where to read. Compute it once per head, with the same merge base and head as
-`Docs:`, and reuse it until the head moves:
+The `Growth:` line names each function in the PR's changed files that rose past the
+project's budget in ESLint `complexity`, or is new and past it, with both numbers
+(`new` in place of an added function's base), so the design pass knows where to
+read. Compute it once per head, with the same merge base and head as `Docs:`, and
+reuse it until the head moves:
 
 ```
 bun ${CLAUDE_SKILL_DIR}/scripts/function-growth.ts --json --repo <root> --from <merge base> --to <head>
@@ -1910,7 +1911,7 @@ above), put the folder this `SKILL.md` was read from in its place. The script pr
 no label: put its text line after `Growth:`, and keep its JSON for the design pass's
 dispatch, whose block lists every entry while the report line stops at eight names.
 The script reads ESLint and the TypeScript parser from the reviewed repository's own
-`node_modules`; without them the line reads `not measured (no ESLint in <repo>)`.
+`node_modules`; without ESLint the line reads `not measured (no ESLint in <repo>)`.
 A non-zero exit prints `Growth: error: <message>`. The line locates functions; it
 decides nothing: the design pass judges each one as code (code-quality dimension 8).
 
