@@ -21,7 +21,7 @@ conditionally for security-sensitive changes and serves standalone repository au
 | `security-auditor` | after design/tool-definition triage when security boundaries change; or standalone | red | Complete-surface security audit, local-only reproduction and private findings. Report only. |
 
 Phase 6 (pr-monitor) runs inline in the orchestrator — it needs user interaction
-and continuous monitoring, which agents can't do. `fresh-eyes` can also be dispatched
+and timed follow-ups until the PR is merge-ready, which agents can't do. `fresh-eyes` can also be dispatched
 standalone to see what a newcomer experiences without the pipeline.
 
 The design pass is a report-only run of `code-quality-reviewer`: it reads the whole

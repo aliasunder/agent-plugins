@@ -1783,7 +1783,7 @@ Phase 6 starts from PHASE6_START_HEAD. Complete pr-monitor's Step 4 follow-up ch
 the push was skipped. A successful push here counts as a push made during
 pr-monitor's run.
 
-### Phase 6: PR Monitor (inline — does not end)
+### Phase 6: PR Monitor (inline — ends at merge-ready)
 
 **Skip this phase entirely in comment mode.** The pipeline is reviewing a PR it isn't
 responsible for — there are no pushed fixes to monitor, no bot comments to resolve, and
@@ -1801,10 +1801,10 @@ and OpenAI ("Dispatch mode"), Phase 6 checks and reports only: no edits, commits
 pushes, replies, thread resolutions, PR comments, or merge-ready inbox posts. This
 restriction overrides the action instructions below and in pr-monitor.
 
-**Phase 6 does not end.** Phases 1-5 are "complete and move on" steps. Phase 6 is a
-continuous monitoring loop that outlives the pipeline. The pipeline "completes" when
-Phases 1-5 and the conditional reviews are done, but Phase 6 runs until the user
-says stop or the PR merges or closes.
+**Phase 6 ends at merge-ready, not when Phases 1-5 do.** Phases 1-5 are "complete and
+move on" steps. Phase 6 is a monitoring loop that outlives the pipeline: it runs until
+pr-monitor's Step 5 verdict is merge-ready with its inbox delivery settled, the user
+says stop, or the PR merges or closes. A blocked verdict keeps it running.
 
 **Invoke the pr-monitor skill** (call the Skill tool with `skill: "pr-monitor"`) and
 follow ALL steps through Step 5, including:
@@ -1821,7 +1821,8 @@ follow ALL steps through Step 5, including:
   In OpenCode, follow pr-monitor's **OpenCode loop scheduling** procedure for the
   post-push wake, adaptive intervals and exact loop ownership. End the OpenCode
   turn after arming so its timer can resume the same inline session.
-- **Step 5**: Continue monitoring — never auto-terminate
+- **Step 5**: Keep monitoring while the verdict is blocked; stop once it is
+  merge-ready with its inbox delivery settled
 
 As part of this phase, the primary agent also ensures PR visibility for non-inline
 findings: except private security findings, any deferred finding or beyond-diff
@@ -1903,8 +1904,9 @@ decided, except:
 - any finding in a report-only run (`--report`, or local on `main` or a detached
   HEAD): inter-phase triage step 5 listed it, and such a run asks nothing.
 
-After outputting this report, **continue the Phase 6 monitoring loop** — the report is a
-status update, not a termination signal.
+After outputting this report, **continue the Phase 6 monitoring loop while the verdict
+is blocked**; a merge-ready verdict with its inbox delivery settled ends Phase 6, as
+pr-monitor's Step 5 says.
 
 ### Comment mode
 

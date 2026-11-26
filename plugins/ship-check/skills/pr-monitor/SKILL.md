@@ -697,7 +697,8 @@ restore stale state. Check actual tool output and the list before reporting succ
 **Stopping and one-shot runs:**
 
 - User stop or a merged/closed PR stops only this run's identified loop.
-- A merge-ready snapshot keeps continuous monitoring armed.
+- A merge-ready snapshot whose inbox delivery has settled (Step 5) also stops only this
+  run's identified loop. A blocked snapshot keeps it armed.
 - A one-shot invocation arms no continuous loop. If it pushes a fix, use a temporary
   `3m` follow-up with `mode=one-shot-follow-up`. Stop that loop at the start of its
   fired pass, then run the full check. Another push gets another temporary follow-up;
@@ -719,8 +720,9 @@ between waits so the user is not left without an update for more than 60
 seconds. A sleep interrupted by new user input is steering, not a stop request;
 respond and resume monitoring unless the user says to stop. Count the elapsed
 time reported by each sleep, not its requested duration. Then re-run Step 2
-in full. **Do not end the turn with a final response while monitoring is active**
-— that stops the timed checks. If `clock.sleep` is also unavailable, run Step 2
+in full. **Do not end the turn with a final response while the verdict is blocked**
+— that stops the timed checks. A merge-ready verdict whose inbox delivery has
+settled (Step 5) ends monitoring, so end the turn then. If `clock.sleep` is also unavailable, run Step 2
 immediately and say that continuous monitoring cannot run in this session;
 never claim a background check was scheduled.
 
@@ -892,18 +894,38 @@ bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> -
 - Wrong: a standalone pr-monitor run reports merge-ready in chat only, so the PR
   never reaches the user's inbox. Right: the same run also runs the helper.
 
-After reporting, **continue monitoring** unless the user requested a one-shot check,
-said stop, or the PR is merged or closed. "Merge-ready" is a status report, not a
-termination signal. Silence from the user keeps continuous monitoring running.
-In Codex, report this snapshot in commentary and stay in the active turn; a
-final response ends the timed monitoring loop.
-In OpenCode, arrange the next wake with **OpenCode loop scheduling**, then end the
-turn so the armed loop can fire.
+**A merge-ready verdict ends monitoring once its inbox delivery has settled.** The
+user does not want repeated passes while a PR waits for her merge. Merge-ready means
+the prerequisites above hold: every bot run on the head has finished (a check queued
+or in progress on the head is a blocked snapshot, not merge-ready; the known-flaky,
+unrelated and vendor-side exceptions in the prerequisites stand) and every comment
+is answered. Delivery has
+settled when the helper printed `posted` or `already posted`, when a live lane lead
+posts READY itself, or when the run is report-only and posts nothing. `post failed`,
+`inbox unreadable` or `cmux unavailable` is an undelivered notice: the snapshot is
+blocked by it, so keep monitoring and run the helper again on the next pass. Once
+settled, end the report with `Monitoring stopped at merge-ready. A push from this
+session, or "check", restarts it.`, then:
+- in Claude Code, arm no `ScheduleWakeup` and end the turn;
+- in Codex, end the turn;
+- in OpenCode, stop this run's identified loop (**OpenCode loop scheduling**).
+
+Monitoring restarts when this session pushes again (Step 4 is mandatory after every
+push, and Steps 2 to 5 follow it), when the user asks for a check or invokes
+`/pr-monitor`, or when a lane lead relays new feedback. A merge after the stop is
+cleaned up when the user says the PR merged or when a later session's `land-task`
+finds it landed.
+
+A **blocked** verdict keeps monitoring: pending checks, an unanswered finding, a
+`triage-finding` question awaiting the user, a stale verification or an undelivered
+notice. In Codex, report the blocked snapshot in commentary and stay in the active
+turn; a final response ends the timed monitoring loop. In OpenCode, arrange the next
+wake with **OpenCode loop scheduling**, then end the turn so the armed loop can fire.
 
 ## Continuous monitoring
 
 One-shot runs finish after any required Step 4 follow-up. For continuous runs,
-keep monitoring after Step 5 — whether invoked via `/loop` or not:
+keep monitoring after a blocked Step 5 snapshot — whether invoked via `/loop` or not:
 - In Claude Code, call `ScheduleWakeup` with `delaySeconds: 240` (stays in prompt cache).
 - In Codex, remain in the active turn and use `clock.sleep({ duration_ms: 50000 })`
   in repeated intervals until 240 seconds have elapsed. Send commentary updates
@@ -923,21 +945,24 @@ keep monitoring after Step 5 — whether invoked via `/loop` or not:
   a status query that does not include the `reviewThreads` GraphQL call and all three
   2d endpoints, you are narrowing. If new findings, handle via Steps 3-4.
 - **Stop the loop only when:**
+  - The verdict is merge-ready and its inbox delivery has settled (Step 5)
   - The user explicitly says stop (or said "check once" / "one-shot" at invocation)
   - The PR is merged or closed
 - **When the PR is merged, run the `land-task` skill (where installed) before
   stopping.** It confirms the merge, removes the PR's worktree and the items its work
   created, and fast-forwards main. A closed, unmerged PR keeps its worktree.
-- **Never auto-terminate** for any other reason — not after clean checks, not after
-  silence, not because the user hasn't responded. The user may be away and expects
-  monitoring to keep running until they return.
+- **Never auto-terminate while the verdict is blocked** — not after clean checks with
+  a bot run still in progress, not after silence, not because the user hasn't
+  responded. The user may be away and expects a blocked PR to keep being watched
+  until it is merge-ready.
 
 ### Pipeline context
 
 When invoked as part of a pipeline (e.g., ship-check Phase 6), the pipeline's other
-phases being complete does NOT mean monitoring is done. Phase 6 outlives the pipeline.
-Continue monitoring until the user explicitly says stop or the PR is merged/closed.
+phases being complete does NOT mean monitoring is done. Phase 6 outlives the pipeline:
+continue monitoring until the verdict is merge-ready with its delivery settled, the
+user explicitly says stop, or the PR is merged/closed.
 
-If you feel pressure to "wrap up" because a reporting template exists — that template
-is a status snapshot, not a termination signal. Output the report, then continue the
-monitoring loop.
+If you feel pressure to "wrap up" because a reporting template exists — a blocked
+snapshot's template is a status report, not a termination signal. Output the report,
+then continue the monitoring loop.
