@@ -546,8 +546,8 @@ disposition.
    - every tool-definition re-review finding, class-sweep instances included
      ("The re-review", steps 5 to 7);
    - a design-pass proposal that "Design pass", step 5, reserves for the user:
-     one that removes a guard, check, catch, guard clause or option
-     (`needs design decision`), or any proposal from the final pass.
+     every proposal it marks `needs design decision`, or any proposal from the
+     final pass.
 
    Route them and every other deferral this way:
    - Pass each of the five kinds to `triage-finding` with the instruction "the user
@@ -1012,12 +1012,13 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      ```
    - **Local mode:** DESIGN_BASE is REVIEW_BASE.
    - **Both modes:** DESIGN_HEAD is the output of `git rev-parse HEAD`.
-   - **Both modes:** compute the `Growth:` block for this base and head with the
-     script run Reporting describes under its `Growth:` line
+   - **Both modes:** compute the `Growth:` block for this base and head as
+     Reporting describes under its `Growth:` line
      (`--json --from <DESIGN_BASE> --to <DESIGN_HEAD>`); when this run already
-     computed it for the same base and head, reuse that result, and when
-     Reporting's trust rule skips the script, the block reads
-     `not computed (untrusted checkout)`.
+     computed it for the same base and head, reuse that result. The block's first
+     line is the value Reporting writes after `Growth:` (the JSON's `line`,
+     `error: <stderr>` or `not computed (untrusted checkout)`); the entry lines
+     follow only when the script printed JSON.
 2. **Dispatch.** Use the Ordinary review task class (Execution):
 
    ```
@@ -1026,7 +1027,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      model: "<resolved model>",
      effort: "<resolved phase effort>",
      description: "Design pass — <resolved model> / <resolved phase effort>",
-     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\nGrowth: <the JSON's `line`>\n<one line per entry in the JSON's `listed`: `path` (and `basePath` when it differs from `path`), `name`, `base` → `head`, with `new` for a null `base`>\n<one line per entry in the JSON's `notMeasured`: `path`, not measured: `reason`>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
+     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\nGrowth: <the value Reporting writes after Growth:>\n<one line per entry in the JSON's `listed`: `path` (and `basePath` when it differs from `path`), `name`, `base` → `head`, with `new` for a null `base`>\n<one line per entry in the JSON's `notMeasured`: `path`, not measured: `reason`>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
    })
    ```
 
@@ -1057,9 +1058,9 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
 
    Every proposal that triage does not fix goes to `triage-finding` in one call, so
    the proposals reach the user as one question: up to four as a multi-select, five
-   or more as a table followed by one question with fixed options. The pass's
-   protective proposals, and every final-pass proposal, are among the kinds
-   inter-phase triage step 5 reserves for the user.
+   or more as a table followed by one question with fixed options. Every proposal
+   this step marks `needs design decision`, and every final-pass proposal, are among
+   the kinds inter-phase triage step 5 reserves for the user.
 6. **The session's cut list.** Each cut the user approves goes on the cut list. Pass
    the list as a `Cuts:` line, in step 2's format, in the prompt of every later
    design pass (step 2's template), delta review, and Phase 1, 3, 4 or 5 dispatch of
@@ -1866,7 +1867,7 @@ Ship check complete:
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Docs:         <path>[ (generated)] <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
-- Growth:       <the script JSON's `line`> at <head SHA, full> (merge base <full SHA>) | error: <message>
+- Growth:       <the script JSON's `line`> at <head SHA, full> (merge base <full SHA>) | error: <message> | not computed (untrusted checkout)
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test>[ — swept at <HEAD_SHA read> (merge base <MERGE_BASE>)] | …; re-review round <n>; accepted unreviewed: <tools> at <SHA>
 - Security audit: <audited: profiles, per-profile SHA/base | not triggered: inspected scope and reason | skipped by request | not selected | blocked: reason and next action>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
@@ -1913,7 +1914,9 @@ above), put the folder this `SKILL.md` was read from in its place. The JSON's `l
 field is the text to put after `Growth:`, and the rest of the JSON feeds the design
 pass's dispatch, whose block lists every entry while `line` stops at eight names.
 The script reads ESLint and the TypeScript parser from the reviewed repository's own
-`node_modules`; without ESLint the line reads `not measured (no ESLint in <repo>)`.
+`node_modules`; without ESLint the line reads `not measured (no ESLint in <repo>)`,
+and a checkout with no install can borrow another checkout's with
+`--tooling <that checkout>`.
 On a non-zero exit, write `Growth: error: <the script's stderr>`. The script also
 loads the checked-out tree's `eslint.config.*`, which is code from that tree, so run
 it only on a tree whose code the run already executes: in comment mode, and on a

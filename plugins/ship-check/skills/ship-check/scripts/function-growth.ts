@@ -118,14 +118,8 @@ export type GrowthReport = {
   notMeasured: NotMeasured[]
 }
 
-export class GitError extends Error {
-  readonly stderr: string
-
-  constructor(message: string, stderr: string) {
-    super(message)
-    this.stderr = stderr
-  }
-}
+/** A failed git call; `main` maps it to exit code 2 so a caller can tell a git failure from any other. */
+export class GitError extends Error {}
 
 const TYPESCRIPT_EXTENSIONS: readonly string[] = [".ts", ".tsx", ".mts", ".cts"]
 const MEASURED_EXTENSIONS: readonly string[] = [...TYPESCRIPT_EXTENSIONS, ".js", ".jsx", ".mjs", ".cjs"]
@@ -206,7 +200,7 @@ const git = (repo: string, args: readonly string[]): string => {
     })
   } catch (error) {
     const stderr = isJsonObject(error) && typeof error.stderr === "string" ? error.stderr : ""
-    throw new GitError(`git ${args.join(" ")} failed: ${stderr.trim() || String(error)}`, stderr)
+    throw new GitError(`git ${args.join(" ")} failed: ${stderr.trim() || String(error)}`)
   }
 }
 
@@ -780,7 +774,7 @@ const main = async (): Promise<void> => {
     return
   }
   if (!values.repo || !values.from || !values.to) throw new Error("--repo, --from and --to are required")
-  // `--from` can come from a PR body; a leading dash would reach git as an option such as `--output=<file>`.
+  // A value with a leading dash would reach git as an option such as `--output=<file>`, whatever its source.
   if (values.from.startsWith("-") || values.to.startsWith("-")) throw new Error("--from and --to must name commits, not options")
 
   // ESLint's `cwd` and `createRequire` take only absolute paths, so a relative folder such as `.` is resolved first.

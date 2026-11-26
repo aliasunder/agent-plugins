@@ -746,7 +746,8 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 ## Step 5: Final report
 
 **Merge-ready prerequisites -- ALL must be true before that verdict:**
-- All CI checks passing (or only known-flaky / unrelated failures)
+- All CI checks passing (or only known-flaky / unrelated failures); a check queued or
+  in progress on the head is not passing
 - No missing required approvals or merge conflicts; mergeability is known
 - All bot threads resolved (each one replied to before resolving), except findings
   `triage-finding` left pending, which stay unresolved and are listed as blockers
@@ -875,11 +876,9 @@ PR #<number> status:
 
 The `Docs:` line is the one ship-check's Reporting section defines, computed the same
 way; when ship-check runs, both reports print the same value for the same head. So is
-the `Growth:` line: run the ship-check skill's script from this skill's folder,
-`bun ${CLAUDE_SKILL_DIR}/../ship-check/scripts/function-growth.ts --json --repo <root> --from <merge base> --to <head>`
-(when the runtime left `${CLAUDE_SKILL_DIR}` unreplaced, put the folder this
-`SKILL.md` was read from in its place), and print the JSON's `line` field after the
-label.
+the `Growth:` line, computed as that section says, its trust rule and error line
+included; from this skill's folder the script is
+`${CLAUDE_SKILL_DIR}/../ship-check/scripts/function-growth.ts`.
 
 **Post EVERY merge-ready verdict to the user's inbox,** in a standalone run and in
 ship-check's Phase 6 alike: the user tracks which PRs are ready to merge from that
@@ -902,17 +901,14 @@ bun ~/.agents/scripts/peer-messaging/notify-merge-ready.ts --repo <owner/name> -
   never reaches the user's inbox. Right: the same run also runs the helper.
 
 **A merge-ready verdict ends monitoring once its inbox delivery has settled.** The
-user does not want repeated passes while a PR waits for her merge. Merge-ready means
-the prerequisites above hold: every bot run on the head has finished (a check queued
-or in progress on the head is a blocked snapshot, not merge-ready; the known-flaky
-and unrelated CI exceptions in the prerequisites stand) and every comment
-is answered. Delivery has settled when the helper printed `posted` or `already
+user does not want repeated passes while a PR waits for her merge, and the
+prerequisites above already require every bot run on the head to have finished and
+every comment to be answered. Delivery has settled when the helper printed `posted` or `already
 posted`, when no helper exists, when a live lane lead posts READY itself, or when the
 run is report-only and posts nothing. Any other output, such as `post failed`,
 `inbox unreadable` or `cmux unavailable`, is an undelivered notice: the snapshot is
 blocked by it, so keep monitoring and run the helper again on the next pass. Once
-settled, end the report
-with `Monitoring stopped at merge-ready. A push from this
+settled, end the report with `Monitoring stopped at merge-ready. A push from this
 session, or "check", restarts it.`, then:
 - in Claude Code, arm no `ScheduleWakeup` and end the turn;
 - in Codex, end the turn;
@@ -924,11 +920,9 @@ push, and Steps 2 to 5 follow it), when the user asks for a check or invokes
 cleaned up when the user says the PR merged or when a later session's `land-task`
 finds it landed.
 
-A **blocked** verdict keeps monitoring: pending checks, an unanswered finding, a
-`triage-finding` question awaiting the user, a stale verification or an undelivered
-notice. In Codex, report the blocked snapshot in commentary and stay in the active
-turn; a final response ends the timed monitoring loop. In OpenCode, arrange the next
-wake with **OpenCode loop scheduling**, then end the turn so the armed loop can fire.
+A **blocked** verdict keeps monitoring (Continuous monitoring, below): pending checks,
+an unanswered finding, a `triage-finding` question awaiting the user, a stale
+verification or an undelivered notice.
 
 ## Continuous monitoring
 
