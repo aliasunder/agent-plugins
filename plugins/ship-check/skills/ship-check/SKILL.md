@@ -1015,7 +1015,9 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
    - **Both modes:** compute the `Growth:` block for this base and head with the
      script run Reporting describes under its `Growth:` line
      (`--json --from <DESIGN_BASE> --to <DESIGN_HEAD>`); when this run already
-     computed it for the same base and head, reuse that result.
+     computed it for the same base and head, reuse that result, and when
+     Reporting's trust rule skips the script, the block reads
+     `not computed (untrusted checkout)`.
 2. **Dispatch.** Use the Ordinary review task class (Execution):
 
    ```
@@ -1912,7 +1914,12 @@ field is the text to put after `Growth:`, and the rest of the JSON feeds the des
 pass's dispatch, whose block lists every entry while `line` stops at eight names.
 The script reads ESLint and the TypeScript parser from the reviewed repository's own
 `node_modules`; without ESLint the line reads `not measured (no ESLint in <repo>)`.
-On a non-zero exit, write `Growth: error: <the script's stderr>`. The line locates
+On a non-zero exit, write `Growth: error: <the script's stderr>`. The script also
+loads the checked-out tree's `eslint.config.*`, which is code from that tree, so run
+it only on a tree whose code the run already executes: in comment mode, and on a
+fork PR (`isCrossRepository`) in any mode, do not run it; write
+`Growth: not computed (untrusted checkout)` and the design pass reads the changed
+functions instead (code-quality dimension 8, read step 5). The line locates
 functions; it decides nothing: the design pass judges each one as code
 (code-quality dimension 8).
 
@@ -1949,7 +1956,7 @@ Ship check complete (comment mode):
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Docs:         <the default-mode Docs line, at the PR head>
-- Growth:       <the default-mode Growth line, at the PR head>
+- Growth:       not computed (untrusted checkout)
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
 - Security audit: <coverage state from the default template; this chat summary only, never posted; private findings withheld>
 - Verification: <the gate's classification | no profile | profile unreadable | skipped | not selected> (comment mode deploys nothing)

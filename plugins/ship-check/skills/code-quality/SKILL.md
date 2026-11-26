@@ -645,7 +645,7 @@ an earlier pass missed those files: read them whole first, then run every step.
    - Read each one whole at head and at the base (`git show <base>:<path>`, with
      the block's base path when the file was renamed).
    - When the dispatch carries no `Growth:` block, or the block reads `error:`,
-     `not measured` or `no measurable files`, read instead each function the
+     `not computed`, `not measured` or `no measurable files`, read instead each function the
      change added a branch, a stage or a mode parameter to. When the block lists
      files it could not measure, do the same in those files.
 6. For each run of two or more calls or commands the change adds that do one job
