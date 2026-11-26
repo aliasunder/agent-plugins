@@ -909,7 +909,8 @@ is answered. Delivery has settled when the helper printed `posted` or `already
 posted`, when no helper exists, when a live lane lead posts READY itself, or when the
 run is report-only and posts nothing. `post failed`, `inbox unreadable` or `cmux
 unavailable` is an undelivered notice: the snapshot is blocked by it, so keep
-monitoring and run the helper again on the next pass. Once settled, end the report with `Monitoring stopped at merge-ready. A push from this
+monitoring and run the helper again on the next pass. Once settled, end the report
+with `Monitoring stopped at merge-ready. A push from this
 session, or "check", restarts it.`, then:
 - in Claude Code, arm no `ScheduleWakeup` and end the turn;
 - in Codex, end the turn;
