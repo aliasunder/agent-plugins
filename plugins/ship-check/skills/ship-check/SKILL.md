@@ -147,10 +147,7 @@ in fewer words, and whether the fact belongs in this document at all. Then exten
 (add the fact at this document's level of detail), generalize (state the rule the
 instances share), qualify (re-scope the claim itself), move it to the document or
 comment that owns the mechanism, or delete it, and name that choice in the fix's report. A
-wrong fact is always corrected. A qualification keeps the document's own vocabulary:
-in a user-facing document, scope a claim by a condition its reader knows (Sync on or
-off), never by an image tag, an env var or a code name, which belong in the document
-that owns that setting. Never patch an over-claim by adding caveat sentences,
+wrong fact is always corrected. Never patch an over-claim by adding caveat sentences,
 and never add code-level detail (data structures, log message names, test mechanics)
 because a finding or suggestion lists it: a design or security document carries the
 design and its visible limits. A reference the reader looks up entry by entry (a

@@ -283,6 +283,18 @@ Anti-rationalization rules for fresh-eyes pauses:
   different referent always misleads
 
 ### 2. Structure
+- **Responsibility fit, before the shape checks**: for each changed function, module
+  and doc section, read the sentence that says what it is responsible for (the
+  docstring, the module's header comment, the section's lead) and check that every
+  addition fits it. A header that says only "helpers", "shared" or "utilities" is a
+  finding: the unit has no responsibility, so anything two call sites share will land
+  in it. A unit whose body serves two responsibilities (a core that switches on
+  which wrapper called it; a template that renders two tools' descriptions) is a
+  finding under this item even when every shape rule below is satisfied, because
+  the rules below constrain a shape once the responsibility is known and never
+  define one. Fix: give the unit one sentence and move what does not fit to the unit
+  that owns it. Boundary: a unit whose header states one responsibility and whose
+  body serves it passes, however many rules below it bends
 - **Early returns over nested if/else** — and over a "unified" loop that absorbs the
   simple case as a special first iteration: a loop counting `suffix` up from 0
   whose body builds each candidate with `suffix === 0 ? base : suffixed`, so the

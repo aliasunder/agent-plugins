@@ -360,6 +360,13 @@ threads"), so each fix reply names a commit the PR already has.
 
 3. If valid, a defect or evidenced handling, and not a small no-impact fix past the
    review cap (all three as item 1 defines them): **make the code fix**.
+   Before writing it, read what the unit it lands in is responsible for and who it
+   serves (the function's docstring, the module's header, the doc section's lead);
+   a fix that does not fit that sentence goes to the unit that owns it, or changes
+   the sentence and says so. A finding describes a symptom; it never says what a
+   unit is for, and a fix shaped only by the finding (a shared helper for two
+   sites, a caveat in the document's wrong vocabulary) is how the next round's
+   findings are made.
    If the lift is unclear, assess it first (how many lines? does it need tests? does it
    change an interface?) and state it in the one-liner. Fix anything that's reasonable
    effort; only escalate to the user when the fix is genuinely high lift, through
