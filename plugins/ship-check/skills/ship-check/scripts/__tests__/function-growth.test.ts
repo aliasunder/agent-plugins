@@ -23,6 +23,7 @@ import {
   nameFunctions,
   pairFunctions,
   parseBudget,
+  readMessages,
   selectFiles,
 } from "../function-growth.ts"
 
@@ -267,6 +268,20 @@ describe("measureFunctions", () => {
 })
 
 const measuredCopy = (copy: FixtureCopy): MeasuredFunction[] => measureFunctions(copy.messages, copy.spans)
+
+describe("readMessages", () => {
+  it("keeps ESLint's unpositioned file-level notice so an ignored file reports ESLint's own reason", () => {
+    const ignored = {
+      ruleId: null,
+      fatal: false,
+      severity: 1,
+      message: 'File ignored by default because it is located under the node_modules directory. Use "--no-ignore" to override.',
+      nodeType: null,
+    }
+
+    assert.deepStrictEqual(readMessages([{ filePath: "node_modules/x.js", messages: [ignored] }]), [{ ...ignored, line: 0, column: 0 }])
+  })
+})
 
 describe("pairFunctions", () => {
   it("pairs the lock callback by name across a change that raised it", () => {

@@ -588,10 +588,16 @@ export const formatLine = (input: LineInput): string => {
   return `${input.rose} of ${input.measured} measured functions rose; ${past}${suffix}`
 }
 
-const readMessages = (results: unknown): LintMessage[] => {
+/** A file-level notice from ESLint (`File ignored …`) carries no position; line 0 stands in so the guard keeps it. */
+const positioned = (message: unknown): unknown => {
+  return isJsonObject(message) && message.line === undefined ? { ...message, line: 0, column: 0 } : message
+}
+
+/** The messages of the one file `lintText` returns, file-level notices included. */
+export const readMessages = (results: unknown): LintMessage[] => {
   const [first] = Array.isArray(results) ? results : []
   const messages = isJsonObject(first) && Array.isArray(first.messages) ? first.messages : []
-  return messages.filter(isLintMessage)
+  return messages.map(positioned).filter(isLintMessage)
 }
 
 /**
