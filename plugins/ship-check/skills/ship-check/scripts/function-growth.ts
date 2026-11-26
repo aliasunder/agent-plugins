@@ -68,9 +68,13 @@ export type Budget = { max: number; source: "default" | "warned" | "enforced"; v
 
 export type ChangedFile = { path: string; basePath: string | null }
 
-/** A function in the JSON output. `base` is null and `pairedBy` null for a function new at the head. */
+/**
+ * A function in the JSON output. `base` is null and `pairedBy` null for a function new at the head;
+ * `basePath` is the file's path at the base commit, which differs from `path` for a renamed file.
+ */
 export type GrowthEntry = {
   path: string
+  basePath: string | null
   name: string
   headLine: number
   base: number | null
@@ -146,7 +150,7 @@ type EslintInstance = {
 type EslintConstructor = new (options: JsonObject) => EslintInstance
 export type Tooling = { ESLint: EslintConstructor; parser: unknown }
 type RunOptions = { repo: string; from: string; to: string; tooling: string }
-export type FileMeasurement = { path: string; budget: Budget; head: MeasuredFunction[]; paired: PairedFunctions }
+export type FileMeasurement = { path: string; basePath: string | null; budget: Budget; head: MeasuredFunction[]; paired: PairedFunctions }
 type MeasureContext = Omit<RunOptions, "tooling"> & { tooling: Tooling; linters: Map<Budget["variant"], Linter>; budgets: EslintInstance }
 
 const isJsonObject = (value: unknown): value is JsonObject => {
@@ -430,21 +434,63 @@ const namedAfterEnclosing = (measured: MeasuredFunction): boolean => {
   return measured.enclosing !== null && measured.name.startsWith(`${measured.enclosing} › `)
 }
 
+// The ` #2`, ` #3` suffix `nameFunctions` adds counts from the file's start, so same-named functions are paired as a group.
+const DUPLICATE_SUFFIX = /\s#\d+$/
+
+const groupName = (measured: MeasuredFunction): string => measured.name.replace(DUPLICATE_SUFFIX, "")
+
+const groupByName = (functions: readonly MeasuredFunction[]): Map<string, MeasuredFunction[]> => {
+  const groups = new Map<string, MeasuredFunction[]>()
+  for (const measured of functions) groups.set(groupName(measured), [...(groups.get(groupName(measured)) ?? []), measured])
+  return groups
+}
+
+/**
+ * Pairs the base and head functions that share one name. With equal counts the order pairs them. With
+ * different counts a sibling was inserted or removed, which renumbers every later suffix, so an equal
+ * complexity marks the same function first and the rest pair in order.
+ */
+const pairSameNamed = (baseGroup: readonly MeasuredFunction[], headGroup: readonly MeasuredFunction[]): Map<MeasuredFunction, MeasuredFunction> => {
+  // A working pool the pairs claim from, so each base function pairs once.
+  const remainingBase = [...baseGroup]
+  const partners = new Map<MeasuredFunction, MeasuredFunction>()
+  const claim = (headFunction: MeasuredFunction, index: number): void => {
+    const [baseFunction] = remainingBase.splice(index, 1)
+
+    if (baseFunction) partners.set(headFunction, baseFunction)
+  }
+
+  if (baseGroup.length !== headGroup.length) {
+    for (const headFunction of headGroup) {
+      const index = remainingBase.findIndex((baseFunction) => baseFunction.complexity === headFunction.complexity)
+      if (index !== -1) claim(headFunction, index)
+    }
+  }
+  for (const headFunction of headGroup) {
+    if (!partners.has(headFunction) && remainingBase.length > 0) claim(headFunction, 0)
+  }
+  return partners
+}
+
 /**
  * Pairs base and head functions by name. An anonymous head function (a callback or IIFE) with no partner
  * pairs with an anonymous base function that disappeared under the same enclosing function, such as a
  * callback whose wrapper changed; a named function pairs by name only. Anything else is new.
  */
 export const pairFunctions = (base: readonly MeasuredFunction[], head: readonly MeasuredFunction[]): PairedFunctions => {
-  const baseByName = new Map(base.map((measured) => [measured.name, measured]))
-  const headNames = new Set(head.map((measured) => measured.name))
-  const disappeared = base.filter((measured) => !headNames.has(measured.name))
+  const baseGroups = groupByName(base)
+  const partners = new Map<MeasuredFunction, MeasuredFunction>()
+  for (const [name, headGroup] of groupByName(head)) {
+    for (const [headFunction, baseFunction] of pairSameNamed(baseGroups.get(name) ?? [], headGroup)) partners.set(headFunction, baseFunction)
+  }
+  const paired = new Set(partners.values())
+  const disappeared = base.filter((measured) => !paired.has(measured))
   const claimed = new Set<MeasuredFunction>()
   const pairs: FunctionPair[] = []
   const added: MeasuredFunction[] = []
 
   for (const headFunction of head) {
-    const byName = baseByName.get(headFunction.name)
+    const byName = partners.get(headFunction)
     if (byName) {
       pairs.push({ base: byName, head: headFunction, pairedBy: "name" })
       continue
@@ -599,11 +645,12 @@ const measureFile = async (context: MeasureContext, file: ChangedFile): Promise<
   if (typeof head === "string") return { path, reason: head }
   if (typeof base === "string") return { path, reason: base }
 
-  return { path, budget, head, paired: pairFunctions(base, head) }
+  return { path, basePath, budget, head, paired: pairFunctions(base, head) }
 }
 
 const toEntry = (file: FileMeasurement, head: MeasuredFunction, base: FunctionPair | undefined): GrowthEntry => ({
   path: file.path,
+  basePath: file.basePath,
   name: head.name,
   headLine: head.line,
   base: base ? base.base.complexity : null,

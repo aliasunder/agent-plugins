@@ -289,6 +289,20 @@ describe("pairFunctions", () => {
     })
   })
 
+  it("pairs same-named callbacks by equal complexity when a sibling was inserted before them", () => {
+    const complexCallback: MeasuredFunction = { name: "rebuild › callback (forEach)", enclosing: "rebuild", line: 3, complexity: 4 }
+    const insertedTrivial: MeasuredFunction = { name: "rebuild › callback (forEach)", enclosing: "rebuild", line: 2, complexity: 1 }
+    const renumbered: MeasuredFunction = { ...complexCallback, name: "rebuild › callback (forEach) #2", line: 6 }
+
+    assert.deepStrictEqual(pairFunctions([enclosingFunction, complexCallback], [enclosingFunction, insertedTrivial, renumbered]), {
+      pairs: [
+        { base: enclosingFunction, head: enclosingFunction, pairedBy: "name" },
+        { base: complexCallback, head: renumbered, pairedBy: "name" },
+      ],
+      added: [insertedTrivial],
+    })
+  })
+
   it("never pairs a named nested function with a disappeared callback", () => {
     const namedNested: MeasuredFunction = { name: "keepAlive", enclosing: "rebuild", line: 2, complexity: 2 }
 
@@ -346,6 +360,7 @@ describe("parseBudget", () => {
 
 const entry = (overrides: Partial<GrowthEntry>): GrowthEntry => ({
   path: "src/a.ts",
+  basePath: "src/a.ts",
   name: "run",
   headLine: 1,
   base: 18,
@@ -431,9 +446,16 @@ describe("buildReport", () => {
   it("lists the lock callback's rise past the default budget", () => {
     const fixture = readFixture("lock-callback.json")
     const head = measuredCopy(fixture.head)
-    const measurement: FileMeasurement = { path: fixture.lintPath, budget: DEFAULT, head, paired: pairFunctions(measuredCopy(baseOf(fixture)), head) }
+    const measurement: FileMeasurement = {
+      path: fixture.lintPath,
+      basePath: fixture.lintPath,
+      budget: DEFAULT,
+      head,
+      paired: pairFunctions(measuredCopy(baseOf(fixture)), head),
+    }
     const callback = {
       path: "src/vault-mcp/vault-operations/task-mutations.ts",
+      basePath: "src/vault-mcp/vault-operations/task-mutations.ts",
       name: "updateTask › callback (withExclusiveFileLock)",
       headLine: 2446,
       base: 47,
@@ -460,6 +482,7 @@ describe("buildReport", () => {
     const addedUnder: MeasuredFunction = { name: "small", enclosing: null, line: 12, complexity: 2 }
     const measurement: FileMeasurement = {
       path: "src/a.ts",
+      basePath: "src/a.ts",
       budget: DEFAULT,
       head: [under, added, addedUnder],
       paired: { pairs: [{ base: before, head: under, pairedBy: "name" }], added: [added, addedUnder] },
@@ -581,8 +604,8 @@ describe("with a real ESLint from FUNCTION_GROWTH_TOOLING_REPO", () => {
     const head = commitAll(repo, "change")
     const { status, stdout, stderr } = runScript(["--json", "--repo", repo, "--tooling", toolingRepoPath(), "--from", base, "--to", head])
     const budget = { budget: 3, budgetSource: "warned" }
-    const grow = { path: "src/rise.ts", name: "grow", headLine: 1, base: 3, head: 4, ...budget, pairedBy: "name" }
-    const choose = { path: "src/added.ts", name: "choose", headLine: 1, base: null, head: 4, ...budget, pairedBy: null }
+    const grow = { path: "src/rise.ts", basePath: "src/rise.ts", name: "grow", headLine: 1, base: 3, head: 4, ...budget, pairedBy: "name" }
+    const choose = { path: "src/added.ts", basePath: null, name: "choose", headLine: 1, base: null, head: 4, ...budget, pairedBy: null }
 
     assert.deepStrictEqual({ status, stderr }, { status: 0, stderr: "" })
     assert.deepStrictEqual(JSON.parse(stdout), {
@@ -590,9 +613,9 @@ describe("with a real ESLint from FUNCTION_GROWTH_TOOLING_REPO", () => {
       measured: 4,
       rose: 2,
       functions: [
-        { path: "src/new-name.ts", name: "keep", headLine: 1, base: 1, head: 1, ...budget, pairedBy: "name" },
+        { path: "src/new-name.ts", basePath: "src/old-name.ts", name: "keep", headLine: 1, base: 1, head: 1, ...budget, pairedBy: "name" },
         grow,
-        { path: "src/small.ts", name: "pick", headLine: 1, base: 2, head: 3, ...budget, pairedBy: "name" },
+        { path: "src/small.ts", basePath: "src/small.ts", name: "pick", headLine: 1, base: 2, head: 3, ...budget, pairedBy: "name" },
       ],
       listed: [choose, grow],
       notMeasured: [{ path: "src/broken.ts", reason: "Parsing error: Variable declaration expected." }],

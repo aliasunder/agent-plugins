@@ -637,7 +637,8 @@ an earlier pass missed those files: read them whole first, then run every step.
    project's budget in ESLint `complexity` between the base and head, or is new and
    past it, with both numbers (`new` in place of an added function's base). Add
    each to the inventory, then read it whole at head and at the base
-   (`git show <base>:<path>`). When the dispatch carries no `Growth:`
+   (`git show <base>:<path>`, with the block's base path when the file was
+   renamed). When the dispatch carries no `Growth:`
    block, or the block reads `error:` or `not measured`, or names files it could
    not measure, read instead each function in those files that the change added a
    branch, a stage or a mode parameter to.

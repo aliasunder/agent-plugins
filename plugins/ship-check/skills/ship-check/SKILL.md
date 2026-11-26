@@ -1024,7 +1024,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      model: "<resolved model>",
      effort: "<resolved phase effort>",
      description: "Design pass — <resolved model> / <resolved phase effort>",
-     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\nGrowth: <the script's text line>\n<one line per listed entry: path, name, base → head>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
+     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\nGrowth: <the script's text line>\n<one line per listed entry: path (and the base path when renamed), name, base → head>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
    })
    ```
 
