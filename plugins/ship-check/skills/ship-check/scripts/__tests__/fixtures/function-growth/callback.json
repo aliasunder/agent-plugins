@@ -1,0 +1,63 @@
+{
+  "description": "An anonymous callback passed to `map` inside a named function",
+  "lintPath": "cli/src/adapters/docker.ts",
+  "head": {
+    "commit": "771fa61fcb87deb8f70e82d7b76a813ca39ef415",
+    "path": "cli/src/adapters/docker.ts",
+    "selected": [
+      "instanceVolumeNames › callback (map)"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 72,
+        "column": 93,
+        "endLine": 72,
+        "endColumn": 95
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 74,
+        "column": 47,
+        "endLine": 74,
+        "endColumn": 49
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 35,
+          "line": 72
+        },
+        "end": {
+          "column": 1,
+          "line": 75
+        },
+        "source": {
+          "kind": "name",
+          "name": "instanceVolumeNames"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 33,
+          "line": 74
+        },
+        "end": {
+          "column": 81,
+          "line": 74
+        },
+        "source": {
+          "kind": "callback",
+          "callee": "map"
+        },
+        "enclosing": 0
+      }
+    ]
+  }
+}

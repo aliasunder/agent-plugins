@@ -1,0 +1,86 @@
+{
+  "description": "An async arrow called where it is written, as one branch of a conditional initializer",
+  "lintPath": "src/vault-mcp/search/search-index.ts",
+  "head": {
+    "commit": "771fa61fcb87deb8f70e82d7b76a813ca39ef415",
+    "path": "src/vault-mcp/search/search-index.ts",
+    "selected": [
+      "rebuildFromVault › IIFE"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Arrow function has a complexity of 92. Maximum allowed is 0.",
+        "line": 538,
+        "column": 3,
+        "endLine": 538,
+        "endColumn": 5
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 17. Maximum allowed is 0.",
+        "line": 2692,
+        "column": 29,
+        "endLine": 2692,
+        "endColumn": 31
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 20. Maximum allowed is 0.",
+        "line": 3181,
+        "column": 21,
+        "endLine": 3181,
+        "endColumn": 23
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 33,
+          "line": 514
+        },
+        "end": {
+          "column": 1,
+          "line": 3703
+        },
+        "source": {
+          "kind": "name",
+          "name": "createSearchIndex"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 27,
+          "line": 2684
+        },
+        "end": {
+          "column": 3,
+          "line": 3561
+        },
+        "source": {
+          "kind": "name",
+          "name": "rebuildFromVault"
+        },
+        "enclosing": 0
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 11,
+          "line": 3181
+        },
+        "end": {
+          "column": 11,
+          "line": 3326
+        },
+        "source": {
+          "kind": "iife"
+        },
+        "enclosing": 1
+      }
+    ]
+  }
+}

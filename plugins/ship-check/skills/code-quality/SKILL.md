@@ -633,11 +633,18 @@ an earlier pass missed those files: read them whole first, then run every step.
 4. Write an inventory: every command or entry point, function, guard, check, catch,
    option and parameter the change adds, with `file:line`, and every document
    section the change touched, with its file and heading.
-5. For each run of two or more calls or commands the change adds that do one job
+5. Read the dispatch's `Growth:` block. Each function it lists has an ESLint
+   `complexity` that rose past the project's budget between the base and head,
+   with both numbers. Add each to the inventory, then read it whole at head and at
+   the base (`git show <base>:<path>`). When the dispatch carries no `Growth:`
+   block, or the block reads `error:` or `not measured`, or names files it could
+   not measure, read instead each function in those files that the change added a
+   branch, a stage or a mode parameter to.
+6. For each run of two or more calls or commands the change adds that do one job
    together (parse a query, then validate it), search the whole repo for the calls
    any copy of that job would also make (`rg -n 'parsePagination'`), so a copy in
    an unchanged file shows up too.
-6. Write a synthesis after all the reads. Before calling two pieces duplicates,
+7. Write a synthesis after all the reads. Before calling two pieces duplicates,
    compare their inputs, errors, side effects and lifecycle.
 
 Report the base and head you read, and list the files you read whole and the
@@ -661,6 +668,15 @@ in the code uses the skip's words.
 | Is anything left from a superseded approach, or left unused by a removal: dead code, an unused parameter, unreachable branches or catches, stale comments or docs? | A named input or path reaches it |
 | Does each touched document section still serve its document's reader? Judge the section as it stands at HEAD, whatever commit each sentence arrived in: one subject per section, each fact in the one document that owns its mechanism, a length and depth that match its sibling sections, and no sentence whose only reader is the review that asked for it. Code-level detail (a data structure, a log message name, a limit the reader cannot change, a step order) belongs in a code comment or the architecture section that owns the mechanism, never in a README or security document | The document is a reference the reader looks up entry by entry (a settings table, an option or error list) and the change adds its entry in the reference's own format |
 | Does each guard, check, catch and option earn its place? Weigh how often its case occurs and what failing there costs against what the piece costs on every run, whether or not its case occurs | Its case is common in supported use; or failing there loses data, breaks security, gives wrong output that nobody sees, publishes, releases or deletes something that is hard to undo, or leaves the user without the recovery the guard's own message gives, and no other layer already enforces the case. This skip does not cover a piece that, on every run, throws away or repeats work an earlier run already did and could reuse (deletes a cache or index the run then rebuilds in full, recomputes every entry to catch a rare change), to cover a rare case: propose it, naming what failing there costs and what the piece costs on every run. Checking the input the run receives (validating each item, one lookup per call) is not such a piece, however large the input |
+| Did the change leave a function harder to change next time? Read each function the `Growth:` block lists (its complexity rose and is past the project's budget) and, where the block is missing or incomplete, each function the change added a branch, a stage or a mode parameter to (a parameter whose value selects a branch in two or more places). Judge the function as code: did the change give it a second job, or leave it a sequence a reader cannot hold? When it did, propose moving the behaviour this change added into its own stage or helper, named for what it does | Every listed or read function still does one job a reader can hold, the added behaviour included: a rise in the number alone is never a finding. A lint the function passes through a disable directive is not a skip: the block is measured with directives ignored |
+
+**The remainder of a function already past the budget before the change** is not the
+growth proposal's business. When the function carries an
+`eslint-disable-next-line complexity` directive, the repository's own marker that its
+split is owned elsewhere, say so in one line and propose nothing for the remainder.
+Otherwise the remainder is one `pre-existing gap` proposal; the orchestrator's triage
+checks the project's board for a card that covers it. Committed files carry no card
+names, so never look for one.
 
 **Four counters.** Each one rebuts a dismissal that has kept redundant code
 through past reviews:
@@ -703,6 +719,12 @@ through past reviews:
   unused parameter or an option that changes no output always meets this bar,
   however small. A document proposal names the sentences it cuts, moves or
   merges and the document or comment each moved fact goes to.
+- A growth proposal (the growth question's row) is the one proposal that may add a
+  stage or helper without removing duplication. It names the function's one
+  remaining job, the stage or helper that takes the added behaviour and what it
+  does, the lines moved, the files touched, the tests affected and the risk, and,
+  where measured, the complexity before and after as evidence, never as the
+  verdict.
 - A clean change gets `Dimension 8: nothing found`. Never pad a clean change with
   filler proposals.
 
@@ -714,11 +736,22 @@ through past reviews:
 | Duplication or dead code with no protective role | `complex fix` |
 | Document text that outgrew its siblings, repeats another document, or carries detail its reader cannot act on | `complex fix` |
 | Code that existed before the change | `pre-existing gap` |
+| Behaviour the change added, moved out of a function it grew (the growth question) | `needs design decision`: a new stage or helper is a design choice, so triage never applies it |
 
-Every `needs design decision` proposal states the case, how often it occurs, what
-failing there costs, what the piece costs on every run, and any layer that already
-enforces it: a branch ruleset and who can bypass it, a type, or a check at the same
-boundary.
+Every `needs design decision` proposal that removes a piece states the case, how
+often it occurs, what failing there costs, what the piece costs on every run, and
+any layer that already enforces it: a branch ruleset and who can bypass it, a type,
+or a check at the same boundary. A growth proposal states the fields the pragmatic
+bar lists instead.
+
+Wrong: `[design] task-mutations.ts:2446 — complexity 47 → 53 → proposal: split the
+function`.
+Right: `[design] task-mutations.ts:2446 updateTask › callback (withExclusiveFileLock),
+47 → 53 — the change added the next occurrence's block-id naming to the lock
+callback, which already validates the edit, rewrites the line and moves the lane; a
+reader now holds four jobs in one closure → proposal (needs design decision): move
+the naming into a helper named for it, −38 lines in the callback, 1 file, tests
+unchanged, risk: none; the callback's complexity afterwards 47`.
 
 Wrong: an architecture section gained one bullet per review finding over five
 commits, each bullet is accurate, and the pass reports nothing about the document

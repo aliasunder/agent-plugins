@@ -1,0 +1,92 @@
+{
+  "description": "Arrow functions as object-literal property values, with a repeated key numbered",
+  "lintPath": "src/vault-mcp/obsidian-markdown/tasks.ts",
+  "head": {
+    "commit": "771fa61fcb87deb8f70e82d7b76a813ca39ef415",
+    "path": "src/vault-mcp/obsidian-markdown/tasks.ts",
+    "selected": [
+      "ROUND_TRIP_FIELDS.readParsed",
+      "ROUND_TRIP_FIELDS.readSubmitted",
+      "ROUND_TRIP_FIELDS.readParsed #2"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Method 'readParsed' has a complexity of 1. Maximum allowed is 0.",
+        "line": 1772,
+        "column": 5,
+        "endLine": 1772,
+        "endColumn": 17
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Method 'readSubmitted' has a complexity of 1. Maximum allowed is 0.",
+        "line": 1773,
+        "column": 5,
+        "endLine": 1773,
+        "endColumn": 20
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Method 'readParsed' has a complexity of 1. Maximum allowed is 0.",
+        "line": 1777,
+        "column": 5,
+        "endLine": 1777,
+        "endColumn": 17
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 16,
+          "line": 1772
+        },
+        "end": {
+          "column": 54,
+          "line": 1772
+        },
+        "source": {
+          "kind": "key",
+          "key": "readParsed",
+          "owner": "ROUND_TRIP_FIELDS"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 19,
+          "line": 1773
+        },
+        "end": {
+          "column": 52,
+          "line": 1773
+        },
+        "source": {
+          "kind": "key",
+          "key": "readSubmitted",
+          "owner": "ROUND_TRIP_FIELDS"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 16,
+          "line": 1777
+        },
+        "end": {
+          "column": 57,
+          "line": 1777
+        },
+        "source": {
+          "kind": "key",
+          "key": "readParsed",
+          "owner": "ROUND_TRIP_FIELDS"
+        },
+        "enclosing": null
+      }
+    ]
+  }
+}

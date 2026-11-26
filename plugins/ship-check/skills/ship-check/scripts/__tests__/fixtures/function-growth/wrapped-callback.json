@@ -1,0 +1,63 @@
+{
+  "description": "A callback passed to an awaited call that initializes a variable, so it takes the variable's name",
+  "lintPath": "src/vault-mcp/vault-operations/trash-sweeper.ts",
+  "head": {
+    "commit": "771fa61fcb87deb8f70e82d7b76a813ca39ef415",
+    "path": "src/vault-mcp/vault-operations/trash-sweeper.ts",
+    "selected": [
+      "rowOutcome"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 2. Maximum allowed is 0.",
+        "line": 304,
+        "column": 93,
+        "endLine": 304,
+        "endColumn": 95
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 313,
+        "column": 84,
+        "endLine": 313,
+        "endColumn": 86
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 33,
+          "line": 304
+        },
+        "end": {
+          "column": 1,
+          "line": 340
+        },
+        "source": {
+          "kind": "name",
+          "name": "sweepExpiredTrashEntries"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 80,
+          "line": 313
+        },
+        "end": {
+          "column": 5,
+          "line": 323
+        },
+        "source": {
+          "kind": "name",
+          "name": "rowOutcome"
+        },
+        "enclosing": 0
+      }
+    ]
+  }
+}

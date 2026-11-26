@@ -25,7 +25,9 @@ and timed follow-ups until the PR is merge-ready, which agents can't do. `fresh-
 standalone to see what a newcomer experiences without the pipeline.
 
 The design pass is a report-only run of `code-quality-reviewer`: it reads the whole
-PR, not a delta, and proposes what the change could remove or merge. It runs once
+PR, not a delta, proposes what the change could remove or merge, and asks whether a
+function the `Growth:` line names (its ESLint complexity rose past the project's
+budget) now does more than one job. It runs once
 after Phase 5, and once more in Phase 6, before the first merge-ready verdict, when
 code changed since. It edits nothing. Every proposal to remove a guard, check,
 catch or option goes to the user, and so does every proposal from the second run.
@@ -85,6 +87,11 @@ and holds the merge-ready verdict until you accept the missing review.
 The `ship-check` skill bundles `scripts/artifact-gate.ts`, which decides whether a
 PR's changes need the verification step. It also runs with Bun. Without Bun the
 step cannot classify the change and holds the merge-ready verdict.
+
+The `ship-check` skill also bundles `scripts/function-growth.ts`, which computes the
+`Growth:` line from the reviewed repository's own ESLint and TypeScript parser in
+its `node_modules`. It runs with Bun. Without ESLint in the repository the line
+reads `not measured`, and the design pass reads the changed functions instead.
 
 The auditor preloads the bundled `repo-security-review` method. For standalone
 repository audits, use the bundled `security-audit` skill. Codex/OpenCode require

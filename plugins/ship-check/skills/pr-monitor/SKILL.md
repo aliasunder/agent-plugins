@@ -786,7 +786,8 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   non-test code, CI, config or shipped agent instructions, runs one before its first merge-ready verdict. Read
   the ship-check skill's "Design pass" section and run it from there, not from a
   copy in this skill:
-  - Take the base as its step 1 does in PR mode (a fresh merge base).
+  - Take the base and the `Growth:` block as its step 1 does in PR mode (a fresh
+    merge base).
   - Run its steps 2 to 4 (dispatch, edit check, coverage) and step 6 (cut list),
     with the model and effort controls from that skill's Execution section.
   - Treat the pass as a final pass: every proposal goes to the user, and none is
@@ -866,13 +867,18 @@ PR #<number> status:
 - Human threads: N unresolved (listed above)
 - Issue comment coverage: N/M evaluated (pipeline replies excluded)
 - Docs: <the ship-check skill's "Docs:" line, at this head>
+- Growth: <the ship-check skill's "Growth:" line, at this head>
 - Tool Definitions: <the ship-check skill's "Tool Definitions:" line, when the Tool text entry ran a review>
 - Security audit: <the ship-check skill's coverage state; this chat report only, never posted>
 - Verdict: merge-ready / blocked by [specific blocker]
 ```
 
 The `Docs:` line is the one ship-check's Reporting section defines, computed the same
-way; when ship-check runs, both reports print the same value for the same head.
+way; when ship-check runs, both reports print the same value for the same head. So is
+the `Growth:` line: run the ship-check skill's script from this skill's folder,
+`bun ${CLAUDE_SKILL_DIR}/../ship-check/scripts/function-growth.ts --json --repo <root> --from <merge base> --to <head>`
+(when the runtime left `${CLAUDE_SKILL_DIR}` unreplaced, put the folder this
+`SKILL.md` was read from in its place), and print its text line after the label.
 
 **Post EVERY merge-ready verdict to the user's inbox,** in a standalone run and in
 ship-check's Phase 6 alike: the user tracks which PRs are ready to merge from that

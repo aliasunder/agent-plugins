@@ -1012,6 +1012,10 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      ```
    - **Local mode:** DESIGN_BASE is REVIEW_BASE.
    - **Both modes:** DESIGN_HEAD is the output of `git rev-parse HEAD`.
+   - **Both modes:** compute the `Growth:` block for this base and head with the
+     script run Reporting describes under its `Growth:` line
+     (`--json --from <DESIGN_BASE> --to <DESIGN_HEAD>`); when the heads equal the
+     report's, reuse that result.
 2. **Dispatch.** Use the Ordinary review task class (Execution):
 
    ```
@@ -1020,7 +1024,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      model: "<resolved model>",
      effort: "<resolved phase effort>",
      description: "Design pass — <resolved model> / <resolved phase effort>",
-     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
+     prompt: "Design pass: dimension 8 only\nBase: <DESIGN_BASE>\nGrowth: <the script's text line>\n<one line per listed entry: path, name, base → head>\n\nRun the code-quality skill's dimension 8 (Whole-change design) on branch <branch> (PR #<number>): the whole change from the base above to HEAD, following its read procedure. Report only: edit, commit and push nothing.\n<when the cut list is not empty, append:>\nCuts: <one line per piece the user cut this session: file, what was removed, the user's reason>"
    })
    ```
 
@@ -1039,7 +1043,8 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
    each proposal the user already decided this session, such as a piece the user chose
    to keep. Each proposal carries its flag category:
    - `needs design decision` (removing a guard, check, catch, guard clause or
-     option): always the user's. Triage never applies it.
+     option, or moving the behaviour the change added out of a function it grew):
+     always the user's. Triage never applies it.
    - `complex fix` (duplication or dead code with no protective role): in the first
      pass, the matrix's `Complex fix` rows apply. In the final pass every proposal
      goes to the user.
@@ -1859,6 +1864,7 @@ Ship check complete:
 - Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Docs:         <path>[ (generated)] <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
+- Growth:       <the script's text line> at <head SHA, full> (merge base <full SHA>) | error: <message>
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test>[ — swept at <HEAD_SHA read> (merge base <MERGE_BASE>)] | …; re-review round <n>; accepted unreviewed: <tools> at <SHA>
 - Security audit: <audited: profiles, per-profile SHA/base | not triggered: inspected scope and reason | skipped by request | not selected | blocked: reason and next action>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
@@ -1889,6 +1895,24 @@ moves:
 
 The line reports numbers only; whether an addition serves its reader is the fixer's
 and the user's judgment ("Copy and claims").
+
+The `Growth:` line names each function in the PR's changed files whose ESLint
+`complexity` rose past the project's budget, with both numbers, so the design pass
+knows where to read. Compute it once per head, with the same merge base and head as
+`Docs:`, and reuse it until the head moves:
+
+```
+bun ${CLAUDE_SKILL_DIR}/scripts/function-growth.ts --json --repo <root> --from <merge base> --to <head>
+```
+
+When the runtime left `${CLAUDE_SKILL_DIR}` unreplaced (you see that literal text
+above), put the folder this `SKILL.md` was read from in its place. The script prints
+no label: put its text line after `Growth:`, and keep its JSON for the design pass's
+dispatch, whose block lists every entry while the report line stops at eight names.
+The script reads ESLint and the TypeScript parser from the reviewed repository's own
+`node_modules`; without them the line reads `not measured (no ESLint in <repo>)`.
+A non-zero exit prints `Growth: error: <message>`. The line locates functions; it
+decides nothing: the design pass judges each one as code (code-quality dimension 8).
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
 finding it deferred, from a phase, a delta review, a design pass or the
@@ -1923,6 +1947,7 @@ Ship check complete (comment mode):
 - Bug Check:    N findings commented (by dimension)
 - Design pass:  <first | skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals, posted as one PR comment
 - Docs:         <the default-mode Docs line, at the PR head>
+- Growth:       <the default-mode Growth line, at the PR head>
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes, posted as one PR comment
 - Security audit: <coverage state from the default template; this chat summary only, never posted; private findings withheld>
 - Verification: <the gate's classification | no profile | profile unreadable | skipped | not selected> (comment mode deploys nothing)

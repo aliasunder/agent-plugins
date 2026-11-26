@@ -1,0 +1,122 @@
+{
+  "description": "The update lock callback before and after a change that raised its complexity from 47 to 53",
+  "lintPath": "src/vault-mcp/vault-operations/task-mutations.ts",
+  "base": {
+    "commit": "7ad4d95f960debda4fff97ca624c8c7099aa3b87",
+    "path": "src/vault-mcp/vault-operations/task-mutations.ts",
+    "selected": [
+      "updateTask › callback (withExclusiveFileLock)"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 2351,
+        "column": 96,
+        "endLine": 2351,
+        "endColumn": 98
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 47. Maximum allowed is 0.",
+        "line": 2372,
+        "column": 51,
+        "endLine": 2372,
+        "endColumn": 53
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 19,
+          "line": 2351
+        },
+        "end": {
+          "column": 1,
+          "line": 2714
+        },
+        "source": {
+          "kind": "name",
+          "name": "updateTask"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 41,
+          "line": 2372
+        },
+        "end": {
+          "column": 3,
+          "line": 2713
+        },
+        "source": {
+          "kind": "callback",
+          "callee": "withExclusiveFileLock"
+        },
+        "enclosing": 0
+      }
+    ]
+  },
+  "head": {
+    "commit": "01f12de7534e5ff4f473af2e329484bd1e54697a",
+    "path": "src/vault-mcp/vault-operations/task-mutations.ts",
+    "selected": [
+      "updateTask › callback (withExclusiveFileLock)"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 2424,
+        "column": 96,
+        "endLine": 2424,
+        "endColumn": 98
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 53. Maximum allowed is 0.",
+        "line": 2446,
+        "column": 51,
+        "endLine": 2446,
+        "endColumn": 53
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 19,
+          "line": 2424
+        },
+        "end": {
+          "column": 1,
+          "line": 2815
+        },
+        "source": {
+          "kind": "name",
+          "name": "updateTask"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 41,
+          "line": 2446
+        },
+        "end": {
+          "column": 3,
+          "line": 2814
+        },
+        "source": {
+          "kind": "callback",
+          "callee": "withExclusiveFileLock"
+        },
+        "enclosing": 0
+      }
+    ]
+  }
+}

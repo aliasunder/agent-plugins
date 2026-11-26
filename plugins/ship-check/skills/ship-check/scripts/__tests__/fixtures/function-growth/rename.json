@@ -1,0 +1,74 @@
+{
+  "description": "A function in a file the change moved to a new folder, both copies linted at the new path",
+  "lintPath": "cli/src/commands/init.ts",
+  "base": {
+    "commit": "01f12de7534e5ff4f473af2e329484bd1e54697a",
+    "path": "cli/src/init.ts",
+    "selected": [
+      "runLocalInit"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 31. Maximum allowed is 0.",
+        "line": 331,
+        "column": 80,
+        "endLine": 331,
+        "endColumn": 82
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 21,
+          "line": 331
+        },
+        "end": {
+          "column": 1,
+          "line": 476
+        },
+        "source": {
+          "kind": "name",
+          "name": "runLocalInit"
+        },
+        "enclosing": null
+      }
+    ]
+  },
+  "head": {
+    "commit": "6ce758b67872b897d5f6df9b426f5c3a233dc251",
+    "path": "cli/src/commands/init.ts",
+    "selected": [
+      "runLocalInit"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 29. Maximum allowed is 0.",
+        "line": 299,
+        "column": 80,
+        "endLine": 299,
+        "endColumn": 82
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 21,
+          "line": 299
+        },
+        "end": {
+          "column": 1,
+          "line": 429
+        },
+        "source": {
+          "kind": "name",
+          "name": "runLocalInit"
+        },
+        "enclosing": null
+      }
+    ]
+  }
+}

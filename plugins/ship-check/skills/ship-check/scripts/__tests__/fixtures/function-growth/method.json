@@ -1,0 +1,90 @@
+{
+  "description": "A class method and an object-literal method, each with its parameters on their own lines",
+  "lintPath": "src/vault-mcp/oauth/oauth-provider.ts",
+  "head": {
+    "commit": "771fa61fcb87deb8f70e82d7b76a813ca39ef415",
+    "path": "src/vault-mcp/oauth/oauth-provider.ts",
+    "selected": [
+      "SqliteClientsStore.registerClient",
+      "provider.authorize"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Method 'registerClient' has a complexity of 5. Maximum allowed is 0.",
+        "line": 321,
+        "column": 3,
+        "endLine": 321,
+        "endColumn": 17
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 388,
+        "column": 41,
+        "endLine": 388,
+        "endColumn": 43
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Async method 'authorize' has a complexity of 2. Maximum allowed is 0.",
+        "line": 689,
+        "column": 5,
+        "endLine": 689,
+        "endColumn": 20
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 16,
+          "line": 321
+        },
+        "end": {
+          "column": 3,
+          "line": 373
+        },
+        "source": {
+          "kind": "key",
+          "key": "registerClient",
+          "owner": "SqliteClientsStore"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 35,
+          "line": 383
+        },
+        "end": {
+          "column": 1,
+          "line": 1043
+        },
+        "source": {
+          "kind": "name",
+          "name": "createOAuthProvider"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 19,
+          "line": 689
+        },
+        "end": {
+          "column": 5,
+          "line": 736
+        },
+        "source": {
+          "kind": "key",
+          "key": "authorize",
+          "owner": "provider"
+        },
+        "enclosing": 1
+      }
+    ]
+  }
+}

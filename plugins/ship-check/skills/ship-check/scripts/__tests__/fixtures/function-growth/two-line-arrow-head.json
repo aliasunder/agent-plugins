@@ -1,0 +1,39 @@
+{
+  "description": "An exported arrow function whose parameters span lines, so its `=>` sits below its start",
+  "lintPath": "cli/src/adapters/docker.ts",
+  "head": {
+    "commit": "771fa61fcb87deb8f70e82d7b76a813ca39ef415",
+    "path": "cli/src/adapters/docker.ts",
+    "selected": [
+      "probeHealth"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Async arrow function has a complexity of 3. Maximum allowed is 0.",
+        "line": 399,
+        "column": 21,
+        "endLine": 399,
+        "endColumn": 23
+      }
+    ],
+    "spans": [
+      {
+        "kind": "function",
+        "start": {
+          "column": 27,
+          "line": 396
+        },
+        "end": {
+          "column": 1,
+          "line": 409
+        },
+        "source": {
+          "kind": "name",
+          "name": "probeHealth"
+        },
+        "enclosing": null
+      }
+    ]
+  }
+}

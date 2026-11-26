@@ -1,0 +1,218 @@
+{
+  "description": "Class fields, a static block, a getter, a field arrow, an assignment and a default export",
+  "lintPath": "src/class-members.ts",
+  "head": {
+    "source": "export class Cache {\n  size = 0\n  label = this.size > 1 ? \"many\" : \"few\"\n  static {\n    if (process.env.DEBUG) console.log(\"debug\")\n  }\n  get count(): number {\n    return this.size || 1\n  }\n  apply = (value: number): number => value && 1\n}\n\nconst handlers: Record<string, unknown> = {}\nhandlers.reset = () => 0\n\nexport default function (): number {\n  return 1\n}\n",
+    "path": "src/class-members.ts",
+    "selected": [
+      "Cache.size initializer",
+      "Cache.label initializer",
+      "Cache static block",
+      "Cache.count",
+      "Cache.apply initializer",
+      "Cache.apply",
+      "handlers.reset",
+      "default"
+    ],
+    "messages": [
+      {
+        "ruleId": "complexity",
+        "message": "Class field initializer has a complexity of 1. Maximum allowed is 0.",
+        "line": 2,
+        "column": 10,
+        "endLine": 2,
+        "endColumn": 11
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Class field initializer has a complexity of 2. Maximum allowed is 0.",
+        "line": 3,
+        "column": 11,
+        "endLine": 3,
+        "endColumn": 41
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Class static block has a complexity of 2. Maximum allowed is 0.",
+        "line": 4,
+        "column": 3,
+        "endLine": 4,
+        "endColumn": 9
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Getter 'count' has a complexity of 2. Maximum allowed is 0.",
+        "line": 7,
+        "column": 3,
+        "endLine": 7,
+        "endColumn": 12
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Method 'apply' has a complexity of 2. Maximum allowed is 0.",
+        "line": 10,
+        "column": 3,
+        "endLine": 10,
+        "endColumn": 11
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Class field initializer has a complexity of 1. Maximum allowed is 0.",
+        "line": 10,
+        "column": 11,
+        "endLine": 10,
+        "endColumn": 48
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Arrow function has a complexity of 1. Maximum allowed is 0.",
+        "line": 14,
+        "column": 21,
+        "endLine": 14,
+        "endColumn": 23
+      },
+      {
+        "ruleId": "complexity",
+        "message": "Function has a complexity of 1. Maximum allowed is 0.",
+        "line": 16,
+        "column": 16,
+        "endLine": 16,
+        "endColumn": 25
+      }
+    ],
+    "spans": [
+      {
+        "kind": "field",
+        "start": {
+          "column": 2,
+          "line": 2
+        },
+        "end": {
+          "column": 10,
+          "line": 2
+        },
+        "source": {
+          "kind": "key",
+          "key": "size",
+          "owner": "Cache"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "field",
+        "start": {
+          "column": 2,
+          "line": 3
+        },
+        "end": {
+          "column": 40,
+          "line": 3
+        },
+        "source": {
+          "kind": "key",
+          "key": "label",
+          "owner": "Cache"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "static-block",
+        "start": {
+          "column": 2,
+          "line": 4
+        },
+        "end": {
+          "column": 3,
+          "line": 6
+        },
+        "source": {
+          "kind": "static-block",
+          "owner": "Cache"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 11,
+          "line": 7
+        },
+        "end": {
+          "column": 3,
+          "line": 9
+        },
+        "source": {
+          "kind": "key",
+          "key": "count",
+          "owner": "Cache"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "field",
+        "start": {
+          "column": 2,
+          "line": 10
+        },
+        "end": {
+          "column": 47,
+          "line": 10
+        },
+        "source": {
+          "kind": "key",
+          "key": "apply",
+          "owner": "Cache"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 10,
+          "line": 10
+        },
+        "end": {
+          "column": 47,
+          "line": 10
+        },
+        "source": {
+          "kind": "key",
+          "key": "apply",
+          "owner": "Cache"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 17,
+          "line": 14
+        },
+        "end": {
+          "column": 24,
+          "line": 14
+        },
+        "source": {
+          "kind": "assignment",
+          "target": "handlers.reset"
+        },
+        "enclosing": null
+      },
+      {
+        "kind": "function",
+        "start": {
+          "column": 15,
+          "line": 16
+        },
+        "end": {
+          "column": 1,
+          "line": 18
+        },
+        "source": {
+          "kind": "default"
+        },
+        "enclosing": null
+      }
+    ]
+  }
+}
