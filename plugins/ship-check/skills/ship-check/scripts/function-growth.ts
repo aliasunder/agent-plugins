@@ -542,9 +542,9 @@ const severityOf = (value: unknown): number => {
 const maxOf = (options: unknown): number => {
   if (typeof options === "number") return options
   if (!isJsonObject(options)) return ESLINT_DEFAULT_MAX
-  if (typeof options.max === "number") return options.max
-  // `maximum` is the rule's second name for `max`; its schema accepts both.
-  return typeof options.maximum === "number" ? options.maximum : ESLINT_DEFAULT_MAX
+  // `maximum` is the rule's second name for `max`, and the rule reads `maximum || max`, so it wins when both are set.
+  if (typeof options.maximum === "number") return options.maximum
+  return typeof options.max === "number" ? options.max : ESLINT_DEFAULT_MAX
 }
 
 /** The budget from a resolved `complexity` rule entry: a severity alone, or `[severity, options]`. */
@@ -753,7 +753,7 @@ export const run = async (options: RunOptions): Promise<GrowthReport> => {
 
 const USAGE = `Usage: function-growth.ts --repo <folder> --from <commit> --to <commit> [--tooling <folder>] [--json]
 
-Prints how each function's ESLint complexity changed between the two trees: the count that rose, and the
+Prints how each function's ESLint complexity changed between the two commits: the count that rose, and the
 functions past the file's complexity budget. --tooling is where ESLint loads from (default: --repo).
 `
 
