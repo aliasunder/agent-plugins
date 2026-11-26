@@ -103,6 +103,13 @@ describe("selectFiles", () => {
     ])
   })
 
+  it("reads a copied file's base copy from the file it was copied from", () => {
+    assert.deepStrictEqual(selectFiles("C090\0src/parse.ts\0src/parse-strict.ts\0M\0src/run.ts\0"), [
+      { path: "src/parse-strict.ts", basePath: "src/parse.ts" },
+      { path: "src/run.ts", basePath: "src/run.ts" },
+    ])
+  })
+
   it("leaves out a file renamed into a test folder", () => {
     assert.deepStrictEqual(selectFiles("R100\0src/helper.ts\0src/__tests__/helper.ts\0"), [])
   })
@@ -189,9 +196,17 @@ describe("nameFunction", () => {
   })
 })
 
+describe("extractFunctionSpans", () => {
+  it("refuses a parse result that is no syntax tree", () => {
+    assert.throws(() => extractFunctionSpans({ type: "Program" }, ""), new Error("the parser returned no syntax tree"))
+  })
+})
+
 describe("measureFunctions", () => {
   it("assigns a method's message, which ends at the function node's start, to that method", () => {
-    assert.deepStrictEqual(measureFunctions(readFixture("method.json").head.messages, readFixture("method.json").head.spans), [
+    const { head } = readFixture("method.json")
+
+    assert.deepStrictEqual(measureFunctions(head.messages, head.spans), [
       { name: "SqliteClientsStore.registerClient", enclosing: null, line: 321, complexity: 5 },
       { name: "createOAuthProvider", enclosing: null, line: 388, complexity: 1 },
       { name: "provider.authorize", enclosing: "createOAuthProvider", line: 689, complexity: 2 },
@@ -228,11 +243,19 @@ describe("measureFunctions", () => {
     ])
   })
 
-  it("ignores messages from other rules", () => {
+  it("ignores messages from other rules, even one worded as the complexity rule words its own", () => {
     const { head } = readFixture("two-line-arrow-head.json")
-    const otherRule: LintMessage = { ruleId: "max-depth", message: "Blocks are nested too deeply (5).", line: 399, column: 1, endLine: 399, endColumn: 5 }
+    // A plugin rule that wraps the core rule reports in its words, so only the rule id tells the two apart.
+    const otherRule: LintMessage = { ruleId: "legacy/complexity", message: "Async arrow function has a complexity of 9. Maximum allowed is 5.", line: 399, column: 21, endLine: 399, endColumn: 23 }
 
     assert.deepStrictEqual(measureFunctions([otherRule, ...head.messages], head.spans), [{ name: "probeHealth", enclosing: null, line: 399, complexity: 3 }])
+  })
+
+  it("places a message with no end position at its start", () => {
+    const { head } = readFixture("two-line-arrow-head.json")
+    const startOnly = head.messages.map(({ ruleId, message, line, column }) => ({ ruleId, message, line, column }))
+
+    assert.deepStrictEqual(measureFunctions(startOnly, head.spans), [{ name: "probeHealth", enclosing: null, line: 399, complexity: 3 }])
   })
 
   it("names a message no span contains by its line", () => {
@@ -303,6 +326,37 @@ describe("pairFunctions", () => {
     })
   })
 
+  it("pairs same-named callbacks in order when none was added or removed, even when one's complexity matches another's", () => {
+    const first: MeasuredFunction = { name: "rebuild › callback (forEach)", enclosing: "rebuild", line: 2, complexity: 2 }
+    const second: MeasuredFunction = { name: "rebuild › callback (forEach) #2", enclosing: "rebuild", line: 5, complexity: 5 }
+    const firstRose: MeasuredFunction = { ...first, complexity: 5 }
+    const secondRose: MeasuredFunction = { ...second, complexity: 7 }
+
+    assert.deepStrictEqual(pairFunctions([first, second], [firstRose, secondRose]), {
+      pairs: [
+        { base: first, head: firstRose, pairedBy: "name" },
+        { base: second, head: secondRose, pairedBy: "name" },
+      ],
+      added: [],
+    })
+  })
+
+  it("pairs same-named callbacks by equal complexity when a sibling was removed, then pairs the rest in order", () => {
+    const changed: MeasuredFunction = { name: "rebuild › callback (forEach)", enclosing: "rebuild", line: 2, complexity: 2 }
+    const removed: MeasuredFunction = { name: "rebuild › callback (forEach) #2", enclosing: "rebuild", line: 4, complexity: 5 }
+    const kept: MeasuredFunction = { name: "rebuild › callback (forEach) #3", enclosing: "rebuild", line: 6, complexity: 7 }
+    const changedHead: MeasuredFunction = { ...changed, complexity: 3 }
+    const keptHead: MeasuredFunction = { ...kept, name: "rebuild › callback (forEach) #2", line: 4 }
+
+    assert.deepStrictEqual(pairFunctions([changed, removed, kept], [changedHead, keptHead]), {
+      pairs: [
+        { base: changed, head: changedHead, pairedBy: "name" },
+        { base: kept, head: keptHead, pairedBy: "name" },
+      ],
+      added: [],
+    })
+  })
+
   it("never pairs a named nested function with a disappeared callback", () => {
     const namedNested: MeasuredFunction = { name: "keepAlive", enclosing: "rebuild", line: 2, complexity: 2 }
 
@@ -345,7 +399,9 @@ describe("parseBudget", () => {
     { label: "an `off` string as ESLint's default", rule: "off", expected: { max: 20, source: "default", variant: "classic" } },
     { label: "severity 1 with `max` as warned", rule: [1, { max: 15 }], expected: { max: 15, source: "warned", variant: "classic" } },
     { label: "severity 2 with a bare number as enforced", rule: [2, 10], expected: { max: 10, source: "enforced", variant: "classic" } },
+    { label: "a `warn` string with `max` as warned", rule: ["warn", { max: 7 }], expected: { max: 7, source: "warned", variant: "classic" } },
     { label: "the older `maximum` key", rule: [2, { maximum: 12 }], expected: { max: 12, source: "enforced", variant: "classic" } },
+    { label: "`maximum` over `max` when both are set, as ESLint does", rule: [2, { max: 5, maximum: 12 }], expected: { max: 12, source: "enforced", variant: "classic" } },
     { label: "the modified variant", rule: [2, { max: 8, variant: "modified" }], expected: { max: 8, source: "enforced", variant: "modified" } },
     { label: "a variant without a max as ESLint's default max", rule: [1, { variant: "modified" }], expected: { max: 20, source: "warned", variant: "modified" } },
     { label: "a severity alone as the default max", rule: "error", expected: { max: 20, source: "enforced", variant: "classic" } },
@@ -497,6 +553,39 @@ describe("buildReport", () => {
       notMeasured: [{ path: "src/b.ts", reason: "no TypeScript parser" }],
     })
   })
+
+  it("sorts the listed functions by path and line, names each budget once and counts no fall as a rise", () => {
+    const measuredAt = (name: string, line: number, complexity: number): MeasuredFunction => ({ name, enclosing: null, line, complexity })
+    const fileOf = (path: string, budget: FileMeasurement["budget"], pairs: [MeasuredFunction, MeasuredFunction][], added: MeasuredFunction[]): FileMeasurement => ({
+      path,
+      basePath: path,
+      budget,
+      head: [...pairs.map(([, head]) => head), ...added],
+      paired: { pairs: pairs.map(([base, head]) => ({ base, head, pairedBy: "name" })), added },
+    })
+    const enforced = { max: 15, source: "enforced", variant: "classic" } as const
+    const results = [
+      fileOf("src/b.ts", enforced, [[measuredAt("load", 4, 14), measuredAt("load", 4, 18)]], []),
+      fileOf("src/a.ts", DEFAULT, [[measuredAt("parse", 30, 19), measuredAt("parse", 30, 25)], [measuredAt("shrink", 40, 30), measuredAt("shrink", 40, 22)]], [measuredAt("build", 5, 23)]),
+      fileOf("src/c.ts", DEFAULT, [[measuredAt("tidy", 2, 1), measuredAt("tidy", 2, 1)]], []),
+    ]
+    const load = entry({ path: "src/b.ts", basePath: "src/b.ts", name: "load", headLine: 4, base: 14, head: 18, budget: 15, budgetSource: "enforced" })
+    const parse = entry({ name: "parse", headLine: 30, base: 19, head: 25 })
+
+    assert.deepStrictEqual(buildReport(results), {
+      line: "2 of 5 measured functions rose; 3 past budget 15 (enforced) / 20 (default): src/a.ts build new → 23, src/a.ts parse 19 → 25, src/b.ts load 14 → 18",
+      measured: 5,
+      rose: 2,
+      functions: [
+        load,
+        parse,
+        entry({ name: "shrink", headLine: 40, base: 30, head: 22 }),
+        entry({ path: "src/c.ts", basePath: "src/c.ts", name: "tidy", headLine: 2, base: 1, head: 1 }),
+      ],
+      listed: [entry({ name: "build", headLine: 5, base: null, head: 23, pairedBy: null }), parse, load],
+      notMeasured: [],
+    })
+  })
 })
 
 const gitIn = (repo: string, ...args: string[]): string => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim()
@@ -514,6 +603,29 @@ const commitAll = (repo: string, message: string): string => {
   return gitIn(repo, "rev-parse", "HEAD")
 }
 
+/**
+ * A tooling folder with no TypeScript parser, whose ESLint package's entry file holds `eslintModule`.
+ * The tests that use it stop before any lint call, so the stand-in needs no methods.
+ */
+const standInTooling = (eslintModule: string): string => {
+  const tooling = temporaryFolder()
+  writeFiles(tooling, {
+    "node_modules/eslint/package.json": JSON.stringify({ name: "eslint", type: "module", main: "index.js" }),
+    "node_modules/eslint/index.js": eslintModule,
+  })
+  return tooling
+}
+
+/** A git repository holding one TypeScript file, committed once and then changed; returns both commits. */
+const changedTypeScriptRepo = (): { repo: string; base: string; head: string } => {
+  const repo = temporaryFolder()
+  gitIn(repo, "init", "-q", "-b", "main")
+  writeFiles(repo, { "src/a.ts": "export const a = 1\n" })
+  const base = commitAll(repo, "base")
+  writeFiles(repo, { "src/a.ts": "export const a = 2\n" })
+  return { repo, base, head: commitAll(repo, "change") }
+}
+
 describe("command line", () => {
   it("prints not measured and exits 0, before any git call, when the tooling folder has no ESLint", () => {
     // The folder is no git repository, so any git call would fail with exit 2.
@@ -528,17 +640,26 @@ describe("command line", () => {
 
   it("prints the not-measured result as JSON with --json", () => {
     const folder = temporaryFolder()
-    const { status, stdout } = runScript(["--json", "--repo", folder, "--from", "main", "--to", "HEAD"])
+    const result = runScript(["--json", "--repo", folder, "--from", "main", "--to", "HEAD"])
 
-    assert.equal(status, 0)
-    assert.deepStrictEqual(JSON.parse(stdout), {
-      line: `not measured (no ESLint in ${folder})`,
-      measured: 0,
-      rose: 0,
-      functions: [],
-      listed: [],
-      notMeasured: [],
-    })
+    assert.deepStrictEqual(
+      { ...result, stdout: JSON.parse(result.stdout) },
+      {
+        status: 0,
+        stdout: { line: `not measured (no ESLint in ${folder})`, measured: 0, rose: 0, functions: [], listed: [], notMeasured: [] },
+        stderr: "",
+      },
+    )
+  })
+
+  it("prints the usage with --help", () => {
+    const usage = `Usage: function-growth.ts --repo <folder> --from <commit> --to <commit> [--tooling <folder>] [--json]
+
+Prints how each function's ESLint complexity changed between the two commits: the count that rose, and the
+functions past the file's complexity budget. --tooling is where ESLint loads from (default: --repo).
+`
+
+    assert.deepStrictEqual(runScript(["--help"]), { status: 0, stdout: usage, stderr: "" })
   })
 
   it("exits 1 when a commit starts with a dash", () => {
@@ -555,21 +676,38 @@ describe("command line", () => {
     assert.deepStrictEqual(runScript(["--from", "main", "--to", "HEAD"]), { status: 1, stdout: "", stderr: "--repo, --from and --to are required\n" })
   })
 
-  it("exits 2 when git cannot read the range", () => {
-    const repo = temporaryFolder()
-    gitIn(repo, "init", "-q", "-b", "main")
-    writeFiles(repo, { "src/a.ts": "export const a = 1\n" })
-    commitAll(repo, "base")
-    // A stand-in ESLint package: git fails before the script calls into it.
-    const tooling = temporaryFolder()
-    writeFiles(tooling, {
-      "node_modules/eslint/package.json": JSON.stringify({ name: "eslint", type: "module", main: "index.js" }),
-      "node_modules/eslint/index.js": "export class ESLint {}\n",
-    })
-    const { status, stdout, stderr } = runScript(["--repo", repo, "--tooling", tooling, "--from", "missing-commit", "--to", "HEAD"])
+  it("exits 1 when the tooling folder's ESLint package exports no ESLint class", () => {
+    const tooling = standInTooling("export const version = '0.0.0'\n")
 
-    assert.deepStrictEqual({ status, stdout }, { status: 2, stdout: "" })
-    assert.match(stderr, /^git diff --name-status -M -z --diff-filter=d missing-commit HEAD -- failed: fatal: bad revision 'missing-commit'\n$/)
+    assert.deepStrictEqual(runScript(["--repo", temporaryFolder(), "--tooling", tooling, "--from", "main", "--to", "HEAD"]), {
+      status: 1,
+      stdout: "",
+      stderr: `${tooling}/node_modules/eslint exports no ESLint class\n`,
+    })
+  })
+
+  it("exits 2 when git cannot read the range", () => {
+    const { repo } = changedTypeScriptRepo()
+    // git fails before the script calls into the stand-in.
+    const tooling = standInTooling("export class ESLint {}\n")
+
+    assert.deepStrictEqual(runScript(["--repo", repo, "--tooling", tooling, "--from", "missing-commit", "--to", "HEAD"]), {
+      status: 2,
+      stdout: "",
+      stderr: "git diff --name-status -M -z --diff-filter=d missing-commit HEAD -- failed: fatal: bad revision 'missing-commit'\n",
+    })
+  })
+
+  it("reports a TypeScript file as not measured when the tooling folder has no TypeScript parser", () => {
+    const { repo, base, head } = changedTypeScriptRepo()
+    // The script checks for the parser before it asks ESLint for the file's budget or lints it.
+    const tooling = standInTooling("export class ESLint {}\n")
+
+    assert.deepStrictEqual(runScript(["--repo", repo, "--tooling", tooling, "--from", base, "--to", head]), {
+      status: 0,
+      stdout: "no measurable files; not measured: 1 file (no TypeScript parser)\n",
+      stderr: "",
+    })
   })
 })
 
@@ -602,35 +740,89 @@ describe("with a real ESLint from FUNCTION_GROWTH_TOOLING_REPO", () => {
       "notes.md": "# Notes\n\nMore.\n",
     })
     const head = commitAll(repo, "change")
-    const { status, stdout, stderr } = runScript(["--json", "--repo", repo, "--tooling", toolingRepoPath(), "--from", base, "--to", head])
+    const result = runScript(["--json", "--repo", repo, "--tooling", toolingRepoPath(), "--from", base, "--to", head])
     const budget = { budget: 3, budgetSource: "warned" }
     const grow = { path: "src/rise.ts", basePath: "src/rise.ts", name: "grow", headLine: 1, base: 3, head: 4, ...budget, pairedBy: "name" }
     const choose = { path: "src/added.ts", basePath: null, name: "choose", headLine: 1, base: null, head: 4, ...budget, pairedBy: null }
 
-    assert.deepStrictEqual({ status, stderr }, { status: 0, stderr: "" })
-    assert.deepStrictEqual(JSON.parse(stdout), {
-      line: "2 of 4 measured functions rose; 2 past budget 3 (warned): src/added.ts choose new → 4, src/rise.ts grow 3 → 4; not measured: 1 file (Parsing error: Variable declaration expected.)",
-      measured: 4,
-      rose: 2,
-      functions: [
-        { path: "src/new-name.ts", basePath: "src/old-name.ts", name: "keep", headLine: 1, base: 1, head: 1, ...budget, pairedBy: "name" },
-        grow,
-        { path: "src/small.ts", basePath: "src/small.ts", name: "pick", headLine: 1, base: 2, head: 3, ...budget, pairedBy: "name" },
-      ],
-      listed: [choose, grow],
-      notMeasured: [{ path: "src/broken.ts", reason: "Parsing error: Variable declaration expected." }],
-    })
+    assert.deepStrictEqual(
+      { ...result, stdout: JSON.parse(result.stdout) },
+      {
+        status: 0,
+        stdout: {
+          line: "2 of 4 measured functions rose; 2 past budget 3 (warned): src/added.ts choose new → 4, src/rise.ts grow 3 → 4; not measured: 1 file (Parsing error: Variable declaration expected.)",
+          measured: 4,
+          rose: 2,
+          functions: [
+            { path: "src/new-name.ts", basePath: "src/old-name.ts", name: "keep", headLine: 1, base: 1, head: 1, ...budget, pairedBy: "name" },
+            grow,
+            { path: "src/small.ts", basePath: "src/small.ts", name: "pick", headLine: 1, base: 2, head: 3, ...budget, pairedBy: "name" },
+          ],
+          listed: [choose, grow],
+          notMeasured: [{ path: "src/broken.ts", reason: "Parsing error: Variable declaration expected." }],
+        },
+        stderr: "",
+      },
+    )
   })
 
-  const freshCopy = async (fixture: Fixture, copy: FixtureCopy): Promise<{ messages: LintMessage[]; spans: FunctionSpan[] }> => {
+  /** The messages and spans of `code` linted at `lintPath` in the tooling repo, as the script measures a copy. */
+  const lintInToolingRepo = async (code: string, lintPath: string): Promise<{ messages: LintMessage[]; spans: FunctionSpan[] }> => {
     const toolingRepo = toolingRepoPath()
     const tooling = await loadTooling(toolingRepo)
     if (!tooling) throw new Error(`no ESLint in ${toolingRepo}`)
 
-    const code = copy.source ?? execFileSync("git", ["-C", toolingRepo, "show", `${copy.commit}:${copy.path}`], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 })
-    const { messages, tree } = await createLinter(tooling, toolingRepo, "classic")(code, join(toolingRepo, fixture.lintPath))
-    if (!tree) throw new Error(`${copy.path}: ESLint returned no syntax tree`)
+    const { messages, tree } = await createLinter(tooling, toolingRepo, "classic")(code, join(toolingRepo, lintPath))
+    if (!tree) throw new Error(`${lintPath}: ESLint returned no syntax tree`)
     return { messages, spans: extractFunctionSpans(tree.ast, tree.text) }
+  }
+
+  it("names a function handed on through a conditional, a logical operand, `as` or `new` after the variable it lands in", NEEDS_TOOLING, async () => {
+    const code = [
+      "type Handler = () => number",
+      "declare const ready: boolean",
+      "declare const fallback: Handler | undefined",
+      "export const choose = ready ? () => 1 : () => 2",
+      "export const pick = fallback || (() => 3)",
+      "export const typed = (() => 4) as Handler",
+      "export const pending = new Promise<number>((resolve) => resolve(5))",
+      "",
+    ].join("\n")
+    const { messages, spans } = await lintInToolingRepo(code, "src/handed-on.ts")
+
+    assert.deepStrictEqual(measureFunctions(messages, spans), [
+      { name: "choose", enclosing: null, line: 4, complexity: 1 },
+      { name: "choose #2", enclosing: null, line: 4, complexity: 1 },
+      { name: "pick", enclosing: null, line: 5, complexity: 1 },
+      { name: "typed", enclosing: null, line: 6, complexity: 1 },
+      { name: "pending", enclosing: null, line: 7, complexity: 1 },
+    ])
+  })
+
+  it("names a method of an unnamed class after its variable, and a returned function as a callback without a callee", NEEDS_TOOLING, async () => {
+    const code = [
+      "export const Store = class {",
+      "  read(): number {",
+      "    return 6",
+      "  }",
+      "}",
+      "export function makeReader(): () => number {",
+      "  return () => 7",
+      "}",
+      "",
+    ].join("\n")
+    const { messages, spans } = await lintInToolingRepo(code, "src/owners.ts")
+
+    assert.deepStrictEqual(measureFunctions(messages, spans), [
+      { name: "Store.read", enclosing: null, line: 2, complexity: 1 },
+      { name: "makeReader", enclosing: null, line: 6, complexity: 1 },
+      { name: "makeReader › callback", enclosing: "makeReader", line: 7, complexity: 1 },
+    ])
+  })
+
+  const freshCopy = async (fixture: Fixture, copy: FixtureCopy): Promise<{ messages: LintMessage[]; spans: FunctionSpan[] }> => {
+    const code = copy.source ?? execFileSync("git", ["-C", toolingRepoPath(), "show", `${copy.commit}:${copy.path}`], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 })
+    return lintInToolingRepo(code, fixture.lintPath)
   }
 
   // Spans compare by where their enclosing span starts, since a fixture keeps only some of a file's spans.
