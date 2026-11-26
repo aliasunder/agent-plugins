@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { createRequire } from "node:module"
-import { basename, extname, join } from "node:path"
+import { basename, extname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import { parseArgs } from "node:util"
 
@@ -760,7 +760,8 @@ export const run = async (options: RunOptions): Promise<GrowthReport> => {
 const USAGE = `Usage: function-growth.ts --repo <folder> --from <commit> --to <commit> [--tooling <folder>] [--json]
 
 Prints how each function's ESLint complexity changed between the two commits: the count that rose, and the
-functions past the file's complexity budget. --tooling is where ESLint loads from (default: --repo).
+functions past the file's complexity budget that rose or are new. --tooling is where ESLint and the TypeScript
+parser load from (default: --repo).
 `
 
 const main = async (): Promise<void> => {
@@ -782,7 +783,9 @@ const main = async (): Promise<void> => {
   // `--from` can come from a PR body; a leading dash would reach git as an option such as `--output=<file>`.
   if (values.from.startsWith("-") || values.to.startsWith("-")) throw new Error("--from and --to must name commits, not options")
 
-  const report = await run({ repo: values.repo, from: values.from, to: values.to, tooling: values.tooling ?? values.repo })
+  // ESLint's `cwd` and `createRequire` take only absolute paths, so a relative folder such as `.` is resolved first.
+  const repo = resolve(values.repo)
+  const report = await run({ repo, from: values.from, to: values.to, tooling: resolve(values.tooling ?? repo) })
   process.stdout.write(values.json ? `${JSON.stringify(report, null, 2)}\n` : `${report.line}\n`)
 }
 

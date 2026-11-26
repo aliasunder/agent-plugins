@@ -671,7 +671,8 @@ describe("command line", () => {
     const usage = `Usage: function-growth.ts --repo <folder> --from <commit> --to <commit> [--tooling <folder>] [--json]
 
 Prints how each function's ESLint complexity changed between the two commits: the count that rose, and the
-functions past the file's complexity budget. --tooling is where ESLint loads from (default: --repo).
+functions past the file's complexity budget that rose or are new. --tooling is where ESLint and the TypeScript
+parser load from (default: --repo).
 `
 
     assert.deepStrictEqual(runScript(["--help"]), { status: 0, stdout: usage, stderr: "" })

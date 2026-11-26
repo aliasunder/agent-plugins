@@ -908,9 +908,10 @@ or in progress on the head is a blocked snapshot, not merge-ready; the known-fla
 and unrelated CI exceptions in the prerequisites stand) and every comment
 is answered. Delivery has settled when the helper printed `posted` or `already
 posted`, when no helper exists, when a live lane lead posts READY itself, or when the
-run is report-only and posts nothing. `post failed`, `inbox unreadable` or `cmux
-unavailable` is an undelivered notice: the snapshot is blocked by it, so keep
-monitoring and run the helper again on the next pass. Once settled, end the report
+run is report-only and posts nothing. Any other output, such as `post failed`,
+`inbox unreadable` or `cmux unavailable`, is an undelivered notice: the snapshot is
+blocked by it, so keep monitoring and run the helper again on the next pass. Once
+settled, end the report
 with `Monitoring stopped at merge-ready. A push from this
 session, or "check", restarts it.`, then:
 - in Claude Code, arm no `ScheduleWakeup` and end the turn;

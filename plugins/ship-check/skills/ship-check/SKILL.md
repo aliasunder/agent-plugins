@@ -43,7 +43,7 @@ Tool-definition review (conditional): ship-check:tool-definition-reviewer
 Security audit (conditional): ship-check:security-auditor
                                           -> complete affected access/data paths, private findings, before the one push
 Push the fixes (orchestrator)             -> one push carrying every phase's commits
-Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until stopped, merged or closed
+Phase 6: pr-monitor (inline)              -> CI status, bot comment resolution, loop until merge-ready, stopped, merged or closed
 Verification (conditional, orchestrator) -> the project's live test, run inside Phase 6 before its first merge-ready verdict,
                                           only when CLAUDE.local.md has a verification profile and the PR changes paths it lists
 ```
