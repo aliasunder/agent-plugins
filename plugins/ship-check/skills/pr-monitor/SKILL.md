@@ -432,8 +432,12 @@ threads"), so each fix reply names a commit the PR already has.
 
    **The step-back.** After two consecutive fix rounds (a bot round or an audit round,
    then its fixes, then the next round) whose new findings fall in the same function
-   and whose fixes touch the same guard or mechanism, stop before the next fix. A
-   comment with no file and line does not count toward this test. Write the step-back
+   and whose fixes touch the same guard or mechanism, stop before the next fix. For
+   docs, skill text and templates, the test is instead two consecutive rounds whose
+   new findings break the same rule in different passages (one class in the triage
+   criteria's words, such as a conditional capability stated as universal); unrelated
+   findings in one file do not count. A
+   comment with no file and line does not count toward either test. Write the step-back
    in chat: do the findings share a cause; would a different approach remove the
    class, and what would it cost beside the next fix; is a class card cheaper than
    another round; has non-test code changed since the last design pass; has each
