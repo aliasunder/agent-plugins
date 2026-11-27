@@ -258,16 +258,18 @@ In a run that may edit, when the project keeps a task board and this round's fix
 are a batch of proposals, check the board for a card covering the same change before
 applying them; report each overlap and apply the rest.
 
-### Findings this PR won't fix, when `triage-finding` is available
+### Every valid finding goes through `triage-finding`, when it is available
 
 If a `triage-finding` skill is available, evaluate every finding in this round first
-(item 1 under "Bot threads"), then run it once with every finding you will not fix in
-this PR, false positives included, and every finding a person raised. Pass each
-finding's author (bot, Claude-authored, or person) and what this run may do: edit,
-push, reply, resolve. Act on its result for each finding, and do not fix, reply,
-resolve or ask again on your own. A pending finding is not routed again until it
-settles. Where the steps below say to ask the user, its result replaces that ask.
-Without the skill, continue as below.
+(item 1 under "Bot threads"), then run it once with every valid finding in the
+round, before you fix any of them: the ones you expect to fix, the ones you will
+not fix in this PR, false positives included, and every finding a person raised.
+Pass each finding's author (bot, Claude-authored, or person) and what this run may
+do: edit, push, reply, resolve. Act on its result for each finding: fix only what it
+returns as `Fix`, and do not fix, reply, resolve or ask again on your own. A pending
+finding is not routed again until it settles. Where the steps below say to fix a
+valid finding or to ask the user, its result replaces that step. Without the skill,
+continue as below.
 
 ### Findings that would restore a cut
 
@@ -305,7 +307,7 @@ threads"), so each fix reply names a commit the PR already has.
      docs don't support, an unlikely chain of events). When nothing shows the
      scenario is realistic (a traced code path, the owner's recorded usage, an
      issue, a documented workflow), or it is realistic but costs little when hit,
-     the finding goes to `triage-finding` with the others this PR won't fix; without
+     the finding goes to `triage-finding` with the round's other findings; without
      that skill, ask the user, stating the scenario, its cost and what evidence
      was searched. However small the fix, never write the handling unless
      `triage-finding` returns `Fix` or the user approves it. A security finding's
@@ -318,7 +320,8 @@ threads"), so each fix reply names a commit the PR already has.
      defects are still fixed. A test that changes what is asserted, and a wrong
      fact in a doc or an error message, are user-visible, so they are still fixed.
 
-   On valid versus false positive, in particular:
+   On valid versus false positive, in particular (the fix guidance in these bullets
+   applies without `triage-finding`; with it, its result decides each fix):
    - **"False positive" means the finding is factually wrong** — the code pattern it
      describes does not actually exist, or the behavior it warns about cannot happen.
      "The code was already like this" is NOT a false positive — it's a valid finding on
@@ -333,11 +336,11 @@ threads"), so each fix reply names a commit the PR already has.
      about those lines, that is a valid finding — not a false positive. The formatter
      created an opportunity to fix it. Evaluate fix effort the same way you would for any
      valid finding: if the fix is straightforward, fix it now.
-   - **"Out of scope" is not yours to declare.** Only the user decides scope. If a
-     finding is valid and the fix is reasonable effort, fix it. If it's genuinely high
+   - **"Out of scope" is not yours to declare.** Only the user decides scope. With
+     `triage-finding`, its result settles each valid finding. Without it: if a
+     finding is valid and the fix is reasonable effort, fix it; if it's genuinely high
      lift (major refactor, new async boundary, architectural change), describe the effort
-     and ask the user — don't defer it unilaterally. (With `triage-finding`, its result
-     settles this instead.)
+     and ask the user — don't defer it unilaterally.
    - **"Cross-cutting" requires a count.** Before dispositioning a valid finding as a
      cross-cutting refactor or too large, grep the actual sites and state the numbers:
      files touched, import sites, net line change. A contained, net-neutral move — a
@@ -358,7 +361,8 @@ threads"), so each fix reply names a commit the PR already has.
    Thread 3 (truncated sentence): False positive — line 621 is complete
    ```
 
-3. If valid, a defect or evidenced handling, and not a small no-impact fix past the
+3. If `triage-finding` returned `Fix` for it, or, without that skill, if it is valid,
+   a defect or evidenced handling, and not a small no-impact fix past the
    review cap (all three as item 1 defines them): **make the code fix**.
    Before writing it, read what the unit it lands in is responsible for and who it
    serves (the function's docstring, the module's header, the doc section's lead);
@@ -368,9 +372,9 @@ threads"), so each fix reply names a commit the PR already has.
    sites, a caveat in the document's wrong vocabulary) is how the next round's
    findings are made.
    If the lift is unclear, assess it first (how many lines? does it need tests? does it
-   change an interface?) and state it in the one-liner. Fix anything that's reasonable
-   effort; only escalate to the user when the fix is genuinely high lift, through
-   `triage-finding` when it is available.
+   change an interface?) and state it in the one-liner. Without `triage-finding`, fix
+   anything that's reasonable effort and escalate to the user only when the fix is
+   genuinely high lift.
    Every fix to prose or a diagram, a bot's wording suggestion included, follows the
    ship-check skill's "Copy and claims" instruction.
 
@@ -425,6 +429,19 @@ threads"), so each fix reply names a commit the PR already has.
    rounds are all wording. Write an override as `cap=<N>: <reason>` in the report,
    so the next wake keeps it. Past the cap, item 4's sweep fixes only the siblings
    item 1 still fixes past the cap; no-impact siblings are reported with the finding.
+
+   **The step-back.** After two consecutive fix rounds (a bot round or an audit round,
+   then its fixes, then the next round) whose new findings fall in the same function
+   and whose fixes touch the same guard or mechanism, stop before the next fix. A
+   comment with no file and line does not count toward this test. Write the step-back
+   in chat: do the findings share a cause; would a different approach remove the
+   class, and what would it cost beside the next fix; is a class card cheaper than
+   another round; has non-test code changed since the last design pass; has each
+   finding been through `triage-finding`. Then offer the cap (fix this round, card
+   the class) to the user; under a delegated run, decide it with the model guide's
+   advisor and log the consult. This is the "stop and co-plan" rule placed where it
+   applies; the class sweep above converges one finding's siblings, and the
+   step-back converges the rounds.
 
 5. **Reply to the comment** -- after the round's fixes are pushed, and BEFORE
    resolving, for EVERY bot comment.
@@ -788,8 +805,12 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
 - **Design pass**, in ship-check's Phase 6 and in a standalone run: the final design
   pass ran once this session, its trigger did not fire before the first merge-ready
   verdict or the first request to test the change live, or the user said not to run
-  it. Never run it again because the head moved since. In ship-check's Phase 6,
-  that skill's "Pre-merge delta review", step 6, runs it.
+  it. A head move alone never re-runs it. One more pass may be offered, once per
+  PR, when a later delta adds a function or conditional branch (the ship-check
+  skill's "Design pass" → When it runs, "Offered extra"); read the latest Step 5
+  report's `Design pass:` line and the PR's latest session log first, and never
+  repeat a recorded offer. In ship-check's Phase 6, that skill's "Pre-merge delta
+  review", step 6, runs the final pass.
   A standalone run with no design pass yet this session, on a PR whose diff changes
   non-test code, CI, config or shipped agent instructions, runs one before its first merge-ready verdict. Read
   the ship-check skill's "Design pass" section and run it from there, not from a
@@ -810,9 +831,13 @@ If `ScheduleWakeup` genuinely errors in Claude Code (tool not found, permission 
   new relevant behavior starts the newly applicable profile before reusing any
   unaffected evidence. Use that section's pinned per-profile checkouts, modes,
   private triage and coverage states. Missing/incomplete required coverage blocks
-  readiness; an explicit skip is recorded as a waiver. Route resulting fixes
-  through Step 3's sweep, commit and push, then Step 4's follow-up. Withhold
-  readiness until the PR head matches the audited content. Never copy the method here.
+  readiness; an explicit skip is recorded as a waiver, and a `capped` state is a
+  disclosed cap stated with the verdict. Route resulting fixes through Step 3's
+  sweep, commit and push, then Step 4's follow-up, batching a round's fixes into one
+  re-audit as that section says. Withhold readiness until the PR head matches the
+  audited content, or the `capped` state names every fix since its SHA. When that
+  section is not in context (after a compaction), reload the ship-check skill before
+  the readiness check. Never copy the method here.
 - **Verification**, in ship-check's Phase 6 and in a standalone run, checked last.
   Read the project's `CLAUDE.local.md` `## Verification profile` fresh on every pass,
   as the ship-check skill's "Verification (conditional)" step 1 reads it, following a
@@ -870,6 +895,7 @@ PR #<number> status:
 - Reviews: approved / pending / changes-requested
 - Bot threads: all resolved (N handled, all replied to)
 - Bot review rounds: N of cap M (default 4, or raised/lowered: <reason>)
+- Design pass: final at <sha> | not yet triggered; extra offer: none | offered at <sha>, <decision>
 - Non-thread findings: N handled (review bodies / PR comments — bot: A, Claude: B, human: C)
 - Claude threads: all resolved (N handled, all replied to)
 - Human threads: N unresolved (listed above)

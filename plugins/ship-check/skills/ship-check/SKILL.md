@@ -37,7 +37,7 @@ Phase 2: ship-check:fresh-eyes            -> stranger pauses (report only, no co
 Phase 3: ship-check:code-quality-reviewer -> convention compliance, readability (resolves Phase 2 pauses)
 Phase 4: ship-check:test-auditor          -> test design, assertion quality, coverage gaps
 Phase 5: ship-check:bug-checker           -> description-vs-code, SQL, type coercion, boundary
-Design pass: ship-check:code-quality-reviewer -> whole-PR design (report only); again in Phase 6 when its trigger fires
+Design pass: ship-check:code-quality-reviewer -> whole-PR design (report only); again in Phase 6 when its trigger fires; once more per PR on offer when a later delta adds a function or branch
 Tool-definition review (conditional): ship-check:tool-definition-reviewer
                                           -> MCP tool definitions, only when a tool-list file changed (the reviewer reports; triage fixes)
 Security audit (conditional): ship-check:security-auditor
@@ -124,7 +124,9 @@ followed by the exact model passed to spawn, for example
 
 The harness appends its own `Co-Authored-By` trailer automatically; the `Ship-Check`
 trailer supplements it with the phase and the agent's actual model, not the
-dispatching session's.
+dispatching session's. The orchestrator uses the same trailer with component
+`design-pass` on a commit that applies only approved design-pass proposals
+("Design pass" → When it runs).
 
 ## Copy and claims
 
@@ -230,11 +232,11 @@ reviewing a PR it isn't responsible for.
 | Phase 6 | Runs (monitoring loop) | Skipped |
 | Phase sequencing | Sequential (each sees prior fixes) | Sequential (each sees prior findings to avoid duplicates) |
 | Test-audit | Writes missing tests | Reports coverage gaps as comments |
-| Design pass | First pass after Phase 5, final pass before the first merge-ready verdict; triage may apply small design fixes | First pass only; one PR-level comment with every proposal (see "Design pass"); nothing applied |
+| Design pass | First pass after Phase 5, final pass before the first merge-ready verdict, at most one extra pass offered later; triage may apply small design fixes | First pass only; one PR-level comment with every proposal (see "Design pass"); nothing applied |
 | Tool-definition review | Triage, may fix; re-review before each merge-ready verdict | One PR-level comment with the reviewer reports' Defects and Unintended text changes lists (see "Tool-definition review (conditional)"); no re-review |
 | Security audit | Conditional checkpoint after design/tool-definition triage; private triage and fixes before the one push | Same checkpoint, report only; nothing about the audit is posted |
 | Verification | Last in Phase 6 before the first merge-ready verdict; deploys and probes (see "Verification (conditional)") | Gate classification only, in the summary; nothing deployed, asked or written |
-| Inter-phase triage | Evaluates flagged findings, may fix; runs `triage-finding` on what it defers and asks the user before the next phase | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
+| Inter-phase triage | Runs `triage-finding` on every flagged finding before any fix of its own and before the next phase; fixes what it returns as `Fix` | Evaluates flagged findings, may post additional comments; `triage-finding` asks nothing |
 
 ### Dispatch prompt addition
 
@@ -396,8 +398,9 @@ HEAD belong to no branch).
    NEVER skip it on your own reading of the change; only `--skip tool-definitions`
    or an `--only` list without it turns it off.
    **The design pass runs like a phase.** Its first pass runs every time; its final
-   pass runs on its own trigger (see "Design pass"). Only `--skip design-pass` or an
-   `--only` list without `design-pass` turns it off.
+   pass runs on its own trigger, and one more may be offered once per PR (see
+   "Design pass"). Only `--skip design-pass` or an `--only` list without
+   `design-pass` turns it off.
    **The security checkpoint is conditional.** Inspect behavior and call paths as
    "Security audit (conditional)" says. A matching boundary requires a dedicated
    audit unless `--skip security-audit` or an excluding `--only` was requested.
@@ -436,10 +439,11 @@ HEAD belong to no branch).
 
 ## Inter-phase triage
 
-After each of Phases 1, 3-5 and each design pass completes, triage any flagged
-findings BEFORE launching the next phase. This is mandatory when flagged findings exist — skip only when a phase
-reports all findings fixed. Phase 2 (fresh-eyes) produces pauses, not findings — no
-triage needed.
+After each of Phases 1, 3-5 and each design pass completes, triage every flagged
+finding BEFORE launching the next phase and BEFORE applying any fix of your own.
+A phase agent's committed fixes are its own; the orchestrator's triage covers what
+the phase flagged. A report with nothing flagged needs no triage. Phase 2
+(fresh-eyes) produces pauses, not findings — no triage needed.
 
 ### Procedure
 
@@ -461,13 +465,21 @@ disposition.
    or for one that costs little when hit, is re-categorized `unevidenced or low-cost`
    before the matrix is applied. A
    security finding's scenario is the attacker's cheapest path, which counts as
-   evidence, so a security finding is never re-categorized.
+   evidence, so a security finding is never re-categorized. For an audit finding
+   that an outside researcher would not file (it needs the user's own machine
+   setup, or crafted input the project neither creates nor recommends), the fix's
+   effort includes the re-audit pair it triggers, not its lines alone; a finding
+   is skipped only when it is high effort, very unlikely in real use, and loses no
+   data and is no actual vulnerability. An actual vulnerability with a small fix is
+   fixed.
 2. **Verify effort claims before applying the matrix.** When a finding is flagged as
    `complex fix`, don't take the sub-agent's effort estimate at face value. Grep for
    actual call sites and usages. "Would change every call site across the codebase"
    has turned out to mean "one call site, one-line fix." A 10-second grep prevents
    deferring a 30-second fix.
-3. **Apply the triage matrix**:
+3. **Apply the triage matrix** to categorize each finding. When `triage-finding`
+   is available (step 5), the matrix names the disposition you expect it to
+   return, and its result, not the matrix, decides what you fix:
 
    | Category | Fix | Action |
    |-----------|-----|--------|
@@ -480,7 +492,8 @@ disposition.
    | Unevidenced or low-cost | Any size | Defer to user — triage makes no edit itself; `triage-finding` logs a scenario whose cost when hit is small, with the evidence it searched, and asks the user about one whose cost is noticeable |
    | Any | Needs design decision | Always defer to user |
 
-4. **For fixes**: read the relevant code, apply the edit, run tests, and commit. A
+4. **For fixes** (`triage-finding`'s `Fix` results, or the matrix's fix rows when
+   that skill is unavailable): read the relevant code, apply the edit, run tests, and commit. A
    fix for a production bug test-audit reported also adds a regression test for
    that bug, in the same commit. Do not push: "Push the fixes" pushes after Phase 5,
    and in Phase 6 the delta review's push ("Pre-merge delta review", step 5) or
@@ -489,13 +502,14 @@ disposition.
    instead of editing, post a separate inline comment on the PR
    for each triage fix — use the same `gh api` review template. Mark these as
    orchestrator triage findings so they're distinguishable from phase findings.
-5. **Triage what the matrix defers now, before the next dispatch.** Findings are
-   triaged as they occur, never held for the final summary: a deferral held back is
-   a decision the user didn't know they were sitting on. When the runtime's skill
-   list names a `triage-finding` skill (a separate skill, outside this plugin, that
-   decides each review finding's outcome), run it on every finding whose step 3
-   row ends with the user (`Defer to user`, `Present to user — they decide scope`,
-   or `Always defer to user`). Pass it the run's mode and what the run may do,
+5. **Triage every flagged finding now, before the next dispatch and before any
+   fix of your own.** Findings are triaged as they occur, never held for the final
+   summary: a deferral held back is a decision the user didn't know they were
+   sitting on, and a fix made before triage is how a point-fix loop starts. When
+   the runtime's skill list names a `triage-finding` skill (a separate skill,
+   outside this plugin, that decides each review finding's outcome), run it once
+   per report on every flagged finding, whatever its step 3 row, and let its
+   result decide the fix. Pass it the run's mode and what the run may do,
    from this table; `--report` wins over every other row, and the last row wins
    over the edit rows:
 
@@ -673,11 +687,13 @@ the pipeline pushes nothing).
    the user the error and the unpushed commits; never force-push or rebase on your
    own ("Push the fixes", step 2). Then set the reviewed SHA to the new head and
    repeat step 2 on later passes. Deltas shrink, so this converges.
-6. **Run the design pass's final pass once, then re-review tool text before every
-   merge-ready verdict**, after steps 3-5 and their fixes. The final pass runs when
-   its trigger fires ("Design pass" → When it runs): before you first ask the user
-   to test the change live, or before the first merge-ready verdict, whichever
-   comes first. Then run the re-review in "Tool-definition review (conditional)".
+6. **Run the design pass's final pass when its trigger fires, then re-review tool
+   text before every merge-ready verdict**, after steps 3-5 and their fixes. The
+   final pass runs when its trigger fires ("Design pass" → When it runs): before
+   you first ask the user to test the change live, or before the first merge-ready
+   verdict, whichever comes first. After it, one more pass may be offered, once per
+   PR, when a later delta adds a function or conditional branch (the same
+   section). Then run the re-review in "Tool-definition review (conditional)".
    Run the re-review even when step 2 of this section found the delta trivial — its own
    gates decide whether tool text changed. It tracks its own tool-review commit,
    which that section's step 9 records, separate from the reviewed SHA.
@@ -1000,8 +1016,10 @@ with `Design pass: dimension 8 only`: the code-quality skill's dimension 8 reads
 the whole PR and asks whether each mechanism the change adds should exist and
 whether each public document section the change touched still serves its reader
 as it stands, whatever round each sentence arrived in. **It edits nothing**; every finding is a
-proposal. On its own it runs at most twice in a ship-check run (see "When it runs"), and only
-`--skip design-pass` or an `--only` list without `design-pass` turns it off.
+proposal. On its own it runs twice at most in a ship-check run, and one more pass may
+be offered once per PR when a later delta adds a function or conditional branch
+(see "When it runs"); only `--skip design-pass` or an `--only` list without
+`design-pass` turns it off.
 
 1. **Base and head.** Record DESIGN_BASE and DESIGN_HEAD as full SHAs:
    - **PR mode:** DESIGN_BASE is a fresh merge base, because the base branch may
@@ -1056,7 +1074,7 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
      that skill is missing. For the design pass this overrides the matrix's
      trivial pre-existing-gap row.
 
-   Every proposal that triage does not fix goes to `triage-finding` in one call, so
+   Every proposal goes to `triage-finding` in one call (inter-phase triage step 5), so
    the proposals reach the user as one question: up to four as a multi-select, five
    or more as a table followed by one question with fixed options. Every proposal
    this step marks `needs design decision`, and every final-pass proposal, are among
@@ -1086,7 +1104,8 @@ proposal. On its own it runs at most twice in a ship-check run (see "When it run
 |---|---|---|---|
 | First | After Phase 5 and its triage, before the tool-definition review and "Push the fixes", so the tool-definition review reads the text the pass's triage fixes leave | The whole PR | Triage as step 5 says |
 | Final | In Phase 6, before the first live-test request or merge-ready verdict, when the file comparison below finds an eligible file. Run after the delta review and before the tool-definition re-review | The whole PR; skips anything the user already decided this session | Every one to the user; none fixed through triage |
-| Any later one | Only when the user asks (`--only design-pass`) | The whole PR | As the final pass |
+| Offered extra | Once per PR, after the final pass: when the file comparison below finds an eligible file changed since that pass and the diff adds a new function or a new conditional branch, offer one more pass to the user (under a delegated run, decide it with the model guide's advisor). It runs only on a yes. Before offering, read pr-monitor's latest Step 5 report line and the PR's latest session log: an offer already recorded is never repeated | The whole PR | As the final pass |
+| Any other later one | Only when the user asks (`--only design-pass`) | The whole PR | As the final pass |
 
 For the final pass's trigger, compare these two file lists:
 
@@ -1100,8 +1119,13 @@ procedure step 2). This excludes the first pass's own triage fixes and base-bran
 changes outside the PR. For example, a later edit to a skill that this PR changes
 appears in both lists; a base-branch-only file does not.
 
-No further pass runs on its own, so the pass cannot loop. Approved fixes from the
-final pass enter the normal delta review. No step in this skill asks the user to
+After the final pass no pass runs on its own, so the pass cannot loop: the offered
+extra pass runs only on the user's yes, once per PR, and a head move alone never
+re-runs it. Commit each approved proposal from a final or extra pass on its own,
+with the trailer `Ship-Check: design-pass · <model-id>` (Attribution); a commit
+carrying that trailer never re-arms the offer, and a commit that mixes an approved
+proposal with other work gets no trailer and counts toward it. Approved fixes
+enter the normal delta review. No step in this skill asks the user to
 test the change live, so apply that trigger yourself: whenever you are about to
 ask, run the final pass first when its trigger fires.
 
@@ -1109,9 +1133,9 @@ ask, run the final pass first when its trigger fires.
 
 | Mode | What runs | What happens to proposals |
 |---|---|---|
-| Default | First pass, then the final pass | As in "When it runs" |
+| Default | First pass, then the final pass, then at most one offered extra pass on the user's yes | As in "When it runs" |
 | `--comment` | First pass only | One PR-level comment holding every proposal, posted under "Non-inline findings still land on the PR" with component `design-pass`; nothing applied |
-| `--report` with a PR | First pass, then the final pass in Phase 6 when its trigger fires, as the tool-definition review re-reviews under `--report` | To the user only; nothing applied |
+| `--report` with a PR | First pass, then the final pass in Phase 6 when its trigger fires, then at most one offered extra pass, as the tool-definition review re-reviews under `--report` | To the user only; nothing applied |
 | `--report` without a PR, or local on `main` or a detached HEAD | First pass only | Listed in the report; nothing applied |
 | Local on a branch | First pass only (no Phase 6) | Triage as step 5 says; the summary lists each design fix triage applied |
 | `--inline`, `--fork` | Dimension 8 in this context or a fork | As in default, labelled "not cold" |
@@ -1608,9 +1632,26 @@ not dispatch.
    "Could not check" scope block coverage; name the missing check and next action.
 5. Keep each profile's audit SHA, review base, examined paths/dependencies and
    report separately from the general reviewed SHA. Security fixes invalidate
-   affected evidence: run the readiness check below before an unqualified verdict.
+   affected evidence: apply every triaged fix from a round and commit, then run
+   ONE re-audit of the affected profiles at the new head, and run the readiness
+   check below before an unqualified verdict. Newly reported findings never
+   invalidate coverage; fixes do. A finding the auditor marks as the uncovered
+   half of a known card stays in the ranked table and goes through triage like
+   any other; triage records it on that card.
    Stop owned processes and use security-audit step 8 for EACH checkout. Retain
    only needed probe evidence, naming its paths in the private record.
+6. **Stop after two one-mechanism rounds.** When two consecutive audit rounds
+   return only new edge cases of one mechanism (findings whose `Where:` lines
+   fall in the same function at the audit SHA and whose `Fix:` lines or fix
+   diffs touch the same guard), the next step is the cap, not another round.
+   Offer it to the user; under a delegated run, decide it with the model guide's
+   advisor and log the consult. Taking the cap means: commit this round's fixes;
+   run one covering re-audit of the affected profiles whose dispatch names the
+   class card in `Known cards:`; card the class with what a bounded fix would
+   need; start no further audit round for that mechanism. Coverage then reads
+   `capped` (below). A later fix inside the carded class records its SHA in that
+   state and starts no round; a fix outside the class re-audits its affected
+   profile as the readiness rule says.
 
 #### Modes and readiness
 
@@ -1632,14 +1673,18 @@ and consider profiles never audited. Start newly applicable profiles first.
 Then inspect changes since EACH existing profile's audit SHA and any base change
 against its examined paths and dependencies. Rerun only affected profiles at the
 new pinned head; reuse unaffected evidence with the inspected delta and reason.
-Security fixes invalidate affected coverage; unrelated polish does not. Repeat
-after any resulting fixes until coverage matches the current content.
+Security fixes invalidate affected coverage; unrelated polish does not. After a
+round's fixes, one re-audit of the affected profiles at the new head restores
+coverage; a fix inside a capped class records its SHA in the `capped` state
+instead (step 6).
 
 Report exactly one coverage state: `audited: <profiles, each SHA and base>`,
+`capped: <class card>, <profile> at <SHA>; fixes since: <SHAs or none>`,
 `not triggered: <inspected scope and reason>`, `skipped by request`, `not selected`,
 or `blocked: <reason and next action>`. Record reuse deltas privately. A required
 blocked audit withholds an unqualified merge-ready/ship verdict; an explicit skip
-is a disclosed waiver, and an `--only` run never claims full-pipeline readiness.
+is a disclosed waiver, a `capped` state is a disclosed cap stated with every
+readiness verdict, and an `--only` run never claims full-pipeline readiness.
 The coverage state goes in the chat report and the private record, never in PR
 text; private findings override every posting rule.
 
@@ -1846,8 +1891,9 @@ refuses the call once. Put that file in your scratchpad directory, or in
 Phase 6 also owns the **pre-merge delta review** (see the section above): before any
 merge-ready verdict, diff the current head against the reviewed SHA and
 dispatch a delta review if the difference is substantive, then run the design
-pass's final pass when its trigger fires and the tool-definition re-review (delta
-review step 6), then the security readiness check (step 7).
+pass's final pass when its trigger fires (or offer its one extra pass) and the
+tool-definition re-review (delta review step 6), then the security readiness
+check (step 7).
 
 ## Reporting
 
@@ -1864,12 +1910,12 @@ Ship check complete:
 - Code Quality: N findings, M fixed (conventions, readability)
 - Test Audit:   N findings, M fixed (test quality); K coverage gaps, J tests written
 - Bug Check:    N findings, M fixed (by dimension)
-- Design pass:  <one line per pass that ran: first | final; or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
+- Design pass:  <one line per pass that ran: first | final | extra (offered at <sha>, <decision>); or one line: skipped | not selected> at <DESIGN_HEAD, full> (merge base <DESIGN_BASE, full>) — N proposals (A needs design decision, B complex fix, C pre-existing gap), M applied by triage, missed files <list or "none"> <"not cold" for --inline/--fork>
 - Cuts:         <each piece the user cut this session, with file and reason, or "none">
 - Docs:         <path>[ (generated)] <base line count> → <head line count> lines (+<added>/−<removed>); … at <head SHA, full> (merge base <full SHA>) | none changed
 - Growth:       <the script JSON's `line`> at <head SHA, full> (merge base <full SHA>) | error: <message> | not computed (untrusted checkout)
 - Tool Definitions: <complete | partial | failed | not dispatched: reason | skipped | not selected> — N reviews in <first file's name>, P lines proofread in M files at <HEAD_SHA, full> (merge base <MERGE_BASE, full>), K defects, J unintended changes <"not cold" for --inline/--fork; "re-review since <SHA>" for a re-review>; when present: classes: <name> (<tool>): <test>[ — swept at <HEAD_SHA read> (merge base <MERGE_BASE>)] | …; re-review round <n>; accepted unreviewed: <tools> at <SHA>
-- Security audit: <audited: profiles, per-profile SHA/base | not triggered: inspected scope and reason | skipped by request | not selected | blocked: reason and next action>
+- Security audit: <audited: profiles, per-profile SHA/base | capped: class card, profile at SHA; fixes since | not triggered: inspected scope and reason | skipped by request | not selected | blocked: reason and next action>
 - Verification: <ran at <headRefOid> (image <digest>, run <id>) | local probes at <headRefOid> | current (<headRefOid>) | stale since <Head> | no profile | profile unreadable | no artifact change | exempt (<classes>) | artifact change (<n> files) | local change (<n> files) | needs the maintainer's live test | blocked (<reason>) | skipped | not selected>
 - Triage:       N flagged findings triaged across all phases — M fixed, J dismissed, K deferred (L pre-existing gaps, U unevidenced or low-cost)
 - Pushed:       <head SHA from "Push the fixes", or "not pushed: <reason>">
@@ -1927,7 +1973,7 @@ functions; it decides nothing: the design pass judges each one as code
 (code-quality dimension 8).
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it on each
-finding it deferred, from a phase, a delta review, a design pass or the
+flagged finding, from a phase, a delta review, a design pass or the
 tool-definition or security review, as the finding occurred. Before declaring the verdict,
 re-list each finding still deferred with its flag category. Ask for a decision on each one the user has not yet
 decided, except:
@@ -1972,7 +2018,7 @@ Ship check complete (comment mode):
 ```
 
 Do not run `triage-finding` again here: inter-phase triage step 5 ran it in comment
-mode on each finding it deferred and posted every non-security result but a
+mode on each flagged finding and posted every non-security result but a
 `Pending` one on the PR. Security findings remain private. List the findings still
 deferred in this report with their flag category, and
 ask no question about them: in comment mode, findings reach the user through the PR

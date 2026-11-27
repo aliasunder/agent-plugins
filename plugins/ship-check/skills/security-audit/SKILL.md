@@ -161,8 +161,8 @@ Scratch: <this auditor's probe directory path from step 2>
 Known advisories:
 <one line per advisory: GHSA ID | state | severity | summary, or the error text from step 3>
 Known cards:
-<one line per card: ^block-id — description, or "none">
-Project context: <supplied security contracts, grants and known-issue details | none supplied>
+<one line per card: ^block-id — description, or "none"; a class card a cap recorded (ship-check's Security audit step 6) is one of them>
+Project context: <supplied security contracts, grants and known-issue details | none supplied; describe the surface, never a search for the next case of a mechanism already reported or carded>
 Other auditor's scope: <other profile and selected surface | no parallel auditor; unaudited: other profile and surfaces>
 Audit your profile of this repository per your preloaded repo-security-review skill.
 Reproduce only against processes you start from the audit checkout on 127.0.0.1.
@@ -177,7 +177,8 @@ When every selected auditor has returned:
    entry with the strongest evidence and name every source.
 2. Dedupe against the known issues. A finding an auditor marked `Duplicate of`
    stays out of the ranked table; list it under the table with its ID. A finding
-   marked as the uncovered half of a known item stays in the table.
+   marked as the uncovered half of a known item stays in the table and goes to
+   triage like any other finding; triage records it on the known card.
 3. **Spot-check every High or Critical finding yourself before you present it.**
    Open each `file:line` in the audit checkout and confirm the code does what
    the finding says. Read the auditor's probe script in its scratch directory,
