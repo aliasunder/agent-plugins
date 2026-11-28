@@ -1589,13 +1589,17 @@ Comment and local/report runs use the same position without pushing. Ordinary pr
 #### Select profiles from changed behavior
 
 Inspect the full review range and relevant call paths, including configuration
-and dependencies. Filenames alone never select or exempt a profile.
+and dependencies. Filenames alone never select or exempt a profile. Identify
+who or what can reach each affected path and what authority, resources, consent
+or provenance the path uses or protects. An application can enforce a distinct
+grant or protect trusted state even when every process runs under the same OS user.
 
 | Changed behavior | Profiles |
 |---|---|
 | Authentication, token/session flows, unauthenticated handlers, network exposure, proxy/origin trust | `access` |
-| Authorization, scopes/isolation, file/command handling, hostile structured input | `data`; also `access` when callers without credentials reach it |
+| Changes affecting authorization, scope or isolation, or a trust or authority boundary for file operations, command execution or structured input | `data`; also `access` when callers without credentials reach it through an `access` surface |
 | Credentials, cryptography, security-relevant configuration | Select from actual reachability and the protected grant. |
+| Local command or file handling that only protects or changes defaults for trusted callers acting with their existing authority | None when the change leaves grants, consent, protected provenance and input trust boundaries intact. |
 | Docs, comments, cosmetic or test-only changes with no runtime security change | None solely because a security filename appears. |
 
 For each selected profile, name the complete security paths and dependencies to
